@@ -81,7 +81,7 @@ export default async function EspaceMembresPage() {
       </div>
 
       {/* Pending validation */}
-      {!profile?.validated && profile?.role !== "admin" && (
+      {!profile?.validated && profile?.role !== "admin" && !profile?.groups?.includes("support") && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5 flex gap-3">
           <span className="text-2xl flex-shrink-0">⏳</span>
           <div>

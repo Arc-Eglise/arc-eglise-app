@@ -15,7 +15,9 @@ async function requireAdminOrPasteur() {
 
 export async function updateMemberGroups(memberId: string, groups: string[]) {
   const { supabase } = await requireAdminOrPasteur();
-  const { error } = await supabase.from("profiles").update({ groups }).eq("id", memberId);
+  const updateData: { groups: string[]; validated?: boolean } = { groups };
+  if (groups.includes("support")) updateData.validated = true;
+  const { error } = await supabase.from("profiles").update(updateData).eq("id", memberId);
   if (error) return { error: error.message };
   revalidatePath(`/admin/crm/${memberId}`);
   revalidatePath("/admin/crm");

@@ -29,7 +29,7 @@ export default async function PrierePage() {
   const prayers = (rawPrayers ?? []) as PrayerWithProfile[];
   const active   = prayers.filter((p) => !p.is_answered);
   const answered = prayers.filter((p) =>  p.is_answered);
-  const canPost  = profile?.validated || ["admin", "pasteur"].includes(profile?.role ?? "");
+  const canPost  = profile?.validated || ["admin", "pasteur"].includes(profile?.role ?? "") || profile?.groups?.includes("support");
 
   async function handleCreate(formData: FormData): Promise<void> {
     "use server";
