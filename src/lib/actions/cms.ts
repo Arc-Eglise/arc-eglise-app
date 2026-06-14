@@ -1,7 +1,19 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+
+async function uploadToStorage(bucket: string, path: string, file: File) {
+  const admin = createAdminClient();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { error } = await admin.storage
+    .from(bucket)
+    .upload(path, buffer, { contentType: file.type, upsert: true });
+  if (error) return null;
+  const { data } = admin.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
 
 async function getCmsUser() {
   const supabase = createClient();
@@ -126,12 +138,20 @@ export async function createTeamMember(formData: FormData) {
   const { supabase, profile } = await getCmsUser();
   if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
 
+  let avatar_url: string | null = null;
+  const photo = formData.get("photo") as File | null;
+  if (photo && photo.size > 0) {
+    const ext = photo.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    avatar_url = await uploadToStorage("team-photos", `team-${Date.now()}.${ext}`, photo);
+  }
+
   const { error } = await supabase.from("team_members").insert({
     name:       formData.get("name")       as string,
     role_label: formData.get("role_label") as string,
     bio:        formData.get("bio")        as string || null,
-    initials:   formData.get("initials")   as string,
-    sort_order: Number(formData.get("sort_order") ?? 0),
+    initials:   (formData.get("initials") as string).toUpperCase(),
+    sort_order: Number(formData.get("sort_order") ?? 5),
+    avatar_url,
   });
 
   if (error) return { error: error.message };
@@ -180,5 +200,26 @@ export async function rejectMember(memberId: string) {
 
   if (error) return { error: error.message };
   revalidatePath("/admin/membres");
+  return { success: true };
+}
+
+// ── AVATAR MEMBRE ───────────────────────────────────────────────
+
+export async function uploadMemberAvatar(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const photo = formData.get("avatar") as File | null;
+  if (!photo || photo.size === 0) return { error: "Aucun fichier sélectionné" };
+  if (photo.size > 2 * 1024 * 1024) return { error: "Fichier trop grand (max 2 Mo)" };
+
+  const ext = photo.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const publicUrl = await uploadToStorage("media", `avatars/${user.id}.${ext}`, photo);
+  if (!publicUrl) return { error: "Erreur lors de l'upload" };
+
+  await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+
+  revalidatePath("/espace-membres");
   return { success: true };
 }

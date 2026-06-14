@@ -62,7 +62,13 @@ export default async function AdminEquipe() {
         {/* Formulaire */}
         <div className="bg-white rounded-2xl border border-arc-border p-5 self-start">
           <h2 className="font-bold text-arc-navy mb-4">Ajouter un membre</h2>
-          <form action={handleCreate} className="flex flex-col gap-3">
+          <form action={handleCreate} encType="multipart/form-data" className="flex flex-col gap-3">
+
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-1">Photo</label>
+              <input name="photo" type="file" accept="image/*" className="w-full text-sm text-arc-text2 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-arc-blueBg file:text-arc-navy hover:file:bg-arc-bluePale cursor-pointer" />
+              <p className="text-[10px] text-arc-text3 mt-0.5">JPG, PNG, WebP — max 5 Mo</p>
+            </div>
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-1">Nom complet *</label>

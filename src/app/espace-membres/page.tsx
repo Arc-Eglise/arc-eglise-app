@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { uploadMemberAvatar } from "@/lib/actions/cms";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import AvatarUpload from "@/components/membres/AvatarUpload";
 
 export default async function EspaceMembresPage() {
   const supabase = createClient();
@@ -10,9 +12,14 @@ export default async function EspaceMembresPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("first_name, last_name, email, role, validated, groups")
+    .select("first_name, last_name, email, role, validated, groups, avatar_url")
     .eq("id", user.id)
     .single();
+
+  async function handleAvatarUpload(formData: FormData): Promise<void> {
+    "use server";
+    await uploadMemberAvatar(formData);
+  }
 
   const displayName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email
@@ -50,18 +57,27 @@ export default async function EspaceMembresPage() {
       <main className="max-w-8xl mx-auto px-5 md:px-10 py-10">
 
         {/* Welcome */}
-        <div className="mb-8">
-          <h1 className="font-serif text-3xl font-bold text-arc-navy mb-1">
-            Bienvenue, {profile?.first_name ?? "ami(e)"} 👋
-          </h1>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-arc-text2">Statut :</span>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-arc-blueBg text-arc-navy border border-arc-bluePale">
-              {roleLabels[profile?.role ?? "visiteur"]}
-            </span>
-            {!profile?.validated && (
-              <span className="text-xs text-arc-text3">— En attente de validation par le Pasteur</span>
-            )}
+        <div className="mb-8 flex items-start gap-5">
+          {/* Avatar */}
+          <AvatarUpload
+            currentUrl={profile?.avatar_url ?? null}
+            initiale={(profile?.first_name?.[0] ?? user.email?.[0] ?? "?").toUpperCase()}
+            action={handleAvatarUpload}
+          />
+
+          <div>
+            <h1 className="font-serif text-3xl font-bold text-arc-navy mb-1">
+              Bienvenue, {profile?.first_name ?? "ami(e)"} 👋
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-arc-text2">Statut :</span>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-arc-blueBg text-arc-navy border border-arc-bluePale">
+                {roleLabels[profile?.role ?? "visiteur"]}
+              </span>
+              {!profile?.validated && (
+                <span className="text-xs text-arc-text3">— En attente de validation par le Pasteur</span>
+              )}
+            </div>
           </div>
         </div>
 
