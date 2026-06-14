@@ -40,12 +40,12 @@ export default async function EspaceMembresPage() {
   const initiale = (profile?.first_name?.[0] ?? user.email?.[0] ?? "?").toUpperCase();
 
   const tiles = [
-    { icon: "👥", label: "Annuaire",   href: "/espace-membres/annuaire",  active: true },
-    { icon: "📅", label: "Agenda",     href: "/espace-membres/agenda",    active: true },
-    { icon: "🙏", label: "Prière",     href: "/espace-membres/priere",    active: true },
-    { icon: "📺", label: "Streaming",  href: "/espace-membres/streaming", active: true },
-    { icon: "👤", label: "Mon profil", href: "/espace-membres/profil",    active: true },
-    { icon: "💬", label: "Messagerie", href: "#", active: false },
+    { icon: "👥", label: "Annuaire",   href: "/espace-membres/annuaire",   active: true },
+    { icon: "📅", label: "Agenda",     href: "/espace-membres/agenda",     active: true },
+    { icon: "💬", label: "Messagerie", href: "/espace-membres/messagerie", active: true },
+    { icon: "🙏", label: "Prière",     href: "/espace-membres/priere",     active: true },
+    { icon: "📺", label: "Streaming",  href: "/espace-membres/streaming",  active: true },
+    { icon: "👤", label: "Mon profil", href: "/espace-membres/profil",     active: true },
     { icon: "📖", label: "Bible",      href: "#", active: false },
     { icon: "🎵", label: "Chorale",    href: "#", active: false },
   ];
