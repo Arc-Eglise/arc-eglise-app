@@ -937,6 +937,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
                 {/* ── Thread panel ── */}
                 {openThread && (
+                  <div className="em-thread-backdrop" onClick={()=>setOpenThread(null)} />
+                )}
+                {openThread && (
                   <div className="em-thread-panel">
                     <div className="em-thread-hdr">
                       <span>↩ Fil de discussion</span>
