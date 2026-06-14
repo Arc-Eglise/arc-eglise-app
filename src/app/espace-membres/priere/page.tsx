@@ -20,7 +20,7 @@ export default async function PrierePage() {
   if (!user) redirect("/connexion");
 
   const [{ data: profile }, { data: rawPrayers }] = await Promise.all([
-    supabase.from("profiles").select("validated, role").eq("id", user.id).single(),
+    supabase.from("profiles").select("validated, role, groups").eq("id", user.id).single(),
     supabase.from("prayer_requests")
       .select("*, profiles(first_name, last_name)")
       .order("created_at", { ascending: false }),

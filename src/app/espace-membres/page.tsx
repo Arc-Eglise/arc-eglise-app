@@ -46,7 +46,7 @@ export default async function EspaceMembresPage() {
     { icon: "🙏", label: "Prière",     href: "/espace-membres/priere",     active: true },
     { icon: "📺", label: "Streaming",  href: "/espace-membres/streaming",  active: true },
     { icon: "👤", label: "Mon profil", href: "/espace-membres/profil",     active: true },
-    { icon: "📖", label: "Bible",      href: "#", active: false },
+    { icon: "📖", label: "Bible",      href: "/espace-membres/bible", active: true },
     { icon: "🎵", label: "Chorale",    href: "#", active: false },
   ];
 

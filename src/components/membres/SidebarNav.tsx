@@ -10,6 +10,7 @@ const navItems = [
   { href: "/espace-membres/messagerie",  label: "Messages",   icon: "💬" },
   { href: "/espace-membres/priere",      label: "Prière",     icon: "🙏" },
   { href: "/espace-membres/streaming",   label: "Streaming",  icon: "📺" },
+  { href: "/espace-membres/bible",       label: "Bible",      icon: "📖" },
 ];
 
 const sidebarExtra = [
