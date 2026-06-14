@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE = "https://api.scripture.api.bible/v1";
+const BASE = process.env.BIBLE_API_BASE ?? "https://api.scripture.api.bible/v1";
 
 export async function GET(req: NextRequest) {
   const key = process.env.BIBLE_API_KEY;

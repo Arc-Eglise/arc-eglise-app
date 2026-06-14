@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveBibleNote, deleteBibleNote, saveBookmark, removeBookmark, saveProgress } from "@/lib/actions/bible";
 
-type Version  = { id: string; name: string; abbr: string };
+type Version  = { id: string; name: string; abbr: string; language?: string };
 type Book     = { id: string; name: string; chapters?: { id: string; number: string }[] };
 type Chapter  = { id: string; reference: string; content: string; bibleId: string; next?: { id: string } | null; previous?: { id: string } | null };
 type Note     = { id: string; verse_ref: string; verse_text: string | null; note: string; updated_at: string };
@@ -180,14 +180,23 @@ export default function BibleReader({ defaultBibleId, versions, books, initialCh
       <div className="bg-white border border-arc-border rounded-2xl p-3 mb-4 flex flex-wrap gap-2 items-center">
 
         {/* Bible version */}
-        {versions.length > 1 && (
+        {versions.length > 0 && (
           <select
             value={bibleId}
             onChange={e => handleVersionChange(e.target.value)}
-            className="text-xs font-bold text-arc-navy border border-arc-border rounded-lg px-2 py-1.5 bg-arc-bg focus:outline-none"
+            className="text-xs font-bold text-arc-navy border border-arc-border rounded-lg px-2 py-1.5 bg-arc-bg focus:outline-none max-w-[160px]"
           >
-            {versions.map(v => (
-              <option key={v.id} value={v.id}>{v.abbr || v.name}</option>
+            {Object.entries(
+              versions.reduce((acc, v) => {
+                const lang = v.language ?? "Autre";
+                if (!acc[lang]) acc[lang] = [];
+                acc[lang].push(v);
+                return acc;
+              }, {} as Record<string, Version[]>)
+            ).map(([lang, vs]) => (
+              <optgroup key={lang} label={lang}>
+                {vs.map(v => <option key={v.id} value={v.id}>{v.abbr} — {v.name.slice(0, 30)}</option>)}
+              </optgroup>
             ))}
           </select>
         )}

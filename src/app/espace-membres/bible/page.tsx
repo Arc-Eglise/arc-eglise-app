@@ -25,9 +25,9 @@ export default async function BiblePage() {
   const activeChapter = progress?.chapter_id ?? "GEN.1";
 
   const [versionsRes, booksRes, chapterRes, notesRes, bookmarksRes] = await Promise.all([
-    // Bible versions (French)
+    // All available Bible versions (sorted by priority language)
     configured
-      ? fetch(`${BASE}/bibles?language=fra`, { headers, next: { revalidate: 86400 } }).then(r => r.ok ? r.json() : { data: [] })
+      ? fetch(`${BASE}/bibles`, { headers, next: { revalidate: 86400 } }).then(r => r.ok ? r.json() : { data: [] })
       : Promise.resolve({ data: [] }),
 
     // Books list
@@ -54,11 +54,23 @@ export default async function BiblePage() {
       .eq("user_id", user.id),
   ]);
 
-  const versions = (versionsRes.data ?? []).map((b: { id: string; name: string; abbreviationLocal: string }) => ({
-    id:   b.id,
-    name: b.name,
-    abbr: b.abbreviationLocal || b.name.split(" ").map((w: string) => w[0]).join(""),
-  }));
+  const PRIORITY_LANGS = ["French", "Lingala", "English", "Spanish", "Portuguese", "Arabic", "German", "Italian", "Dutch"];
+
+  const versions = (versionsRes.data ?? [])
+    .map((b: { id: string; name: string; abbreviationLocal?: string; abbreviation?: string; language?: { name?: string } }) => ({
+      id:       b.id,
+      name:     b.name,
+      abbr:     b.abbreviationLocal || b.abbreviation || "",
+      language: b.language?.name ?? "Other",
+    }))
+    .sort((a: { language: string; name: string }, b: { language: string; name: string }) => {
+      const ai = PRIORITY_LANGS.findIndex(l => a.language.toLowerCase().includes(l.toLowerCase()));
+      const bi = PRIORITY_LANGS.findIndex(l => b.language.toLowerCase().includes(l.toLowerCase()));
+      const ap = ai === -1 ? 99 : ai;
+      const bp = bi === -1 ? 99 : bi;
+      if (ap !== bp) return ap - bp;
+      return a.name.localeCompare(b.name);
+    });
 
   const books    = booksRes.data    ?? [];
   const chapter  = chapterRes.data  ?? null;
