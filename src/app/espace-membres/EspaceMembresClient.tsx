@@ -53,33 +53,81 @@ const TRANS = [
   {code:"fob",label:"Français Courant"},{code:"kjv",label:"King James Version"},
   {code:"bbe",label:"Bible Basic English"},{code:"niv",label:"NIV"},{code:"esv",label:"ESV"},
 ];
-const VERSET = { text:"Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.", ref:"Jean 3:16" };
+const DAILY_VERSES = [
+  {text:"Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.",ref:"Jean 3:16"},
+  {text:"Je suis le chemin, la vérité et la vie. Nul ne vient au Père que par moi.",ref:"Jean 14:6"},
+  {text:"Toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein.",ref:"Romains 8:28"},
+  {text:"Je puis tout par celui qui me fortifie.",ref:"Philippiens 4:13"},
+  {text:"L'Éternel est mon berger : je ne manquerai de rien.",ref:"Psaume 23:1"},
+  {text:"Ayez confiance en l'Éternel de tout votre cœur, et ne vous appuyez pas sur votre intelligence.",ref:"Proverbes 3:5"},
+  {text:"C'est par la grâce que vous êtes sauvés, par le moyen de la foi. Et cela ne vient pas de vous, c'est le don de Dieu.",ref:"Éphésiens 2:8"},
+  {text:"Venez à moi, vous tous qui êtes fatigués et chargés, et je vous donnerai du repos.",ref:"Matthieu 11:28"},
+  {text:"Que la paix de Dieu, qui surpasse toute intelligence, garde vos cœurs et vos pensées en Jésus-Christ.",ref:"Philippiens 4:7"},
+  {text:"Cherchez premièrement le royaume et la justice de Dieu ; et toutes ces choses vous seront données par-dessus.",ref:"Matthieu 6:33"},
+  {text:"Si nous confessons nos péchés, il est fidèle et juste pour nous les pardonner et pour nous purifier.",ref:"1 Jean 1:9"},
+  {text:"L'Éternel est ma lumière et mon salut : de qui aurais-je crainte ?",ref:"Psaume 27:1"},
+  {text:"Car je connais les projets que j'ai formés sur vous : projets de paix et non de malheur, afin de vous donner un avenir et de l'espérance.",ref:"Jérémie 29:11"},
+  {text:"Ne crains point, car je suis avec toi ; ne promène pas des regards inquiets, car je suis ton Dieu.",ref:"Ésaïe 41:10"},
+  {text:"Que votre lumière luise ainsi devant les hommes, afin qu'ils voient vos bonnes œuvres et glorifient votre Père.",ref:"Matthieu 5:16"},
+  {text:"Il donne de la force à celui qui est fatigué, et il augmente la vigueur de celui qui est sans forces.",ref:"Ésaïe 40:29"},
+  {text:"Dieu est notre refuge et notre force, un secours qui ne manque jamais dans la détresse.",ref:"Psaume 46:2"},
+  {text:"L'amour est patient, il est plein de bonté ; l'amour n'est point envieux, il ne se vante point.",ref:"1 Corinthiens 13:4"},
+  {text:"Soyez forts et courageux ! Ne soyez pas effrayés, car l'Éternel ton Dieu est avec toi dans tout ce que tu entreprendras.",ref:"Josué 1:9"},
+  {text:"Réjouissez-vous toujours dans le Seigneur ; je le répète, réjouissez-vous.",ref:"Philippiens 4:4"},
+  {text:"Toute l'Écriture est inspirée de Dieu et utile pour enseigner, pour convaincre, pour corriger, pour instruire dans la justice.",ref:"2 Timothée 3:16"},
+  {text:"Tu aimeras le Seigneur ton Dieu de tout ton cœur, de toute ton âme et de toute ta pensée.",ref:"Matthieu 22:37"},
+  {text:"La foi est une ferme assurance des choses qu'on espère, une démonstration de celles qu'on ne voit pas.",ref:"Hébreux 11:1"},
+  {text:"L'Éternel te gardera de tout mal ; il gardera ton âme.",ref:"Psaume 121:7"},
+  {text:"Celui qui demeure sous l'abri du Très-Haut repose à l'ombre du Tout-Puissant.",ref:"Psaume 91:1"},
+  {text:"Moi, je suis la résurrection et la vie. Celui qui croit en moi vivra, quand même il serait mort.",ref:"Jean 11:25"},
+  {text:"Car nous sommes son ouvrage, ayant été créés en Jésus-Christ pour de bonnes œuvres.",ref:"Éphésiens 2:10"},
+  {text:"Remets ton sort à l'Éternel, mets en lui ta confiance, et il agira.",ref:"Psaume 37:5"},
+  {text:"Je te loue de ce que je suis une créature si merveilleuse. Tes œuvres sont admirables.",ref:"Psaume 139:14"},
+  {text:"Heureux les artisans de paix, car ils seront appelés fils de Dieu.",ref:"Matthieu 5:9"},
+];
+const _dow = new Date();
+const _doy = Math.floor((_dow.getTime() - new Date(_dow.getFullYear(),0,0).getTime())/86400000);
+const VERSET = DAILY_VERSES[_doy % DAILY_VERSES.length];
 const PLAN_LECTURE = [
   {ref:"Genèse 1-2",done:true},{ref:"Genèse 3-4",done:true},{ref:"Psaume 1-5",done:true},
   {ref:"Matthieu 1-4",done:false},{ref:"Jean 1-3",done:false},{ref:"Romains 1-3",done:false},
 ];
 const THEO_CATS = [
   { id:"conf", title:"Confessions de Foi", icon:"📜", items:[
-    {id:"westminster",title:"Confession de Westminster (1646)",sub:"Document fondateur du calvinisme presbytérien"},
-    {id:"heidelberg",title:"Catéchisme de Heidelberg (1563)",sub:"129 questions sur la foi réformée"},
-    {id:"nicee",title:"Credo de Nicée (381 ap. J.-C.)",sub:"Le symbole de foi œcuménique universel"},
-    {id:"apostles",title:"Symbole des Apôtres",sub:"Résumé fondamental de la foi chrétienne"},
+    {id:"westminster",title:"Confession de Westminster (1646)",sub:"Document fondateur du calvinisme presbytérien",
+     content:"Rédigée par 121 théologiens à l'abbaye de Westminster (1643-1649), cette confession définit avec précision les doctrines calvinistes : souveraineté absolue de Dieu, prédestination, autorité unique des Écritures (Sola Scriptura), justification par la foi seule. Structurée en 33 chapitres (de la Sainte Écriture à la résurrection des morts), elle reste la confession de foi de référence de nombreuses Églises presbytériennes et réformées dans le monde. Son catéchisme abrégé — « Quel est le but principal de l'homme ? Glorifier Dieu et jouir de lui pour toujours » — est l'une des plus belles formulations de la foi réformée."},
+    {id:"heidelberg",title:"Catéchisme de Heidelberg (1563)",sub:"129 questions sur la foi réformée",
+     content:"Composé en 1563 à Heidelberg à la demande du prince Frédéric III, ce catéchisme est organisé en 129 questions-réponses réparties sur 52 dimanches. Trois parties : la misère de l'homme (péché), la délivrance (salut par Christ), la gratitude (vie chrétienne). Sa première question est célèbre : « Quelle est ta seule assurance dans la vie et dans la mort ? C'est que j'appartiens en corps et en âme, non à moi-même, mais à mon fidèle Sauveur Jésus-Christ. » Son ton pastoral et personnel — à la différence du style juridique de Westminster — en fait un outil précieux pour l'instruction des nouveaux croyants et les catéchumènes."},
+    {id:"nicee",title:"Credo de Nicée (381 ap. J.-C.)",sub:"Le symbole de foi œcuménique universel",
+     content:"Issu du Concile de Nicée (325) puis complété à Constantinople (381), ce credo est la confession de foi la plus universellement reconnue du christianisme. Il affirme la pleine divinité du Fils — « consubstantiel au Père » (homoousios) — contre l'arianisme qui en faisait une créature. Il confesse également la divinité du Saint-Esprit, « Seigneur et vivificateur, qui procède du Père ». Récité dans les liturgies catholiques, orthodoxes et protestantes, il constitue le fondement doctrinal commun du christianisme trinitaire et l'expression la plus consensuelle de la foi des Pères de l'Église."},
+    {id:"apostles",title:"Symbole des Apôtres",sub:"Résumé fondamental de la foi chrétienne",
+     content:"Le Symbole des Apôtres est la confession de foi la plus ancienne du christianisme occidental, dont l'origine remonte au IIe siècle comme formule baptismale à Rome. Ses douze articles résument la foi trinitaire : création par le Père tout-puissant ; incarnation, mort, résurrection et retour du Fils ; œuvre du Saint-Esprit dans l'Église, la communion des saints, le pardon des péchés, la résurrection des corps et la vie éternelle. Plus bref que le Credo de Nicée, il est l'outil catéchétique le plus utilisé dans les cultes chrétiens protestants depuis la Réformation."},
   ]},
   { id:"doct", title:"Doctrines Fondamentales", icon:"⛪", items:[
-    {id:"trinite",title:"La Trinité — Père, Fils, Saint-Esprit",sub:"Doctrine centrale du christianisme orthodoxe"},
-    {id:"salvation",title:"La Sotériologie — Doctrine du Salut",sub:"Grâce, foi, justification, sanctification"},
-    {id:"eschat",title:"L'Eschatologie — Les Dernières Choses",sub:"Résurrection, jugement, cieux, enfer"},
-    {id:"eccles",title:"L'Ecclésiologie — Doctrine de l'Église",sub:"Nature, mission et gouvernement de l'Église"},
+    {id:"trinite",title:"La Trinité — Père, Fils, Saint-Esprit",sub:"Doctrine centrale du christianisme orthodoxe",
+     content:"La Trinité affirme qu'il n'existe qu'un seul Dieu en trois personnes distinctes et coéternelles : Père, Fils et Saint-Esprit. Ce n'est ni trois dieux (trithéisme), ni un Dieu changeant de forme (modalisme), mais une seule essence divine (ousia) en trois hypostases. Bibliquement : le Père crée (Genèse 1), le Fils est le Verbe incarné qui rachète (Jean 1:1-14), l'Esprit habite et sanctifie (1 Corinthiens 3:16). La formule trinitaire apparaît dans la Grande Commission (Matthieu 28:19) et la bénédiction apostolique (2 Corinthiens 13:13). Cette doctrine, définie aux Conciles de Nicée (325) et Constantinople (381), est le cœur du christianisme orthodoxe."},
+    {id:"salvation",title:"La Sotériologie — Doctrine du Salut",sub:"Grâce, foi, justification, sanctification",
+     content:"La sotériologie est l'étude du salut. Dans la tradition réformée, le salut suit la chaîne logique de Romains 8:30 : Dieu prescient → prédestine → appelle (vocation efficace) → justifie → glorifie. La justification est la déclaration judiciaire par laquelle Dieu déclare le pécheur juste, non en raison de ses mérites, mais par l'imputation de la justice de Christ reçue par la foi (Romains 3:21-26). La régénération est l'œuvre souveraine du Saint-Esprit (Jean 3:3-8). La sanctification est le processus progressif de transformation à l'image de Christ (2 Corinthiens 3:18). La glorification est la consommation eschatologique de ce salut au retour du Christ."},
+    {id:"eschat",title:"L'Eschatologie — Les Dernières Choses",sub:"Résurrection, jugement, cieux, enfer",
+     content:"L'eschatologie traite des événements de la fin des temps. Points fondamentaux : (1) La mort et l'état intermédiaire — les croyants sont « avec Christ » (Philippiens 1:23), les incroyants en attente du jugement. (2) Le retour personnel, visible et glorieux de Christ (Actes 1:11 ; Matthieu 24:30). (3) La résurrection corporelle de tous les morts (Jean 5:28-29 ; 1 Corinthiens 15). (4) Le Jugement dernier devant le trône de Dieu (Apocalypse 20:11-15). (5) La nouvelle création — nouveaux cieux et nouvelle terre où demeure la justice (Apocalypse 21 ; 2 Pierre 3:13). Les positions millénaristes varient mais l'Église confesse universellement : le retour de Christ et la vie éternelle."},
+    {id:"eccles",title:"L'Ecclésiologie — Doctrine de l'Église",sub:"Nature, mission et gouvernement de l'Église",
+     content:"L'Ecclésiologie définit ce qu'est l'Église (ekklesia = assemblée appelée). Les quatre marques du Credo de Nicée : Une (corps unique de Christ, Éphésiens 4:4), Sainte (séparée pour Dieu), Catholique (universelle, transcendant cultures et temps), Apostolique (fondée sur le témoignage des apôtres, Éphésiens 2:20). Les deux marques de la Réformation : prédication fidèle de la Parole et administration correcte des sacrements (baptême et Cène). La mission de l'Église : proclamer l'Évangile (Matthieu 28:19-20), édifier les croyants (Éphésiens 4:12), servir le prochain (Jacques 1:27) et glorifier Dieu dans toute la création."},
   ]},
   { id:"herm", title:"Herméneutique & Exégèse", icon:"🔍", items:[
-    {id:"herm1",title:"Principes d'Interprétation Biblique",sub:"Méthodes grammatico-historiques et contextuelles"},
-    {id:"types",title:"Typologies et Figures Prophétiques",sub:"L'AT préfigurant le NT"},
-    {id:"genres",title:"Genres Littéraires de la Bible",sub:"Poésie, prophétie, apocalyptique, épître"},
+    {id:"herm1",title:"Principes d'Interprétation Biblique",sub:"Méthodes grammatico-historiques et contextuelles",
+     content:"L'herméneutique biblique est la science de l'interprétation des Écritures. Principes fondamentaux : (1) Grammatico-historique — comprendre le sens selon la grammaire originale (hébreu/araméen/grec) et le contexte historique de l'auteur humain. (2) L'Écriture interprète l'Écriture — les passages obscurs s'éclairent par les passages clairs. (3) Progressivité de la révélation — l'AT annonce, le NT accomplit et révèle pleinement. (4) Contexte littéraire — verset → paragraphe → livre → canon. (5) Genre littéraire — lire la poésie comme poésie, l'apocalyptique comme apocalyptique. (6) Intention de l'auteur — chercher ce que Dieu a voulu communiquer, pas ce que nous projetons sur le texte."},
+    {id:"types",title:"Typologies et Figures Prophétiques",sub:"L'AT préfigurant le NT",
+     content:"La typologie étudie les types bibliques — personnes, événements ou institutions de l'AT qui préfigurent des réalités du NT voulues par Dieu. Exemples : Adam est type de Christ (Romains 5:14) ; le sacrifice de l'agneau pascal préfigure le Christ, notre Pâque (1 Corinthiens 5:7) ; le grand prêtre préfigure Christ comme intercesseur unique (Hébreux 4:14-16) ; le temple préfigure le corps de Christ et les croyants comme temple de l'Esprit (Jean 2:21 ; 1 Corinthiens 6:19). Cette méthode, utilisée par Jésus lui-même (Luc 24:27) et les apôtres, montre l'unité organique des deux Testaments et la cohérence du plan de rédemption divin."},
+    {id:"genres",title:"Genres Littéraires de la Bible",sub:"Poésie, prophétie, apocalyptique, épître",
+     content:"La Bible contient plusieurs genres littéraires, chacun avec ses règles d'interprétation propres. (1) Narratif historique (Genèse–Actes) — récit avec visée théologique, ne pas surcharger les détails. (2) Poésie hébraïque (Psaumes, Proverbes, Cantique) — parallélisme synonymique, antithétique, synthétique ; images et métaphores ne sont pas à prendre au pied de la lettre. (3) Prophétique (Ésaïe–Malachie) — annonce conditionnelle ou inconditionnelle, accomplie ou à venir. (4) Apocalyptique (Daniel, Apocalypse) — visions symboliques décrivant des réalités célestes et eschatologiques ; nécessite de décoder les symboles dans le contexte canonique. (5) Épître (Paul, Pierre, Jean) — instruction doctrinale et pratique pour des contextes précis. (6) Sagesse (Job, Ecclésiaste) — réflexion sur la souffrance et la limite de la sagesse humaine."},
   ]},
   { id:"hist", title:"Histoire de l'Église", icon:"🏛️", items:[
-    {id:"peres",title:"Les Pères de l'Église (I–IV siècle)",sub:"Irénée, Tertullien, Origène, Augustin..."},
-    {id:"reform",title:"La Réformation (XVI siècle)",sub:"Luther, Calvin, Zwingli et leurs contributions"},
-    {id:"missions",title:"L'Ère Missionnaire (XIX–XX siècle)",sub:"William Carey, Hudson Taylor, missions en Afrique"},
+    {id:"peres",title:"Les Pères de l'Église (I–IV siècle)",sub:"Irénée, Tertullien, Origène, Augustin...",
+     content:"Les Pères de l'Église sont les théologiens et évêques qui ont défini et défendu la foi chrétienne aux premiers siècles. Ignace d'Antioche (†107) — l'eucharistie et l'unité de l'Église. Justin Martyr (†165) — premier apologiste, dialogue avec la philosophie grecque. Irénée de Lyon (†202) — combat le gnosticisme, défend l'unité des deux Testaments. Tertullien (†220) — forge le vocabulaire trinitaire latin (« Trinitas », « persona »). Athanase d'Alexandrie (†373) — défend la divinité du Christ contre l'arianisme : « Athanase contre le monde ». Augustin d'Hippone (354-430) — le plus influent : grâce souveraine, prédestination, Cité de Dieu, péché originel. Leurs écrits restent des ressources majeures pour la théologie contemporaine."},
+    {id:"reform",title:"La Réformation (XVI siècle)",sub:"Luther, Calvin, Zwingli et leurs contributions",
+     content:"La Réformation protestante est l'une des ruptures les plus importantes de l'histoire chrétienne. Martin Luther (1483-1546) affiche ses 95 thèses en 1517, défendant la justification par la foi seule (Sola Fide) contre les indulgences. Sa traduction de la Bible en allemand démocratise l'accès aux Écritures. Ulrich Zwingli (1484-1531) réforme Zurich sur la base de l'Écriture seule. Jean Calvin (1509-1564) à Genève systématise la théologie réformée dans ses Institutes (1536) et développe le gouvernement presbytérien. Les cinq Solas résument la Réforme : Sola Scriptura, Sola Fide, Sola Gratia, Solus Christus, Soli Deo Gloria. Ce mouvement est l'héritage théologique direct de l'ARC."},
+    {id:"missions",title:"L'Ère Missionnaire (XIX–XX siècle)",sub:"William Carey, Hudson Taylor, missions en Afrique",
+     content:"Le XIXe siècle voit un réveil missionnaire sans précédent. William Carey (1761-1834), père de la mission moderne, part en Inde en 1793 et traduit la Bible en bengali et 34 autres langues. Hudson Taylor (1832-1905) fonde la China Inland Mission (1865) et impose l'inculturation missionnaire comme principe clé. David Livingstone (1813-1873) explore l'Afrique et combat l'esclavage. Des missionnaires européens et américains implantent des Églises en Afrique, en Asie et en Amérique Latine. Aujourd'hui, les Églises du Sud global — notamment en Afrique subsaharienne et en Amérique Latine — sont les plus dynamiques et les plus nombreuses au monde, héritières directes de cet élan missionnaire."},
   ]},
 ];
 const ONLINE_MEMBERS = [
@@ -133,6 +181,12 @@ const USER_STATUSES: Record<string,"online"|"away"|"busy"|"offline"> = {
   "Samuel Nkosi":"away","Grace Mbeki":"busy","David Lumbala":"offline",
 };
 const QUICK_EMOJIS = ["🙏","❤️","🙌","😊","🔥","✅"];
+const EMOJI_LIST = [
+  "😊","😂","🥰","😍","🤩","😇","😭","😅","🤔","😴",
+  "🙏","❤️","💕","💯","🔥","✅","👍","🎉","🙌","💪",
+  "✨","🌟","🎵","📖","⛪","🕊️","🌈","💐","🌿","👑",
+  "🤝","💬","📅","🎶","🌍","💡","🏆","🕐","📢","🫶",
+];
 const CRM_COLS = [
   {title:"Visiteurs",color:"#8890aa",cards:[{name:"Thomas Kanza",note:"Venu 3x ce mois"},{name:"Isabelle Moyo",note:"Contact téléphonique"}]},
   {title:"En suivi",color:"#c05621",cards:[{name:"Pierre Nsamba",note:"Prière accompagnement"},{name:"Anne Diallo",note:"Rencontre prévue"}]},
@@ -180,6 +234,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [bTrans, setBTrans]     = useState("lsg");
   const [bVerses, setBVerses]   = useState<{verse:number;text:string}[]>([]);
   const [bLoading, setBLoading] = useState(false);
+  const [bError, setBError]     = useState<string|null>(null);
   const [bHl, setBHl]           = useState<number|null>(null);
   const [theoCat, setTheoCat]   = useState("conf");
   const [theoItem, setTheoItem] = useState<string|null>(null);
@@ -210,7 +265,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     {id:"3",from:"Moi",text:"Bonjour ! Est-ce que la chorale est prévue ce dimanche ?",mine:true,time:"9:22"},
     {id:"4",from:"Samuel Nkosi",text:"Oui, la chorale sera présente ! Répétition à 8h45.",mine:false,time:"9:24"},
   ]);
-  const msgEndRef = useRef<HTMLDivElement>(null);
+  const msgEndRef    = useRef<HTMLDivElement>(null);
+  const msgInputRef  = useRef<HTMLTextAreaElement>(null);
   const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({"1":{"🙏":4,"❤️":2},"4":{"🙌":1}});
   const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
@@ -221,6 +277,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [huddleActive, setHuddleActive]     = useState(false);
   const [msgHover, setMsgHover]             = useState<string|null>(null);
   const [showMention, setShowMention]       = useState(false);
+  const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
   const [taskDone, setTaskDone]             = useState<string[]>(["mt2"]);
 
   /* Agenda */
@@ -276,12 +333,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   }, [toast]);
 
   useEffect(() => {
-    if (panel === "priere" && bTab === "mur") loadPrayers();
-  }, [panel, bTab]);
+    if (panel === "priere") loadPrayers();
+  }, [panel]);
 
   useEffect(() => {
     if (panel === "admin" && adminTab === "membres" && members.length === 0) loadMembers();
   }, [panel, adminTab]);
+
+  useEffect(() => {
+    if (panel === "contacts" && members.length === 0) loadMembers();
+  }, [panel]);
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -291,21 +352,30 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const loadChapter = useCallback(async (bookIdx: number, ch: number, trans: string) => {
     setBLoading(true);
     setBVerses([]);
+    setBError(null);
     try {
       const bookNum = bookIdx + 1;
-      const res  = await fetch(`https://api.getbible.net/v2/${trans}/${bookNum}/${ch}.json`);
+      const res = await fetch(`https://api.getbible.net/v2/${trans}/${bookNum}/${ch}.json`);
+      if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
       const data = await res.json();
-      if (data.verses) {
-        const arr = Array.isArray(data.verses)
-          ? data.verses.map((v: {verse:number;text:string}) => ({ verse: v.verse, text: v.text.trim() }))
-          : Object.values(data.verses).map((v: unknown) => {
-              const vv = v as {verse:number;text:string};
-              return { verse: vv.verse, text: vv.text.trim() };
-            });
-        setBVerses(arr);
-      }
-    } catch { setBVerses([]); }
-    finally   { setBLoading(false); }
+      // getbible.net v2 : les versets peuvent être à data.verses (objet ou tableau)
+      // ou à data.book[0].verses selon la version
+      const raw: unknown =
+        data.verses ??
+        (Array.isArray(data.book) ? data.book[0]?.verses : undefined) ??
+        null;
+      if (!raw) throw new Error("Format inattendu — aucun verset trouvé");
+      const arr: {verse:number;text:string}[] = Array.isArray(raw)
+        ? (raw as {verse:number;text:string}[]).map(v => ({ verse: v.verse, text: v.text.trim() }))
+        : Object.values(raw as Record<string,{verse:number;text:string}>).map(v => ({ verse: v.verse, text: v.text.trim() }));
+      if (arr.length === 0) throw new Error("Chapitre vide");
+      setBVerses(arr);
+    } catch (e) {
+      setBError(e instanceof Error ? e.message : "Erreur inconnue");
+      setBVerses([]);
+    } finally {
+      setBLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -359,6 +429,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       .limit(100);
     setMembers((data ?? []) as Member[]);
     setMLoading(false);
+  }
+
+  function insertEmoji(emoji: string) {
+    const ta = msgInputRef.current;
+    const start = ta?.selectionStart ?? msgInput.length;
+    const end   = ta?.selectionEnd   ?? msgInput.length;
+    const next  = msgInput.slice(0, start) + emoji + msgInput.slice(end);
+    setMsgInput(next);
+    setShowMsgEmoji(false);
+    setTimeout(() => {
+      ta?.focus();
+      ta?.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
   }
 
   function sendMsg() {
@@ -834,7 +917,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           }} />
                         </label>
                         <div style={{flex:1,position:"relative"}}>
-                          <textarea className="em-msg-input" rows={1}
+                          <textarea className="em-msg-input" ref={msgInputRef} rows={1}
                             placeholder={`Message #${msgChan}… (@mention, Entrée pour envoyer)`}
                             value={msgInput}
                             onChange={e=>{
@@ -860,7 +943,24 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             </div>
                           )}
                         </div>
-                        <button className="em-toolbar-btn" style={{marginBottom:2,flexShrink:0}}>😊</button>
+                        <div style={{position:"relative",flexShrink:0}}>
+                          <button className="em-toolbar-btn" style={{marginBottom:2}}
+                            onClick={()=>setShowMsgEmoji(v=>!v)}>😊</button>
+                          {showMsgEmoji && (
+                            <div style={{position:"absolute",bottom:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:14,boxShadow:"0 4px 24px rgba(30,36,100,.18)",border:"1px solid rgba(30,36,100,.1)",padding:10,zIndex:60,width:250}}>
+                              <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:3}}>
+                                {EMOJI_LIST.map(e=>(
+                                  <button key={e} style={{border:"none",background:"none",fontSize:20,cursor:"pointer",padding:3,borderRadius:7,lineHeight:1,transition:"transform .1s"}}
+                                    onClick={()=>insertEmoji(e)}
+                                    onMouseEnter={ev=>(ev.currentTarget.style.transform="scale(1.25)")}
+                                    onMouseLeave={ev=>(ev.currentTarget.style.transform="scale(1)")}>
+                                    {e}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <button className="em-btn em-btn-primary em-btn-sm" style={{flexShrink:0,padding:"5px 12px"}} onClick={sendMsg} disabled={!msgInput.trim()}>↑</button>
                       </div>
                     </div>
@@ -1163,6 +1263,13 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                       <div style={{marginTop:8,color:"#8890aa",fontSize:13}}>Chargement de {BOOKS[bBook].n} {bCh}…</div>
                     </div>
+                  ) : bError ? (
+                    <div style={{textAlign:"center",padding:"40px 0"}}>
+                      <div style={{fontSize:36,marginBottom:10}}>⚠️</div>
+                      <div style={{fontWeight:600,color:"#e53e3e",marginBottom:6}}>{bError}</div>
+                      <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Vérifiez votre connexion internet</div>
+                      <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadChapter(bBook,bCh,bTrans)}>↺ Réessayer</button>
+                    </div>
                   ) : bVerses.length > 0 ? (
                     <div>
                       <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"#1e2464",marginBottom:16}}>
@@ -1250,10 +1357,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             <div>
                               <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
                               <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>{item.sub}</div>
-                              <p style={{fontSize:13.5,lineHeight:1.7,color:"#4a5070"}}>
-                                Ce document fait partie de la bibliothèque théologique de l&apos;ARC — Ambassade du Royaume du Christ.
-                                Contenu en cours de rédaction par l&apos;équipe pastorale.
-                              </p>
+                              {"content" in item && item.content
+                                ? <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070"}}>{item.content as string}</p>
+                                : <p style={{fontSize:13.5,lineHeight:1.8,color:"#8890aa",fontStyle:"italic"}}>Contenu à venir — rédigé par l&apos;équipe pastorale.</p>
+                              }
                             </div>
                           ) : null;
                         })()}
@@ -1354,19 +1461,44 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
               </select>
             </div>
-            <div className="em-g4">
-              {ONLINE_MEMBERS.filter(m=>cSearch?m.name.toLowerCase().includes(cSearch.toLowerCase()):true).map(m => (
-                <div key={m.name} className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}}>
-                  <div className="em-av" style={{width:48,height:48,fontSize:18,background:m.color,margin:"0 auto 10px"}}>{m.name[0]}</div>
-                  <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{m.name}</div>
-                  <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{m.role}</div>
-                  <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:10}}>
-                    <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(m.name);nav("messagerie");}}>💬</button>
-                    <button className="em-btn em-btn-outline em-btn-sm">👤</button>
+            {mLoading && (
+              <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des membres…</div>
+            )}
+            {!mLoading && (
+              <div className="em-g4">
+                {members
+                  .filter(m => m.validated)
+                  .filter(m => cSearch
+                    ? `${m.first_name ?? ""} ${m.last_name ?? ""} ${m.email}`.toLowerCase().includes(cSearch.toLowerCase())
+                    : true)
+                  .map(m => {
+                    const name  = [m.first_name, m.last_name].filter(Boolean).join(" ") || m.email;
+                    const initL = (m.first_name?.[0] ?? m.email[0]).toUpperCase();
+                    const colors = ["#1e2464","#276749","#9d174d","#1e40af","#3730a3","#065f46","#92400e","#5b21b6","#991b1b","#854d0e"];
+                    const color  = colors[(m.first_name?.charCodeAt(0) ?? 0) % colors.length];
+                    return (
+                      <div key={m.id} className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}}>
+                        <div className="em-av" style={{width:48,height:48,fontSize:18,background:color,margin:"0 auto 10px"}}>{initL}</div>
+                        <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div>
+                        <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{m.role}</div>
+                        {m.groups && m.groups.length > 0 && (
+                          <div style={{fontSize:10,color:"#8899cc",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.groups[0]}</div>
+                        )}
+                        <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:10}}>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}}>💬</button>
+                          <button className="em-btn em-btn-outline em-btn-sm">👤</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                {members.filter(m=>m.validated).length === 0 && !mLoading && (
+                  <div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:"#8890aa"}}>
+                    <div style={{fontSize:36,marginBottom:8}}>👥</div>
+                    <div>Aucun membre validé pour l&apos;instant</div>
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── PRÉSENCES ───────────────────────────────────── */}
