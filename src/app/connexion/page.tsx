@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function ConnexionPage() {
+function ConnexionForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const supabase     = createClient();
@@ -207,5 +207,13 @@ export default function ConnexionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConnexionPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnexionForm />
+    </Suspense>
   );
 }
