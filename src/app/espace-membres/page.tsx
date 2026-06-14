@@ -1,29 +1,34 @@
 import { createClient } from "@/lib/supabase/server";
-import { uploadMemberAvatar } from "@/lib/actions/cms";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import AvatarUpload from "@/components/membres/AvatarUpload";
+import { uploadMemberAvatar } from "@/lib/actions/cms";
 
 export default async function EspaceMembresPage() {
   const supabase = createClient();
-
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("first_name, last_name, email, role, validated, groups, avatar_url")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, { count: membresCount }, { data: events }] = await Promise.all([
+    supabase.from("profiles")
+      .select("first_name, last_name, email, role, validated, groups, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    supabase.from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("validated", true),
+    supabase.from("events")
+      .select("id, title, date, time_start, location")
+      .gte("date", new Date().toISOString().split("T")[0])
+      .eq("is_published", true)
+      .order("date")
+      .limit(3),
+  ]);
 
   async function handleAvatarUpload(formData: FormData): Promise<void> {
     "use server";
     await uploadMemberAvatar(formData);
   }
-
-  const displayName = profile
-    ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email
-    : user.email;
 
   const roleLabels: Record<string, string> = {
     admin:    "👑 Administrateur",
@@ -32,106 +37,116 @@ export default async function EspaceMembresPage() {
     visiteur: "⏳ Visiteur",
   };
 
+  const initiale = (profile?.first_name?.[0] ?? user.email?.[0] ?? "?").toUpperCase();
+
+  const tiles = [
+    { icon: "👥", label: "Annuaire",   href: "/espace-membres/annuaire",  active: true },
+    { icon: "📅", label: "Agenda",     href: "/espace-membres/agenda",    active: true },
+    { icon: "🙏", label: "Prière",     href: "/espace-membres/priere",    active: true },
+    { icon: "📺", label: "Streaming",  href: "/espace-membres/streaming", active: true },
+    { icon: "👤", label: "Mon profil", href: "/espace-membres/profil",    active: true },
+    { icon: "💬", label: "Messagerie", href: "#", active: false },
+    { icon: "📖", label: "Bible",      href: "#", active: false },
+    { icon: "🎵", label: "Chorale",    href: "#", active: false },
+  ];
+
   return (
-    <div className="min-h-screen bg-arc-bg">
-
-      {/* Top bar */}
-      <header className="bg-arc-navy px-5 md:px-10 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-arc-navy to-arc-blue border border-white/20 flex items-center justify-center">
-            <span className="font-serif text-xs font-bold text-white">ARC</span>
-          </div>
-          <span className="font-serif text-base font-bold text-white tracking-[2px]">Espace Membres</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-xs text-white/60 font-medium">{displayName}</span>
-          <Link
-            href="/api/auth/signout"
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
-          >
-            Déconnexion
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-8xl mx-auto px-5 md:px-10 py-10">
-
-        {/* Welcome */}
-        <div className="mb-8 flex items-start gap-5">
-          {/* Avatar */}
-          <AvatarUpload
-            currentUrl={profile?.avatar_url ?? null}
-            initiale={(profile?.first_name?.[0] ?? user.email?.[0] ?? "?").toUpperCase()}
-            action={handleAvatarUpload}
-          />
-
-          <div>
-            <h1 className="font-serif text-3xl font-bold text-arc-navy mb-1">
-              Bienvenue, {profile?.first_name ?? "ami(e)"} 👋
-            </h1>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-arc-text2">Statut :</span>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-arc-blueBg text-arc-navy border border-arc-bluePale">
-                {roleLabels[profile?.role ?? "visiteur"]}
+    <div>
+      {/* Welcome card */}
+      <div className="bg-white border border-arc-border rounded-2xl p-5 mb-5 flex items-center gap-5">
+        <AvatarUpload
+          currentUrl={profile?.avatar_url ?? null}
+          initiale={initiale}
+          action={handleAvatarUpload}
+        />
+        <div className="flex-1 min-w-0">
+          <h1 className="font-serif text-2xl font-bold text-arc-navy">
+            Bonjour, {profile?.first_name ?? "ami(e)"} 👋
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-arc-blueBg text-arc-navy border border-arc-bluePale">
+              {roleLabels[profile?.role ?? "visiteur"]}
+            </span>
+            {profile?.groups?.map((g: string) => (
+              <span key={g} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-arc-gold/10 text-arc-goldDark border border-arc-gold/20">
+                {g}
               </span>
-              {!profile?.validated && (
-                <span className="text-xs text-arc-text3">— En attente de validation par le Pasteur</span>
-              )}
-            </div>
+            ))}
           </div>
         </div>
+        <div className="hidden sm:block text-center flex-shrink-0 px-4">
+          <div className="font-serif text-3xl font-bold text-arc-navy">{membresCount ?? 0}</div>
+          <div className="text-[9px] text-arc-text3 font-bold uppercase tracking-wide">Membres</div>
+        </div>
+      </div>
 
-        {/* Pending validation banner */}
-        {!profile?.validated && profile?.role !== "admin" && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-8 flex items-start gap-4">
-            <div className="text-2xl">⏳</div>
-            <div>
-              <div className="font-bold text-amber-800 mb-1">Compte en attente de validation</div>
-              <p className="text-sm text-amber-700 leading-relaxed">
-                Ton compte a été créé avec succès ! Le Pasteur Pedro Obova va vérifier ton profil et valider ton accès à l'espace membres complet. Tu recevras un email dès que ton compte est validé.
-              </p>
-            </div>
+      {/* Pending validation */}
+      {!profile?.validated && profile?.role !== "admin" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-5 flex gap-3">
+          <span className="text-2xl flex-shrink-0">⏳</span>
+          <div>
+            <div className="font-bold text-amber-800 mb-1">Compte en attente de validation</div>
+            <p className="text-sm text-amber-700 leading-relaxed">
+              Le Pasteur Pedro Obova va vérifier ton profil. Tu recevras une notification dès que ton accès est validé.
+            </p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Dashboard grid — fonctionnalités à venir */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { icon: "💬", title: "Messagerie",    soon: true },
-            { icon: "📅", title: "Agenda",         soon: false },
-            { icon: "📖", title: "Bible",          soon: true },
-            { icon: "🙏", title: "Prière",         soon: true },
-            { icon: "🎵", title: "Chorale",        soon: true },
-            { icon: "📺", title: "Streaming",      soon: false },
-            { icon: "💛", title: "Dons",           soon: false },
-            { icon: "👥", title: "Annuaire",       soon: true },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className={`bg-white border rounded-2xl p-5 flex flex-col items-center gap-2 text-center transition-all duration-200 ${
-                item.soon
-                  ? "border-arc-border opacity-60 cursor-not-allowed"
-                  : "border-arc-border hover:border-arc-blue hover:-translate-y-0.5 hover:shadow-arc cursor-pointer"
-              }`}
+      {/* Feature tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {tiles.map((tile) =>
+          tile.active ? (
+            <Link
+              key={tile.label}
+              href={tile.href}
+              className="bg-white border border-arc-border rounded-2xl p-5 flex flex-col items-center gap-2 text-center hover:border-arc-blue hover:-translate-y-0.5 hover:shadow-arc transition-all duration-200"
             >
-              <div className="text-3xl">{item.icon}</div>
-              <div className="text-sm font-bold text-arc-navy">{item.title}</div>
-              {item.soon && (
-                <span className="text-[9px] font-bold uppercase tracking-widest text-arc-text3">Bientôt</span>
-              )}
+              <div className="text-3xl">{tile.icon}</div>
+              <div className="text-sm font-bold text-arc-navy">{tile.label}</div>
+            </Link>
+          ) : (
+            <div
+              key={tile.label}
+              className="bg-white border border-arc-border rounded-2xl p-5 flex flex-col items-center gap-2 text-center opacity-50 cursor-not-allowed"
+            >
+              <div className="text-3xl">{tile.icon}</div>
+              <div className="text-sm font-bold text-arc-navy">{tile.label}</div>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-arc-text3">Bientôt</span>
             </div>
-          ))}
-        </div>
+          )
+        )}
+      </div>
 
-        {/* Info */}
-        <div className="bg-white border border-arc-border rounded-2xl p-6 text-center">
-          <div className="text-3xl mb-3">🚧</div>
-          <h2 className="font-serif text-xl font-bold text-arc-navy mb-2">Espace Membres en construction</h2>
-          <p className="text-sm text-arc-text2 max-w-md mx-auto">
-            Les fonctionnalités membres (messagerie, Bible, prière, agenda, streaming) sont en cours de développement et seront disponibles prochainement.
-          </p>
+      {/* Upcoming events */}
+      {events && events.length > 0 && (
+        <div className="bg-white border border-arc-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-arc-border flex items-center justify-between">
+            <h2 className="font-bold text-sm text-arc-navy">📅 Prochains événements</h2>
+            <Link href="/espace-membres/agenda" className="text-[11px] font-bold text-arc-blue hover:underline">
+              Voir tout →
+            </Link>
+          </div>
+          <div className="divide-y divide-arc-border">
+            {events.map((ev) => (
+              <div key={ev.id} className="px-5 py-3.5 flex items-center gap-4">
+                <div className="text-center w-10 flex-shrink-0">
+                  <div className="font-serif text-xl font-bold text-arc-navy leading-none">
+                    {new Date(ev.date).getDate()}
+                  </div>
+                  <div className="text-[9px] text-arc-blue font-bold uppercase">
+                    {new Date(ev.date).toLocaleDateString("fr-CH", { month: "short" })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-arc-navy">{ev.title}</div>
+                  <div className="text-xs text-arc-text3">{ev.time_start?.slice(0, 5)} · {ev.location}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
