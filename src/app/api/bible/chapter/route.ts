@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const BASE = process.env.BIBLE_API_BASE ?? "https://api.scripture.api.bible/v1";
 
 export async function GET(req: NextRequest) {
-  const key = process.env.BIBLE_API_KEY;
+  const key = (process.env.BIBLE_API_KEY ?? "").replace(/^﻿/, "").trim();
   if (!key || key === "your_api_bible_key_here") {
     return NextResponse.json({ error: "BIBLE_API_KEY non configurée" }, { status: 503 });
   }
