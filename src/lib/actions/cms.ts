@@ -1,0 +1,184 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+
+async function getCmsUser() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non authentifié");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, groups")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) throw new Error("Profil introuvable");
+
+  const canCms =
+    profile.role === "admin" ||
+    profile.role === "pasteur" ||
+    profile.groups?.includes("media") ||
+    profile.groups?.includes("communication");
+
+  if (!canCms) throw new Error("Accès non autorisé");
+  return { supabase, profile, userId: user.id };
+}
+
+// ── SERMONS ────────────────────────────────────────────────────
+
+export async function createSermon(formData: FormData) {
+  const { supabase, userId } = await getCmsUser();
+
+  const { error } = await supabase.from("sermons").insert({
+    title:        formData.get("title")     as string,
+    pastor:       formData.get("pastor")    as string,
+    reference:    formData.get("reference") as string || null,
+    series:       formData.get("series")    as string || null,
+    excerpt:      formData.get("excerpt")   as string || null,
+    youtube_id:   formData.get("youtube_id") as string || null,
+    date:         formData.get("date")      as string,
+    is_featured:  formData.get("is_featured") === "on",
+    is_published: formData.get("is_published") !== "off",
+    created_by:   userId,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/sermons");
+  return { success: true };
+}
+
+export async function updateSermon(id: string, formData: FormData) {
+  const { supabase } = await getCmsUser();
+
+  const { error } = await supabase.from("sermons").update({
+    title:        formData.get("title")     as string,
+    pastor:       formData.get("pastor")    as string,
+    reference:    formData.get("reference") as string || null,
+    series:       formData.get("series")    as string || null,
+    excerpt:      formData.get("excerpt")   as string || null,
+    youtube_id:   formData.get("youtube_id") as string || null,
+    date:         formData.get("date")      as string,
+    is_featured:  formData.get("is_featured") === "on",
+    is_published: formData.get("is_published") !== "off",
+  }).eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/sermons");
+  return { success: true };
+}
+
+export async function deleteSermon(id: string) {
+  const { supabase, profile } = await getCmsUser();
+  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("sermons").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/sermons");
+  return { success: true };
+}
+
+// ── EVENTS ─────────────────────────────────────────────────────
+
+export async function createEvent(formData: FormData) {
+  const { supabase, userId } = await getCmsUser();
+
+  const tagsRaw = formData.get("tags") as string;
+  const tags = tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
+
+  const { error } = await supabase.from("events").insert({
+    title:        formData.get("title")       as string,
+    description:  formData.get("description") as string || null,
+    date:         formData.get("date")        as string,
+    time_start:   formData.get("time_start")  as string,
+    time_end:     formData.get("time_end")    as string || null,
+    location:     formData.get("location")    as string,
+    capacity:     formData.get("capacity")    ? Number(formData.get("capacity")) : null,
+    price_chf:    formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
+    tags,
+    is_public:    formData.get("is_public")    !== "off",
+    is_published: formData.get("is_published") !== "off",
+    created_by:   userId,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/evenements");
+  return { success: true };
+}
+
+export async function deleteEvent(id: string) {
+  const { supabase } = await getCmsUser();
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/evenements");
+  return { success: true };
+}
+
+// ── TEAM MEMBERS ───────────────────────────────────────────────
+
+export async function createTeamMember(formData: FormData) {
+  const { supabase, profile } = await getCmsUser();
+  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("team_members").insert({
+    name:       formData.get("name")       as string,
+    role_label: formData.get("role_label") as string,
+    bio:        formData.get("bio")        as string || null,
+    initials:   formData.get("initials")   as string,
+    sort_order: Number(formData.get("sort_order") ?? 0),
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/equipe");
+  return { success: true };
+}
+
+export async function deleteTeamMember(id: string) {
+  const { supabase, profile } = await getCmsUser();
+  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("team_members").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/equipe");
+  return { success: true };
+}
+
+// ── MEMBERS (validation) ────────────────────────────────────────
+
+export async function validateMember(memberId: string) {
+  const { supabase, profile, userId } = await getCmsUser();
+  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("profiles").update({
+    validated:    true,
+    role:         "membre",
+    validated_by: userId,
+    validated_at: new Date().toISOString(),
+  }).eq("id", memberId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/membres");
+  return { success: true };
+}
+
+export async function rejectMember(memberId: string) {
+  const { supabase, profile } = await getCmsUser();
+  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("profiles").update({
+    validated: false,
+    role:      "visiteur",
+  }).eq("id", memberId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/membres");
+  return { success: true };
+}
