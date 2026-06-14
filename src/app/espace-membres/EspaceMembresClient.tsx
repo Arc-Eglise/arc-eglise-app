@@ -19,10 +19,13 @@ interface Prayer { id:string; user_id:string; title:string; description:string|n
 interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; created_at:string; }
 
 export interface EMClientProps {
-  profile: Profile|null;
-  userId:  string;
-  membresCount: number;
-  events:  Evt[];
+  profile:        Profile|null;
+  userId:         string;
+  totalUsers:     number;
+  membresValides: number;
+  visiteurs:      number;
+  prayerCount:    number;
+  events:         Evt[];
 }
 
 /* ─── Static data ────────────────────────────────────────────────── */
@@ -132,7 +135,7 @@ const ETUDE_DB: Record<string,{ref:string;contexte:string;theologie:string;appli
 };
 
 /* ─── Component ──────────────────────────────────────────────────── */
-export default function EspaceMembresClient({ profile, userId, membresCount, events }: EMClientProps) {
+export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events }: EMClientProps) {
   const supabase = createClient();
 
   /* Nav */
@@ -377,7 +380,7 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
       { id:"priere",     lbl:"Prière & Bible", ico:"✦" },
     ]},
     { section:"Communauté", items:[
-      { id:"contacts",   lbl:"Contacts",       ico:"👥", count:membresCount },
+      { id:"contacts",   lbl:"Contacts",       ico:"👥", count:membresValides },
       { id:"presences",  lbl:"Présences",      ico:"✓" },
       { id:"activites",  lbl:"Activités",      ico:"◈",  badge:7 },
     ]},
@@ -436,7 +439,7 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
         <div className="em-hdr-meta">
           <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>
             <span className="em-dot-green" style={{display:"inline-block",marginRight:5,verticalAlign:"middle"}} />
-            {ONLINE_MEMBERS.length} en ligne
+            {membresValides} membres
           </span>
           <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>
             {new Date().toLocaleDateString("fr-CH",{weekday:"short",day:"numeric",month:"short"})}
@@ -519,10 +522,10 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
             {/* Stats */}
             <div className="em-g4" style={{marginBottom:18}}>
               {[
-                {num:membresCount,lbl:"Membres"},
-                {num:42,lbl:"Prières actives"},
-                {num:247,lbl:"Spectateurs live"},
-                {num:"4 820 CHF",lbl:"Dons ce mois"},
+                {num:totalUsers,    lbl:"Utilisateurs total"},
+                {num:membresValides,lbl:"Membres validés"},
+                {num:visiteurs,     lbl:"Visiteurs inscrits"},
+                {num:prayerCount,   lbl:"Prières actives"},
               ].map(s => (
                 <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
                   <div className="em-stat-num">{s.num}</div>
@@ -1007,7 +1010,7 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
           {/* ── CONTACTS ────────────────────────────────────── */}
           <div className={`em-panel${panel==="contacts"?" active":""}`}>
             <div className="em-sect-title">Contacts</div>
-            <div className="em-sect-sub">{membresCount} membres · Annuaire de l&apos;église</div>
+            <div className="em-sect-sub">{membresValides} membres validés · Annuaire de l&apos;église</div>
             <div style={{display:"flex",gap:10,marginBottom:16}}>
               <input className="em-input" placeholder="Rechercher un membre…" value={cSearch} onChange={e=>setCSearch(e.target.value)} style={{maxWidth:360}} />
               <select className="em-select">
@@ -1086,7 +1089,7 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
           {/* ── DONS ────────────────────────────────────────── */}
           <div className={`em-panel${panel==="dons"?" active":""}`}>
             <div className="em-sect-title">Dons & Paiements</div>
-            <div className="em-sect-sub">Contribuez à la mission de l&apos;ARC · 4 820 CHF collectés ce mois</div>
+            <div className="em-sect-sub">Contribuez à la mission de l&apos;ARC</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:20}}>
               <div>
                 <div className="em-card" style={{marginBottom:14}}>
@@ -1130,8 +1133,8 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
                     </div>
                   ))}
                   <div style={{marginTop:14,padding:"12px",background:"#f0fff4",borderRadius:10,textAlign:"center"}}>
-                    <div className="em-stat-num" style={{color:"#276749"}}>4 820</div>
-                    <div className="em-stat-lbl">CHF collectés ce mois</div>
+                    <div className="em-stat-num" style={{color:"#276749"}}>{membresValides}</div>
+                    <div className="em-stat-lbl">Membres actifs</div>
                   </div>
                 </div>
               </div>
@@ -1308,10 +1311,10 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
                 <div>
                   <div className="em-g4" style={{marginBottom:18}}>
                     {[
-                      {num:membresCount,lbl:"Membres actifs"},
-                      {num:"87%",lbl:"Taux présence"},
-                      {num:"4 820 CHF",lbl:"Dons ce mois"},
-                      {num:247,lbl:"Vues streaming"},
+                      {num:totalUsers,    lbl:"Utilisateurs total"},
+                      {num:membresValides,lbl:"Membres validés"},
+                      {num:visiteurs,     lbl:"Visiteurs inscrits"},
+                      {num:prayerCount,   lbl:"Prières actives"},
                     ].map(s=>(
                       <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
                         <div className="em-stat-num">{s.num}</div><div className="em-stat-lbl">{s.lbl}</div>
@@ -1333,19 +1336,24 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
 
         {/* ╔══════ RIGHT PANEL ══════╗ */}
         <aside className="em-rp">
-          {/* Online */}
+          {/* Membres */}
           <div className="em-rp-sec">
-            <div className="em-rp-title">En ligne</div>
-            {ONLINE_MEMBERS.map(m=>(
-              <div key={m.name} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0"}}>
-                <div className="em-av" style={{width:26,height:26,fontSize:10,background:m.color}}>{m.name[0]}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-                  <div style={{fontSize:10,color:"#8890aa"}}>{m.role}</div>
-                </div>
-                <span className="em-dot-green" />
+            <div className="em-rp-title">Communauté</div>
+            {[
+              {lbl:"Membres validés",  num:membresValides, color:"#276749"},
+              {lbl:"Visiteurs inscrits",num:visiteurs,      color:"#c05621"},
+              {lbl:"Total utilisateurs",num:totalUsers,     color:"#1e2464"},
+            ].map(s => (
+              <div key={s.lbl} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
+                <span style={{fontSize:12,color:"#4a5070"}}>{s.lbl}</span>
+                <span style={{fontSize:14,fontWeight:700,color:s.color}}>{s.num}</span>
               </div>
             ))}
+            <div style={{marginTop:10,fontSize:11,color:"#8890aa"}}>
+              {prayerCount > 0
+                ? <><span className="em-dot-green" style={{display:"inline-block",marginRight:5,verticalAlign:"middle"}} />{prayerCount} prière{prayerCount > 1 ? "s" : ""} active{prayerCount > 1 ? "s" : ""}</>
+                : "Aucune prière active"}
+            </div>
           </div>
 
           {/* Prochain culte */}
