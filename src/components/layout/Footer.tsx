@@ -15,14 +15,22 @@ export default function Footer() {
               Ambassade du Royaume de Christ. Une communauté évangélique vivante à La Chaux-de-Fonds, Suisse.
             </p>
             <div className="flex gap-2">
-              {["📱", "📘", "📸", "▶️"].map((icon, i) => (
-                <button
-                  key={i}
+              {[
+                { icon: "📘", label: "Facebook",  href: "https://www.facebook.com/ARCEgliseCDF" },
+                { icon: "📸", label: "Instagram", href: "https://www.instagram.com/arc.eglise" },
+                { icon: "▶️", label: "YouTube",   href: "https://www.youtube.com/@ARCEglise" },
+                { icon: "📱", label: "WhatsApp",  href: "https://wa.me/41000000000" },
+              ].map((s) => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={s.label}
                   className="w-9 h-9 rounded-lg bg-white/7 border border-white/8 flex items-center justify-center text-sm hover:bg-white/15 transition-colors"
-                  aria-label="Réseau social"
                 >
-                  {icon}
-                </button>
+                  {s.icon}
+                </a>
               ))}
             </div>
           </div>
@@ -43,8 +51,15 @@ export default function Footer() {
           <div>
             <div className="text-[10px] font-bold tracking-[2px] uppercase text-white/30 mb-[18px]">Communauté</div>
             <div className="flex flex-col gap-2.5">
-              {["Espace Membres", "Groupes", "Prière", "Bible", "Événements privés", "Dons en ligne"].map((l) => (
-                <span key={l} className="text-[13px] text-white/50 hover:text-white transition-colors cursor-pointer">{l}</span>
+              {[
+                { l: "Espace Membres",    href: "/espace-membres" },
+                { l: "Groupes",           href: "/espace-membres" },
+                { l: "Prière",            href: "/espace-membres" },
+                { l: "Bible",             href: "/espace-membres" },
+                { l: "Événements privés", href: "/espace-membres" },
+                { l: "Dons en ligne",     href: "#dons" },
+              ].map((item) => (
+                <a key={item.l} href={item.href} className="text-[13px] text-white/50 hover:text-white transition-colors">{item.l}</a>
               ))}
             </div>
           </div>
@@ -68,7 +83,7 @@ export default function Footer() {
           </p>
           <div className="flex gap-5">
             {["Mentions légales", "Confidentialité", "nLPD"].map((l) => (
-              <span key={l} className="text-[12px] text-white/25 hover:text-white/60 transition-colors cursor-pointer">{l}</span>
+              <a key={l} href="#contact" className="text-[12px] text-white/25 hover:text-white/60 transition-colors">{l}</a>
             ))}
           </div>
         </div>

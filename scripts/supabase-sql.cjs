@@ -28,7 +28,17 @@ const req = https.request(options, (res) => {
   res.on("data", chunk => data += chunk);
   res.on("end", () => {
     if (res.statusCode === 200 || res.statusCode === 201) {
-      console.log(`✅ ${path.basename(sqlFile)} exécuté avec succès`);
+      try {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`✅ ${path.basename(sqlFile)} exécuté avec succès`);
+          console.table(parsed);
+        } else {
+          console.log(`✅ ${path.basename(sqlFile)} exécuté avec succès`);
+        }
+      } catch {
+        console.log(`✅ ${path.basename(sqlFile)} exécuté avec succès`);
+      }
     } else {
       console.error(`❌ ${res.statusCode}: ${data}`);
       process.exit(1);

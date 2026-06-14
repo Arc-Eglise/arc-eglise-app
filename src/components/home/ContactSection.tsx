@@ -20,12 +20,51 @@ const INFOS = [
   },
 ];
 
-export default function ContactSection() {
-  const [sent, setSent] = useState(false);
+const SUBJECTS = [
+  "Je souhaite visiter l'église",
+  "Question sur un événement",
+  "Demande de prière",
+  "Information générale",
+  "Autre",
+];
 
-  const handleSubmit = (e: React.FormEvent) => {
+export default function ContactSection() {
+  const [sent,    setSent]    = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name:  "",
+    email:      "",
+    subject:    SUBJECTS[0],
+    message:    "",
+  });
+
+  const set =
+    (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Erreur serveur");
+      }
+      setSent(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Impossible d'envoyer. Veuillez réessayer.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -49,7 +88,7 @@ export default function ContactSection() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
-          {/* Left — infos + map */}
+          {/* Left — infos + map + socials */}
           <div>
             <div className="flex flex-col gap-[22px] mb-[22px]">
               {INFOS.map((info) => (
@@ -65,7 +104,7 @@ export default function ContactSection() {
               ))}
             </div>
 
-            {/* Map placeholder */}
+            {/* Map */}
             <a
               href="https://maps.google.com/?q=Av+Charles-Naine+39+La+Chaux-de-Fonds"
               target="_blank"
@@ -84,18 +123,21 @@ export default function ContactSection() {
             {/* Socials */}
             <div className="flex gap-2.5 mt-[22px]">
               {[
-                { icon: "📘", label: "Facebook" },
-                { icon: "📸", label: "Instagram" },
-                { icon: "▶️", label: "YouTube" },
-                { icon: "📱", label: "WhatsApp" },
+                { icon: "📘", label: "Facebook",  href: "https://www.facebook.com/ARCEgliseCDF" },
+                { icon: "📸", label: "Instagram", href: "https://www.instagram.com/arc.eglise" },
+                { icon: "▶️", label: "YouTube",   href: "https://www.youtube.com/@ARCEglise" },
+                { icon: "📱", label: "WhatsApp",  href: "https://wa.me/41000000000" },
               ].map((s) => (
-                <button
+                <a
                   key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   className="w-11 h-11 rounded-xl bg-arc-bg border border-arc-border flex items-center justify-center text-lg hover:bg-arc-blueBg hover:-translate-y-0.5 transition-all duration-200"
                 >
                   {s.icon}
-                </button>
+                </a>
               ))}
             </div>
           </div>
@@ -110,6 +152,12 @@ export default function ContactSection() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-arc-red">
+                    ⚠️ {error}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.8px] text-arc-blue mb-1.5">
@@ -119,6 +167,8 @@ export default function ContactSection() {
                       type="text"
                       required
                       placeholder="Marie"
+                      value={form.first_name}
+                      onChange={set("first_name")}
                       className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors"
                     />
                   </div>
@@ -130,6 +180,8 @@ export default function ContactSection() {
                       type="text"
                       required
                       placeholder="Dupont"
+                      value={form.last_name}
+                      onChange={set("last_name")}
                       className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors"
                     />
                   </div>
@@ -143,6 +195,8 @@ export default function ContactSection() {
                     type="email"
                     required
                     placeholder="marie@exemple.ch"
+                    value={form.email}
+                    onChange={set("email")}
                     className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors"
                   />
                 </div>
@@ -151,12 +205,12 @@ export default function ContactSection() {
                   <label className="block text-[10px] font-bold uppercase tracking-[0.8px] text-arc-blue mb-1.5">
                     Sujet
                   </label>
-                  <select className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors appearance-none">
-                    <option>Je souhaite visiter l'église</option>
-                    <option>Question sur un événement</option>
-                    <option>Demande de prière</option>
-                    <option>Information générale</option>
-                    <option>Autre</option>
+                  <select
+                    value={form.subject}
+                    onChange={set("subject")}
+                    className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors appearance-none"
+                  >
+                    {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
                   </select>
                 </div>
 
@@ -168,15 +222,18 @@ export default function ContactSection() {
                     required
                     rows={5}
                     placeholder="Votre message…"
+                    value={form.message}
+                    onChange={set("message")}
                     className="w-full px-4 py-3 rounded-[10px] border-[1.5px] border-arc-border bg-arc-bg text-sm font-sans text-arc-text outline-none focus:border-arc-navy focus:bg-white transition-colors resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-4 rounded-[11px] bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 hover:-translate-y-0.5 hover:shadow-arc transition-all duration-300"
+                  disabled={sending}
+                  className="w-full py-4 rounded-[11px] bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 hover:-translate-y-0.5 hover:shadow-arc transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Envoyer le message ✉️
+                  {sending ? "Envoi en cours…" : "Envoyer le message ✉️"}
                 </button>
               </form>
             )}

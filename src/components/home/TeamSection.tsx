@@ -59,14 +59,20 @@ export default async function TeamSection() {
                 </div>
 
                 <div className="px-5 py-3.5 border-t border-arc-border flex gap-2">
-                  {["✉️", "💬"].map((icon, j) => (
-                    <button
-                      key={j}
-                      className="w-8 h-8 rounded-lg bg-arc-bg border border-arc-border flex items-center justify-center text-sm hover:bg-arc-blueBg hover:border-arc-bluePale transition-all duration-200"
-                    >
-                      {icon}
-                    </button>
-                  ))}
+                  <a
+                    href="mailto:contact@arc-eglise.ch"
+                    aria-label="Envoyer un email"
+                    className="w-8 h-8 rounded-lg bg-arc-bg border border-arc-border flex items-center justify-center text-sm hover:bg-arc-blueBg hover:border-arc-bluePale transition-all duration-200"
+                  >
+                    ✉️
+                  </a>
+                  <a
+                    href="#contact"
+                    aria-label="Envoyer un message"
+                    className="w-8 h-8 rounded-lg bg-arc-bg border border-arc-border flex items-center justify-center text-sm hover:bg-arc-blueBg hover:border-arc-bluePale transition-all duration-200"
+                  >
+                    💬
+                  </a>
                 </div>
               </div>
             ))}

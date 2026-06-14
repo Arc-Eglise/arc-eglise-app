@@ -157,8 +157,8 @@ export default function Header() {
                       <Link href="/espace-membres" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
                         🏠 Mon espace membres
                       </Link>
-                      {(role === "admin" || role === "pasteur") && (
-                        <Link href="/espace-membres" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
+                      {role === "admin" && (
+                        <Link href="/admin" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
                           ⚙️ Administration
                         </Link>
                       )}
