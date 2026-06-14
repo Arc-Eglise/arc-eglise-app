@@ -202,6 +202,8 @@
 .em-card { background: #fff; border: 1px solid rgba(30,36,100,.09); border-radius: 14px; padding: 20px; }
 .em-card-dark { background: linear-gradient(135deg, #1e2464 0%, #0f123a 100%); border-radius: 14px; padding: 20px; color: #fff; }
 .em-card-sm { background: #fff; border: 1px solid rgba(30,36,100,.09); border-radius: 12px; padding: 14px; }
+.em-card-hover { transition: all .2s; cursor: pointer; }
+.em-card-hover:hover { box-shadow: 0 8px 24px rgba(30,36,100,.14); transform: translateY(-2px); }
 .em-g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
 .em-g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
 .em-g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
