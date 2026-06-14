@@ -139,6 +139,10 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
   const [panel, setPanel]     = useState<Panel>("accueil");
   const [toast, setToast]     = useState<string|null>(null);
 
+  /* Mobile */
+  const [showDrawer, setShowDrawer]     = useState(false);
+  const [mobChanOpen, setMobChanOpen]   = useState(false);
+
   /* Header */
   const [searchQ, setSearchQ] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -389,7 +393,32 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
   return (
     <div className="em-app">
 
-      {/* ╔══════ HEADER ══════╗ */}
+      {/* ╔══════ HEADER MOBILE ══════╗ */}
+      <header className="em-mob-hdr">
+        <button className="em-mob-burger" onClick={() => setShowDrawer(true)} aria-label="Menu">
+          <span /><span /><span />
+        </button>
+        <div style={{flex:1,display:"flex",justifyContent:"center"}}>
+          <a href="/" className="em-logo" style={{fontSize:13}}>
+            <div className="em-logo-icon" style={{width:26,height:26,fontSize:8}}>ARC</div>
+            <span>ARC <span style={{color:"#8899cc",fontWeight:400}}>Espace Membres</span></span>
+          </a>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button className="em-hdr-ico" onClick={() => setShowSearch(true)}>🔍</button>
+          <button className="em-hdr-ico" style={{position:"relative"}}>
+            🔔<span className="em-hdr-dot" />
+          </button>
+          <div className="em-av" style={{width:32,height:32,fontSize:12,cursor:"pointer"}}
+            onClick={() => { nav("accueil"); }}>
+            {profile?.avatar_url
+              ? <Image src={profile.avatar_url} alt="" width={32} height={32} />
+              : initiale}
+          </div>
+        </div>
+      </header>
+
+      {/* ╔══════ HEADER DESKTOP ══════╗ */}
       <header className="em-hdr">
         <a href="/" className="em-logo">
           <div className="em-logo-icon">ARC</div>
@@ -564,17 +593,23 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
               <div><div className="em-sect-title">Messagerie</div><div className="em-sect-sub">Canaux & messages directs</div></div>
             </div>
             <div className="em-chat">
-              <div className="em-channels">
-                <div className="em-ch-sec">Canaux</div>
+              <div className={`em-channels${mobChanOpen ? " mob-open" : ""}`}>
+                {/* Mobile close header */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 12px 4px"}}>
+                  <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa"}}>Canaux</span>
+                  <button style={{border:"none",background:"none",fontSize:18,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={() => setMobChanOpen(false)}>✕</button>
+                </div>
                 {["général","prière","annonces","jeunesse","louange"].map(ch => (
-                  <button key={ch} className={`em-ch-item${msgChan===ch?" active":""}`} onClick={() => setMsgChan(ch)}>
+                  <button key={ch} className={`em-ch-item${msgChan===ch?" active":""}`}
+                    onClick={() => { setMsgChan(ch); setMobChanOpen(false); }}>
                     <span style={{color:"#8890aa"}}>#</span> {ch}
                     {ch==="général" && <span className="em-badge" style={{marginLeft:"auto"}}>3</span>}
                   </button>
                 ))}
                 <div className="em-ch-sec" style={{marginTop:8}}>Messages directs</div>
                 {ONLINE_MEMBERS.slice(0,4).map(m => (
-                  <button key={m.name} className="em-ch-item" onClick={() => setMsgChan(m.name)}>
+                  <button key={m.name} className="em-ch-item"
+                    onClick={() => { setMsgChan(m.name); setMobChanOpen(false); }}>
                     <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
                     <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
                     <span className="em-dot-green" />
@@ -582,8 +617,12 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
                 ))}
               </div>
               <div className="em-conv">
-                <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",fontWeight:600,fontSize:13,color:"#1e2464"}}>
-                  # {msgChan}
+                <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8}}>
+                  <button style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1,display:"none"}}
+                    className="mob-only"
+                    onClick={() => setMobChanOpen(true)}
+                    title="Canaux">☰</button>
+                  <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}># {msgChan}</span>
                 </div>
                 <div className="em-msgs">
                   {messages.map(m => (
@@ -1356,6 +1395,82 @@ export default function EspaceMembresClient({ profile, userId, membresCount, eve
             ))}
           </div>
         </aside>
+      </div>
+
+      {/* ╔══════ MOBILE BOTTOM NAV ══════╗ */}
+      <nav className="em-mob-nav">
+        {[
+          { id:"accueil",    ico:"⌂",  lbl:"Accueil" },
+          { id:"messagerie", ico:"✉",  lbl:"Messages", badge:5 },
+          { id:"priere",     ico:"✦",  lbl:"Bible" },
+          { id:"streaming",  ico:"▶",  lbl:"Stream" },
+          { id:"__more__",   ico:"⋯",  lbl:"Plus" },
+        ].map(item => (
+          <button key={item.id}
+            className={`em-mob-ni${(item.id !== "__more__" && panel === item.id) ? " active" : ""}`}
+            onClick={() => item.id === "__more__" ? setShowDrawer(true) : nav(item.id as Panel)}
+          >
+            <div className="em-mob-ni-bg" style={{position:"relative"}}>
+              <div className="em-mob-ni-ico">{item.ico}</div>
+              {"badge" in item && item.badge
+                ? <span style={{position:"absolute",top:-2,right:-6,background:"#e53e3e",color:"#fff",borderRadius:10,fontSize:9,fontWeight:800,padding:"0 4px",minWidth:14,textAlign:"center"}}>{item.badge}</span>
+                : null}
+            </div>
+            <span className="em-mob-ni-lbl">{item.lbl}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* ╔══════ MOBILE DRAWER ══════╗ */}
+      <div className={`em-drawer-bg${showDrawer ? " open" : ""}`} onClick={() => setShowDrawer(false)} />
+      <div className={`em-drawer${showDrawer ? " open" : ""}`}>
+        <div className="em-drawer-top">
+          <a href="/" className="em-logo" style={{fontSize:13}}>
+            <div className="em-logo-icon" style={{width:26,height:26,fontSize:8}}>ARC</div>
+            <span style={{color:"#fff"}}>ARC <span style={{color:"rgba(255,255,255,.5)",fontWeight:400}}>Membres</span></span>
+          </a>
+          <button className="em-drawer-close" onClick={() => setShowDrawer(false)}>✕</button>
+        </div>
+        <div style={{flex:1,paddingTop:8,overflowY:"auto"}}>
+          {NAV_ITEMS.map(group => (
+            <div key={group.section}>
+              <div className="em-sb-section">{group.section}</div>
+              {group.items.map(item => (
+                <button key={item.id}
+                  className={`em-ni${panel === item.id ? " active" : ""}`}
+                  onClick={() => { nav(item.id as Panel); setShowDrawer(false); }}>
+                  <span className="em-ni-ico">{item.ico}</span>
+                  <span className="em-ni-lbl">{item.lbl}</span>
+                  {item.badge ? <span className="em-badge">{item.badge}</span>
+                    : item.live ? <span className="em-live">LIVE</span>
+                    : item.count ? <span className="em-badge-soft">{item.count}</span>
+                    : null}
+                </button>
+              ))}
+            </div>
+          ))}
+          {canAdmin && <hr className="em-sb-sep" />}
+          {canAdmin && (
+            <button className="em-ni" onClick={() => setShowGS(true)}>
+              <span className="em-ni-ico">📡</span>
+              <span className="em-ni-lbl">Gestion Stream</span>
+            </button>
+          )}
+        </div>
+        <a href="/espace-membres/profil" className="em-sb-user">
+          <div className="em-av" style={{width:34,height:34,fontSize:12}}>
+            {profile?.avatar_url ? <Image src={profile.avatar_url} alt="" width={34} height={34} /> : initiale}
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayName}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>{role}</div>
+          </div>
+        </a>
+        <button className="em-ni" style={{margin:"4px 8px 12px",color:"rgba(255,255,255,.35)",fontSize:12}}
+          onClick={async () => { await fetch("/api/auth/signout"); window.location.href = "/"; }}>
+          <span className="em-ni-ico" style={{fontSize:12}}>←</span>
+          <span>Déconnexion</span>
+        </button>
       </div>
 
       {/* ╔══════ MODALS ══════╗ */}
