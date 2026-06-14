@@ -417,3 +417,162 @@
   background: rgba(30,36,100,.15); transition: all .2s;
 }
 .em-dot.active { background: #1e2464; width: 18px; border-radius: 3px; }
+
+/* ── Messagerie v2 — Slack + Teams ───────────────────────────── */
+
+/* Workspace header */
+.em-ws-name {
+  padding: 12px 14px 6px; font-weight: 700; font-size: 13px;
+  color: #fff; display: flex; align-items: center; justify-content: space-between;
+  letter-spacing: .01em;
+}
+
+/* Channel search */
+.em-ch-search-input {
+  width: 100%; padding: 5px 10px; border-radius: 7px;
+  border: 1px solid rgba(255,255,255,.12);
+  font-size: 12px; background: rgba(255,255,255,.08);
+  color: #fff; font-family: 'Outfit', system-ui, sans-serif;
+  box-sizing: border-box;
+}
+.em-ch-search-input::placeholder { color: rgba(255,255,255,.35); }
+
+/* Huddle button */
+.em-huddle {
+  width: 100%; border: none; background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.55); border-radius: 8px; padding: 7px 12px;
+  font-size: 12px; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; font-family: 'Outfit', system-ui, sans-serif; transition: all .15s;
+}
+.em-huddle:hover { background: rgba(255,255,255,.12); color: #fff; }
+.em-huddle.active {
+  background: rgba(39,103,73,.4); color: #9ae6b4;
+  box-shadow: 0 0 0 1px rgba(39,103,73,.5);
+}
+
+/* Conversation tabs */
+.em-conv-tabs {
+  display: flex; border-bottom: 1px solid rgba(30,36,100,.1);
+  padding: 0 10px; flex-shrink: 0; overflow-x: auto;
+}
+.em-conv-tab {
+  padding: 8px 14px; font-size: 12px; font-weight: 600;
+  color: #8890aa; border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  font-family: 'Outfit', system-ui, sans-serif; transition: all .15s;
+}
+.em-conv-tab.active { color: #1e2464; border-bottom-color: #1e2464; }
+.em-conv-tab:hover:not(.active) { color: #1e2464; background: rgba(30,36,100,.04); }
+
+/* Message wrapper with hover */
+.em-msg-wrap { position: relative; }
+
+/* Hover action bar */
+.em-msg-actions {
+  position: absolute; top: -14px; z-index: 20;
+  background: #fff; border: 1px solid rgba(30,36,100,.12);
+  border-radius: 12px; box-shadow: 0 2px 14px rgba(30,36,100,.14);
+  padding: 3px 6px; display: flex; gap: 2px; pointer-events: auto;
+}
+.em-msg-action-btn {
+  border: none; background: none; cursor: pointer;
+  font-size: 15px; padding: 3px 5px; border-radius: 7px;
+  transition: background .12s; line-height: 1;
+}
+.em-msg-action-btn:hover { background: #f0f2f9; }
+
+/* Reactions row */
+.em-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.em-reaction {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #f0f2f9; border: 1px solid rgba(30,36,100,.1);
+  border-radius: 12px; padding: 1px 8px; font-size: 13px;
+  cursor: pointer; transition: all .12s; font-family: inherit;
+}
+.em-reaction:hover { background: #e4e8f5; transform: scale(1.08); }
+.em-reaction.mine {
+  background: rgba(30,36,100,.1); border-color: #8899cc;
+  box-shadow: 0 0 0 1px #8899cc33;
+}
+
+/* Thread link */
+.em-thread-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: #8899cc; cursor: pointer;
+  margin-top: 4px; padding: 2px 7px; border-radius: 6px;
+  border: none; background: none; transition: background .12s;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+.em-thread-link:hover { background: #eef1f8; }
+
+/* Thread panel */
+.em-thread-panel {
+  width: 270px; border-left: 1px solid rgba(30,36,100,.1);
+  display: flex; flex-direction: column; flex-shrink: 0;
+  background: #fff; overflow: hidden;
+}
+@media (max-width: 1100px) { .em-thread-panel { display: none; } }
+.em-thread-hdr {
+  padding: 10px 14px; font-weight: 700; font-size: 12px; color: #1e2464;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(30,36,100,.1); flex-shrink: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+
+/* Toolbar buttons */
+.em-msg-toolbar {
+  display: flex; gap: 1px; padding: 6px 2px 4px;
+}
+.em-toolbar-btn {
+  border: none; background: none; cursor: pointer; font-size: 14px;
+  padding: 4px 7px; border-radius: 6px; color: #8890aa;
+  transition: all .12s; line-height: 1; font-family: inherit;
+}
+.em-toolbar-btn:hover { background: #eef1f8; color: #1e2464; }
+
+/* Pinned banner */
+.em-pinned-banner {
+  background: #fffbeb; border-bottom: 1px solid #fde68a;
+  padding: 7px 14px; font-size: 12px; color: #92400e;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  font-family: 'Outfit', system-ui, sans-serif; border: none;
+  text-align: left; font-weight: 600; flex-shrink: 0;
+  transition: background .12s;
+}
+.em-pinned-banner:hover { background: #fef3c7; }
+
+/* @mention dropdown */
+.em-mention-drop {
+  position: absolute; bottom: calc(100% + 6px); left: 0;
+  background: #fff; border: 1px solid rgba(30,36,100,.12);
+  border-radius: 12px; box-shadow: 0 4px 22px rgba(30,36,100,.16);
+  padding: 6px; min-width: 210px; z-index: 60;
+}
+.em-mention-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  border: none; background: none; width: 100%; text-align: left;
+  font-family: 'Outfit', system-ui, sans-serif; transition: background .12s;
+}
+.em-mention-item:hover { background: #f0f2f9; }
+
+/* Task item in messaging */
+.em-msg-task {
+  display: flex; align-items: center; gap: 12px;
+  background: #f7f8fc; border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 8px; border: 1px solid rgba(30,36,100,.07);
+  transition: border-color .15s;
+}
+.em-msg-task:hover { border-color: rgba(30,36,100,.15); }
+
+/* em-conv flex-column fix when msgTab content needs to fill */
+.em-conv { display: flex; flex-direction: column; }
+.em-msgs { flex: 1; overflow-y: auto; }
+
+/* File chip in messages */
+.em-file-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #f0f2f9; border: 1px solid rgba(30,36,100,.12);
+  border-radius: 10px; padding: 7px 12px; margin-top: 6px; font-size: 12px;
+}

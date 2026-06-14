@@ -5,9 +5,10 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-type Panel = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
-type BTab  = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
-type ATab  = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
+type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
+type BTab   = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
+type ATab   = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
+type MsgTab = "msgs"|"files"|"pins"|"tasks";
 
 interface Profile {
   id:string; first_name:string|null; last_name:string|null;
@@ -115,6 +116,23 @@ const GROUPES = [
   {name:"Administration",count:3,icon:"⚙️",color:"#4a5568"},
   {name:"Support Technique",count:2,icon:"💻",color:"#2d3748"},
 ];
+const MSG_FILES = [
+  {name:"Programme Culte Juin 2026.pdf",size:"245 Ko",from:"Pedro Obova",time:"9:15",icon:"📄"},
+  {name:"Photo chorale 2026.jpg",size:"1.2 Mo",from:"Marie Kalinda",time:"hier",icon:"🖼"},
+  {name:"Budget Missions 2026.xlsx",size:"98 Ko",from:"Jaise Buka",time:"lundi",icon:"📊"},
+  {name:"Horaires Été 2026.pdf",size:"54 Ko",from:"Pedro Obova",time:"23.05",icon:"📄"},
+];
+const MSG_TASKS = [
+  {id:"mt1",title:"Préparer le programme du culte",done:false,assignee:"Pedro Obova",due:"15.06"},
+  {id:"mt2",title:"Mettre à jour le site web",done:true,assignee:"Jaise Buka",due:"10.06"},
+  {id:"mt3",title:"Répétition chorale vendredi",done:false,assignee:"Marie Kalinda",due:"20.06"},
+  {id:"mt4",title:"Envoyer les invitations conférence",done:false,assignee:"Samuel Nkosi",due:"22.06"},
+];
+const USER_STATUSES: Record<string,"online"|"away"|"busy"|"offline"> = {
+  "Pedro Obova":"online","Marie Kalinda":"online",
+  "Samuel Nkosi":"away","Grace Mbeki":"busy","David Lumbala":"offline",
+};
+const QUICK_EMOJIS = ["🙏","❤️","🙌","😊","🔥","✅"];
 const CRM_COLS = [
   {title:"Visiteurs",color:"#8890aa",cards:[{name:"Thomas Kanza",note:"Venu 3x ce mois"},{name:"Isabelle Moyo",note:"Contact téléphonique"}]},
   {title:"En suivi",color:"#c05621",cards:[{name:"Pierre Nsamba",note:"Prière accompagnement"},{name:"Anne Diallo",note:"Rencontre prévue"}]},
@@ -184,6 +202,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
   /* Messagerie */
   const [msgChan, setMsgChan]     = useState("général");
+  const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
   const [messages, setMessages]   = useState([
     {id:"1",from:"Pedro Obova",text:"Bonjour à tous ! Le culte de dimanche sera à 9h30.",mine:false,time:"9:15"},
@@ -192,6 +211,17 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     {id:"4",from:"Samuel Nkosi",text:"Oui, la chorale sera présente ! Répétition à 8h45.",mine:false,time:"9:24"},
   ]);
   const msgEndRef = useRef<HTMLDivElement>(null);
+  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({"1":{"🙏":4,"❤️":2},"4":{"🙌":1}});
+  const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
+  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>(["1"]);
+  const [openThread, setOpenThread]         = useState<string|null>(null);
+  const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({"4":[{id:"t1",from:"Marie Kalinda",text:"C'est une super nouvelle, merci Samuel ! 🙌",time:"9:26",mine:false}]});
+  const [threadInput, setThreadInput]       = useState("");
+  const [huddleActive, setHuddleActive]     = useState(false);
+  const [msgHover, setMsgHover]             = useState<string|null>(null);
+  const [showMention, setShowMention]       = useState(false);
+  const [taskDone, setTaskDone]             = useState<string[]>(["mt2"]);
 
   /* Agenda */
   const [calMonth, setCalMonth]   = useState(5); // June (0-indexed)
@@ -339,7 +369,45 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       time: new Date().toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
     }]);
     setMsgInput("");
+    setShowMention(false);
   }
+
+  function addReaction(msgId: string, emoji: string) {
+    if ((myReactions[msgId]??[]).includes(emoji)) return;
+    setMsgReactions(prev => {
+      const cur = prev[msgId] ?? {};
+      return {...prev, [msgId]: {...cur, [emoji]: (cur[emoji]??0)+1}};
+    });
+    setMyReactions(prev => ({...prev, [msgId]: [...(prev[msgId]??[]), emoji]}));
+    setShowEmojiPicker(null);
+  }
+
+  function togglePin(msgId: string) {
+    const wasPin = pinnedMsgs.includes(msgId);
+    setPinnedMsgs(prev => wasPin ? prev.filter(i=>i!==msgId) : [...prev, msgId]);
+    setToast(wasPin ? "Message désépinglé" : "Message épinglé 📌");
+  }
+
+  function sendThreadReply() {
+    if (!threadInput.trim() || !openThread) return;
+    const r = { id: Date.now().toString(), from: "Moi", text: threadInput.trim(),
+      time: new Date().toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"}), mine: true };
+    setThreadReplies(prev => ({...prev, [openThread]: [...(prev[openThread]??[]), r]}));
+    setThreadInput("");
+  }
+
+  const MSG_CHANNELS = [
+    { section:"Canaux", items:[
+      { id:"général",  icon:"#",  badge:3 },
+      { id:"annonces", icon:"📣", locked:!canAdmin },
+      { id:"prière",   icon:"🙏", badge:undefined as number|undefined },
+    ]},
+    { section:"Groupes", items:[
+      { id:"jeunesse", icon:"🌱" },
+      { id:"louange",  icon:"🎵" },
+      { id:"médias",   icon:"📺" },
+    ]},
+  ];
 
   /* ── Navigation helper ───────────────────────────────────────── */
   function nav(p: Panel) {
@@ -591,61 +659,326 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           </div>
 
           {/* ── MESSAGERIE ──────────────────────────────────── */}
-          <div className={`em-panel${panel==="messagerie"?" active":""}`}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div><div className="em-sect-title">Messagerie</div><div className="em-sect-sub">Canaux & messages directs</div></div>
-            </div>
-            <div className="em-chat">
-              <div className={`em-channels${mobChanOpen ? " mob-open" : ""}`}>
-                {/* Mobile close header */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 12px 4px"}}>
-                  <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa"}}>Canaux</span>
-                  <button style={{border:"none",background:"none",fontSize:18,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={() => setMobChanOpen(false)}>✕</button>
+          <div className={`em-panel${panel==="messagerie"?" active":""}`} style={{padding:0,overflow:"hidden"}}>
+            <div className="em-chat" style={{height:"100%"}}>
+
+              {/* ── Left: channels sidebar ── */}
+              <div className={`em-channels${mobChanOpen?" mob-open":""}`}>
+                <div className="em-ws-name">
+                  ARC Église
+                  <span className="em-dot-green" style={{display:"inline-block"}} />
                 </div>
-                {["général","prière","annonces","jeunesse","louange"].map(ch => (
-                  <button key={ch} className={`em-ch-item${msgChan===ch?" active":""}`}
-                    onClick={() => { setMsgChan(ch); setMobChanOpen(false); }}>
-                    <span style={{color:"#8890aa"}}>#</span> {ch}
-                    {ch==="général" && <span className="em-badge" style={{marginLeft:"auto"}}>3</span>}
-                  </button>
+                <div style={{padding:"0 8px 6px"}}>
+                  <input className="em-ch-search-input" placeholder="🔍 Rechercher…" />
+                </div>
+                <div style={{display:"flex",justifyContent:"flex-end",padding:"0 8px 4px"}}>
+                  <button className="mob-only" style={{border:"none",background:"none",fontSize:18,cursor:"pointer",color:"rgba(255,255,255,.5)",lineHeight:1}} onClick={()=>setMobChanOpen(false)}>✕</button>
+                </div>
+                {MSG_CHANNELS.map(sect => (
+                  <div key={sect.section}>
+                    <div className="em-ch-sec">{sect.section}</div>
+                    {sect.items.map(ch => (
+                      <button key={ch.id} className={`em-ch-item${msgChan===ch.id?" active":""}`}
+                        onClick={()=>{setMsgChan(ch.id);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
+                        <span style={{color:"#8890aa",fontSize:13,minWidth:16}}>{ch.icon}</span>
+                        <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ch.id}</span>
+                        {"locked" in ch && ch.locked && <span style={{fontSize:10,opacity:.5}}>🔒</span>}
+                        {"badge" in ch && ch.badge ? <span className="em-badge">{ch.badge}</span> : null}
+                      </button>
+                    ))}
+                  </div>
                 ))}
-                <div className="em-ch-sec" style={{marginTop:8}}>Messages directs</div>
-                {ONLINE_MEMBERS.slice(0,4).map(m => (
-                  <button key={m.name} className="em-ch-item"
-                    onClick={() => { setMsgChan(m.name); setMobChanOpen(false); }}>
-                    <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
-                    <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
-                    <span className="em-dot-green" />
+                <div className="em-ch-sec" style={{marginTop:4}}>Messages directs</div>
+                {ONLINE_MEMBERS.slice(0,5).map(m => {
+                  const st = USER_STATUSES[m.name];
+                  const dotColor = st==="online"?"#48bb78":st==="away"?"#ecc94b":st==="busy"?"#fc8181":"#718096";
+                  return (
+                    <button key={m.name} className={`em-ch-item${msgChan===m.name?" active":""}`}
+                      onClick={()=>{setMsgChan(m.name);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
+                      <div style={{position:"relative",flexShrink:0}}>
+                        <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
+                        <span style={{position:"absolute",bottom:-1,right:-1,width:7,height:7,borderRadius:"50%",border:"1.5px solid #1a1d3a",background:dotColor,display:"block"}} />
+                      </div>
+                      <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{m.name}</span>
+                    </button>
+                  );
+                })}
+                <div style={{padding:"8px 8px 10px"}}>
+                  <button className={`em-huddle${huddleActive?" active":""}`}
+                    onClick={()=>{setHuddleActive(h=>!h);setToast(huddleActive?"Huddle terminé":"🎙 Huddle démarré !");}}>
+                    🎙 {huddleActive ? "Huddle actif" : "Démarrer un huddle"}
+                    {huddleActive && <span style={{marginLeft:"auto",fontSize:9,background:"rgba(39,103,73,.5)",color:"#9ae6b4",padding:"1px 5px",borderRadius:8}}>EN COURS</span>}
                   </button>
-                ))}
+                </div>
               </div>
-              <div className="em-conv">
-                <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8}}>
-                  <button style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1,display:"none"}}
-                    className="mob-only"
-                    onClick={() => setMobChanOpen(true)}
-                    title="Canaux">☰</button>
-                  <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}># {msgChan}</span>
-                </div>
-                <div className="em-msgs">
-                  {messages.map(m => (
-                    <div key={m.id} className={`em-msg${m.mine?" mine":""}`}>
-                      {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
-                      <div>
-                        {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
-                        <div className="em-bubble">{m.text}</div>
-                        <div style={{fontSize:10,color:"#8890aa",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>
+
+              {/* ── Main + thread ── */}
+              <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+
+                {/* Conversation */}
+                <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                  {/* Conv header */}
+                  <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                    <button className="mob-only" style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
+                    {MSG_CHANNELS.flatMap(s=>s.items).some(i=>i.id===msgChan)
+                      ? <span style={{fontWeight:700,fontSize:15,color:"#8890aa"}}>#</span>
+                      : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{msgChan[0]}</div>}
+                    <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{msgChan}</span>
+                    <button className="em-toolbar-btn" title="Rechercher">🔍</button>
+                    <button className="em-toolbar-btn" title="Membres">👥</button>
+                    {canAdmin && <button className="em-toolbar-btn" title="Paramètres">⚙️</button>}
+                  </div>
+
+                  {/* Pinned banner */}
+                  {pinnedMsgs.length > 0 && msgTab==="msgs" && (
+                    <button className="em-pinned-banner" onClick={()=>setMsgTab("pins")}>
+                      📌 {pinnedMsgs.length} message{pinnedMsgs.length>1?"s":""} épinglé{pinnedMsgs.length>1?"s":""} · Voir →
+                    </button>
+                  )}
+
+                  {/* Tab bar */}
+                  <div className="em-conv-tabs">
+                    {([["msgs","💬 Messages"],["files","📎 Fichiers"],["pins","📌 Épinglés"],["tasks","✅ Tâches"]] as [MsgTab,string][]).map(([t,l])=>(
+                      <button key={t} className={`em-conv-tab${msgTab===t?" active":""}`} onClick={()=>setMsgTab(t)}>{l}</button>
+                    ))}
+                  </div>
+
+                  {/* ── Tab: Messages ── */}
+                  {msgTab==="msgs" && (<>
+                    <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
+                      {messages.map(m => {
+                        const rxns  = msgReactions[m.id];
+                        const replies = threadReplies[m.id] ?? [];
+                        const isPinned = pinnedMsgs.includes(m.id);
+                        return (
+                          <div key={m.id} className="em-msg-wrap"
+                            onMouseEnter={()=>setMsgHover(m.id)}
+                            onMouseLeave={()=>{setMsgHover(null);}}>
+                            <div className={`em-msg${m.mine?" mine":""}`}>
+                              {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
+                              <div style={{flex:1,minWidth:0}}>
+                                {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
+                                <div className="em-bubble">
+                                  {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
+                                  {m.text}
+                                </div>
+                                <div style={{fontSize:10,color:"#8890aa",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>
+                                {/* Reactions row */}
+                                {rxns && Object.keys(rxns).length > 0 && (
+                                  <div className="em-reactions">
+                                    {Object.entries(rxns).map(([emoji,count])=>(
+                                      <button key={emoji}
+                                        className={`em-reaction${(myReactions[m.id]??[]).includes(emoji)?" mine":""}`}
+                                        onClick={()=>addReaction(m.id,emoji)}>
+                                        {emoji} <span style={{fontSize:11,color:"#4a5070"}}>{count}</span>
+                                      </button>
+                                    ))}
+                                    <button className="em-reaction" style={{color:"#8890aa",fontSize:12,padding:"1px 6px"}} onClick={()=>setShowEmojiPicker(m.id)}>+</button>
+                                  </div>
+                                )}
+                                {/* Thread link */}
+                                {replies.length > 0 && (
+                                  <button className="em-thread-link" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>
+                                    ↩ <strong style={{color:"#1e2464"}}>{replies.length} réponse{replies.length>1?"s":""}</strong>
+                                    <span style={{color:"#8890aa"}}> · {replies[replies.length-1].time}</span>
+                                    <span>{openThread===m.id?" ▲":" ›"}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {/* Hover action bar */}
+                            {msgHover===m.id && (
+                              <div className="em-msg-actions" style={{right:m.mine?8:"auto",left:m.mine?"auto":40}}>
+                                {QUICK_EMOJIS.slice(0,3).map(e=>(
+                                  <button key={e} className="em-msg-action-btn" onClick={()=>addReaction(m.id,e)}>{e}</button>
+                                ))}
+                                <button className="em-msg-action-btn" title="Plus" onClick={e=>{e.stopPropagation();setShowEmojiPicker(showEmojiPicker===m.id?null:m.id);}}>😊</button>
+                                <button className="em-msg-action-btn" title="Répondre" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>↩</button>
+                                <button className="em-msg-action-btn" title={isPinned?"Désépingler":"Épingler"} onClick={()=>togglePin(m.id)}>📌</button>
+                              </div>
+                            )}
+                            {/* Quick emoji picker */}
+                            {showEmojiPicker===m.id && (
+                              <div style={{position:"absolute",zIndex:50,bottom:"100%",right:m.mine?8:"auto",left:m.mine?"auto":40,background:"#fff",borderRadius:14,boxShadow:"0 4px 20px rgba(30,36,100,.18)",padding:"6px 10px",border:"1px solid rgba(30,36,100,.1)",display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                                {QUICK_EMOJIS.map(e=>(
+                                  <button key={e} style={{border:"none",background:"none",fontSize:22,cursor:"pointer",padding:"3px 5px",borderRadius:7,transition:"transform .1s"}}
+                                    onClick={()=>addReaction(m.id,e)}>{e}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <div ref={msgEndRef} />
+                    </div>
+                    {/* Input bar */}
+                    <div className="em-msg-bar" style={{flexDirection:"column",gap:0,padding:"0 12px 12px"}}>
+                      <div className="em-msg-toolbar">
+                        <button className="em-toolbar-btn" title="Gras">𝐁</button>
+                        <button className="em-toolbar-btn" title="Italique">𝐼</button>
+                        <button className="em-toolbar-btn" title="Lien">🔗</button>
+                        <span style={{width:1,background:"rgba(30,36,100,.12)",margin:"2px 4px",display:"inline-block",height:16}} />
+                        <button className="em-toolbar-btn" title="Liste">≡</button>
+                        <button className="em-toolbar-btn" title="Citation">❝</button>
+                      </div>
+                      <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid rgba(30,36,100,.12)"}}>
+                        <label className="em-toolbar-btn" title="Fichier" style={{cursor:"pointer",marginBottom:2,flexShrink:0}}>
+                          📎
+                          <input type="file" style={{display:"none"}} onChange={e=>{
+                            if(e.target.files?.[0]){
+                              const f=e.target.files[0];
+                              setMessages(prev=>[...prev,{id:Date.now().toString(),from:"Moi",text:`📎 Fichier partagé : ${f.name}`,mine:true,time:new Date().toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"})}]);
+                              setToast(`"${f.name}" envoyé 📎`);
+                              e.target.value="";
+                            }
+                          }} />
+                        </label>
+                        <div style={{flex:1,position:"relative"}}>
+                          <textarea className="em-msg-input" rows={1}
+                            placeholder={`Message #${msgChan}… (@mention, Entrée pour envoyer)`}
+                            value={msgInput}
+                            onChange={e=>{
+                              setMsgInput(e.target.value);
+                              const v=e.target.value;
+                              setShowMention(v.endsWith("@")||(v.includes("@")&&!/\s$/.test(v)&&v.slice(v.lastIndexOf("@")).length<15));
+                            }}
+                            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}}
+                            style={{background:"transparent",border:"none",padding:0,resize:"none",minHeight:22,width:"100%"}} />
+                          {/* @mention dropdown */}
+                          {showMention && (
+                            <div className="em-mention-drop">
+                              {ONLINE_MEMBERS.slice(0,4).map(m=>(
+                                <button key={m.name} className="em-mention-item"
+                                  onClick={()=>{setMsgInput(i=>i.replace(/@[^\s]*$/,"@"+m.name.split(" ")[0]+" "));setShowMention(false);}}>
+                                  <div className="em-av" style={{width:24,height:24,fontSize:10,background:m.color}}>{m.name[0]}</div>
+                                  <div>
+                                    <div style={{fontWeight:600,fontSize:12,color:"#1e2464"}}>{m.name}</div>
+                                    <div style={{fontSize:10,color:"#8890aa"}}>{m.role}</div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <button className="em-toolbar-btn" style={{marginBottom:2,flexShrink:0}}>😊</button>
+                        <button className="em-btn em-btn-primary em-btn-sm" style={{flexShrink:0,padding:"5px 12px"}} onClick={sendMsg} disabled={!msgInput.trim()}>↑</button>
                       </div>
                     </div>
-                  ))}
-                  <div ref={msgEndRef} />
+                  </>)}
+
+                  {/* ── Tab: Fichiers ── */}
+                  {msgTab==="files" && (
+                    <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📎 Fichiers partagés dans #{msgChan}</div>
+                      {MSG_FILES.map((f,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                          <div style={{width:42,height:42,background:"#f0f2f9",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{f.icon}</div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                            <div style={{fontSize:11,color:"#8890aa"}}>{f.size} · {f.from} · {f.time}</div>
+                          </div>
+                          <button className="em-btn em-btn-outline em-btn-sm">↓</button>
+                        </div>
+                      ))}
+                      <label style={{display:"block",marginTop:16,textAlign:"center",cursor:"pointer"}}>
+                        <span className="em-btn em-btn-outline" style={{display:"inline-flex",gap:6}}>📎 Partager un fichier</span>
+                        <input type="file" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0])setToast(`"${e.target.files[0].name}" partagé 📎`);}} />
+                      </label>
+                    </div>
+                  )}
+
+                  {/* ── Tab: Épinglés ── */}
+                  {msgTab==="pins" && (
+                    <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📌 Messages épinglés</div>
+                      {pinnedMsgs.length > 0
+                        ? messages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
+                          <div key={m.id} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+                            <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5}}>{m.mine?"Moi":m.from} · {m.time}</div>
+                            <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{m.text}</div>
+                            <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:8,color:"#92400e"}} onClick={()=>togglePin(m.id)}>Désépingler</button>
+                          </div>
+                        ))
+                        : <div style={{textAlign:"center",padding:"48px 0",color:"#8890aa"}}>
+                            <div style={{fontSize:40,marginBottom:10}}>📌</div>
+                            <div style={{fontWeight:600}}>Aucun message épinglé</div>
+                            <div style={{fontSize:12,marginTop:4}}>Survole un message et clique 📌 pour l&apos;épingler</div>
+                          </div>
+                      }
+                    </div>
+                  )}
+
+                  {/* ── Tab: Tâches ── */}
+                  {msgTab==="tasks" && (
+                    <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                        <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>✅ Tâches du canal</div>
+                        <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("Fonctionnalité bientôt disponible")}>+ Nouvelle tâche</button>
+                      </div>
+                      <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>{taskDone.length}/{MSG_TASKS.length} tâches terminées</div>
+                      <div style={{background:"#f0f2f9",borderRadius:6,height:5,marginBottom:16}}>
+                        <div style={{background:"#276749",borderRadius:6,height:"100%",width:`${Math.round(taskDone.length/MSG_TASKS.length*100)}%`,transition:"width .3s"}} />
+                      </div>
+                      {MSG_TASKS.map(t=>(
+                        <div key={t.id} className="em-msg-task" style={{opacity:taskDone.includes(t.id)?.7:1}}>
+                          <div style={{width:20,height:20,border:"2px solid",borderColor:taskDone.includes(t.id)?"#276749":"#cbd5e0",borderRadius:5,background:taskDone.includes(t.id)?"#276749":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}
+                            onClick={()=>setTaskDone(d=>d.includes(t.id)?d.filter(x=>x!==t.id):[...d,t.id])}>
+                            {taskDone.includes(t.id) && <span style={{color:"#fff",fontSize:11}}>✓</span>}
+                          </div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:13,fontWeight:500,color:taskDone.includes(t.id)?"#8890aa":"#1a1d3a",textDecoration:taskDone.includes(t.id)?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div>
+                            <div style={{fontSize:11,color:"#8890aa",marginTop:1}}>👤 {t.assignee} · 📅 {t.due}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="em-msg-bar">
-                  <textarea className="em-msg-input" rows={1} placeholder={`Message #${msgChan}…`}
-                    value={msgInput} onChange={e=>setMsgInput(e.target.value)}
-                    onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();} }} />
-                  <button className="em-btn em-btn-primary em-btn-sm" onClick={sendMsg}>Envoyer</button>
-                </div>
+
+                {/* ── Thread panel ── */}
+                {openThread && (
+                  <div className="em-thread-panel">
+                    <div className="em-thread-hdr">
+                      <span>↩ Fil de discussion</span>
+                      <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
+                    </div>
+                    {(() => {
+                      const orig = messages.find(m=>m.id===openThread);
+                      return orig ? (
+                        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",background:"#fafbff"}}>
+                          <div style={{fontSize:10,fontWeight:700,color:"#8890aa",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
+                          <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{orig.text}</div>
+                        </div>
+                      ) : null;
+                    })()}
+                    <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
+                      {(threadReplies[openThread]??[]).length===0 && (
+                        <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:12}}>Première réponse dans ce fil</div>
+                      )}
+                      {(threadReplies[openThread]??[]).map(r=>(
+                        <div key={r.id} className={`em-msg${r.mine?" mine":""}`} style={{padding:"4px 14px"}}>
+                          {!r.mine && <div className="em-av" style={{width:26,height:26,fontSize:10,background:"#1e2464"}}>{r.from[0]}</div>}
+                          <div>
+                            {!r.mine && <div style={{fontSize:10,fontWeight:700,color:"#1e2464",marginBottom:2}}>{r.from}</div>}
+                            <div className="em-bubble" style={{fontSize:12}}>{r.text}</div>
+                            <div style={{fontSize:9,color:"#8890aa",marginTop:2,textAlign:r.mine?"right":"left"}}>{r.time}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{padding:"8px 12px 10px",borderTop:"1px solid rgba(30,36,100,.08)"}}>
+                      <div style={{display:"flex",gap:6,background:"#f7f8fc",borderRadius:10,padding:"6px 8px",border:"1.5px solid rgba(30,36,100,.1)"}}>
+                        <textarea className="em-msg-input" rows={1}
+                          style={{background:"transparent",border:"none",padding:0,resize:"none",flex:1,fontSize:12,minHeight:20}}
+                          placeholder="Répondre dans le fil…"
+                          value={threadInput}
+                          onChange={e=>setThreadInput(e.target.value)}
+                          onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendThreadReply();}}} />
+                        <button className="em-btn em-btn-primary em-btn-sm" style={{padding:"3px 9px",fontSize:13}} onClick={sendThreadReply} disabled={!threadInput.trim()}>↑</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
