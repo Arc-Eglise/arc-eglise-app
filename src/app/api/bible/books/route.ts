@@ -10,12 +10,21 @@ export async function GET(req: NextRequest) {
 
   const bibleId = req.nextUrl.searchParams.get("bibleId") || process.env.BIBLE_DEFAULT_ID;
 
-  const res = await fetch(`${BASE}/bibles/${bibleId}/books?include-chapters=true`, {
-    headers: { "api-key": key },
-  });
+  try {
+    const res = await fetch(`${BASE}/bibles/${bibleId}/books?include-chapters=true`, {
+      headers: { "api-key": key },
+      cache: "no-store",
+    });
 
-  if (!res.ok) return NextResponse.json({ error: "Bible API error" }, { status: 500 });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return NextResponse.json({ error: `Bible API ${res.status}`, detail: text }, { status: 500 });
+    }
 
-  const { data } = await res.json();
-  return NextResponse.json(data);
+    const json = await res.json();
+    return NextResponse.json(json?.data ?? []);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: "Exception", detail: msg }, { status: 500 });
+  }
 }
