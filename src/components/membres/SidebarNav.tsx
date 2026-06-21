@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/espace-membres",             label: "Accueil",    icon: "🏠", exact: true },
-  { href: "/espace-membres/annuaire",    label: "Annuaire",   icon: "👥" },
-  { href: "/espace-membres/agenda",      label: "Agenda",     icon: "📅" },
-  { href: "/espace-membres/messagerie",  label: "Messages",   icon: "💬" },
-  { href: "/espace-membres/priere",      label: "Prière",     icon: "🙏" },
-  { href: "/espace-membres/streaming",   label: "Streaming",  icon: "📺" },
-  { href: "/espace-membres/bible",       label: "Bible",      icon: "📖" },
+  { href: "/espace-membres",             label: "Accueil",      icon: "🏠", exact: true },
+  { href: "/espace-membres/assistant",   label: "Assistant IA", icon: "✨" },
+  { href: "/espace-membres/annuaire",    label: "Annuaire",     icon: "👥" },
+  { href: "/espace-membres/agenda",      label: "Agenda",       icon: "📅" },
+  { href: "/espace-membres/messagerie",  label: "Messages",     icon: "💬" },
+  { href: "/espace-membres/priere",      label: "Prière",       icon: "🙏" },
+  { href: "/espace-membres/streaming",   label: "Streaming",    icon: "📺" },
+  { href: "/espace-membres/bible",       label: "Bible",        icon: "📖" },
 ];
 
 const sidebarExtra = [
