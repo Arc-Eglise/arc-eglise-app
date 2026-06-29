@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { lunzikoFetch } from '@/lib/lunziko'
+import { lunzikoFetch, lunzikoWorkflow } from '@/lib/lunziko'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,9 +14,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Texte requis' }, { status: 400 })
     }
 
+    const trimmed = text.slice(0, 50000)
+
+    // For long texts (sermons, documents), use workflow engine — has retry + timeout
+    if (trimmed.length > 2000) {
+      try {
+        const out = await lunzikoWorkflow('ocrToSummary', { text: trimmed })
+        if (out.summary) {
+          return NextResponse.json({ summary: out.summary, word_count: out.word_count ?? 0 })
+        }
+      } catch {
+        // Fall through to /summarize
+      }
+    }
+
     const res = await lunzikoFetch('/summarize', {
       method: 'POST',
-      body: JSON.stringify({ text: text.slice(0, 50000), length, format, language: 'fr', provider: 'auto' }),
+      body: JSON.stringify({ text: trimmed, length, format, language: 'fr', provider: 'auto' }),
     })
 
     if (!res.ok) {
