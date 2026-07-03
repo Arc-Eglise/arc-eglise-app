@@ -29,7 +29,13 @@ type Msg = { id: string; role: "user" | "assistant"; content: string; streaming?
 interface ReadingPlan {
   id: string; title: string; level: string; duration_days: number
   language: string; focus: string | null; created_at: string; created_by_ai: boolean
+  is_shared?: boolean; group_id?: string | null
 }
+interface GroupPlan {
+  id: string; title: string; level: string; duration_days: number; focus: string | null
+  created_at: string; my_completed: number; active_members: number
+}
+interface MemberProgress { user_id: string; name: string; completed_days: number; is_me: boolean }
 interface PlanDay {
   id: string; day_number: number; title: string | null; passages: string[]
   reflection: string | null; prayer_guide: string | null; is_completed: boolean
@@ -350,6 +356,12 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupDesc, setNewGroupDesc] = useState("")
   const groupBottomRef = useRef<HTMLDivElement>(null)
+  const [groupSubTab, setGroupSubTab] = useState<"chat"|"plans">("chat")
+  const [groupPlans, setGroupPlans]   = useState<GroupPlan[]>([])
+  const [groupPlansLoading, setGroupPlansLoading] = useState(false)
+  const [activePlanId, setActivePlanId] = useState<string|null>(null)
+  const [memberProgress, setMemberProgress] = useState<MemberProgress[]>([])
+  const [syncingDay, setSyncingDay]   = useState<number|null>(null)
 
   const loadGroups = useCallback(async () => {
     setGroupsLoading(true)
@@ -370,6 +382,14 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
       setGroupMsgs(data.messages ?? [])
     } finally { setGroupMsgsLoading(false) }
   }
+
+  useEffect(() => {
+    if (activeGroup && groupSubTab === "plans") loadGroupPlans(activeGroup.id)
+  }, [groupSubTab, activeGroup]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activePlanId) loadMemberProgress(activePlanId)
+  }, [activePlanId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!activeGroup) return
@@ -411,6 +431,36 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", name: newGroupName.trim(), description: newGroupDesc || undefined, language }) })
     const data = await res.json()
     if (data.group) { setShowNewGroup(false); setNewGroupName(""); setNewGroupDesc(""); loadGroups() }
+  }
+
+  const loadGroupPlans = async (groupId: string) => {
+    setGroupPlansLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_group_plans", group_id: groupId }) })
+      const data = await res.json()
+      setGroupPlans(data.plans ?? [])
+    } finally { setGroupPlansLoading(false) }
+  }
+
+  const loadMemberProgress = async (planId: string) => {
+    const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_group_progress", plan_id: planId }) })
+    const data = await res.json()
+    setMemberProgress(data.members_progress ?? [])
+  }
+
+  const syncProgress = async (planId: string, dayNum: number, duration: number) => {
+    setSyncingDay(dayNum)
+    await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_progress", plan_id: planId, day_number: dayNum }) })
+    setGroupPlans(prev => prev.map(p => p.id === planId ? { ...p, my_completed: Math.min(p.my_completed + 1, duration) } : p))
+    setSyncingDay(null)
+  }
+
+  // Share plan with group — called from Plans tab
+  const [showShareModal, setShowShareModal] = useState<string|null>(null)
+  const sharePlanWithGroup = async (planId: string, groupId: string) => {
+    await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "share_plan", plan_id: planId, group_id: groupId }) })
+    setPlans(prev => prev.map(p => p.id === planId ? { ...p, is_shared: true, group_id: groupId } : p))
+    setShowShareModal(null)
   }
 
   /* ══ SERMONS ═══════════════════════════════════════════════ */
@@ -699,15 +749,36 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
           {!activePlan ? (
             <div className="space-y-3">
               {plans.map(p => (
-                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
-                  onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 hover:border-arc-navy transition">
+                  <div className="flex items-start justify-between cursor-pointer" onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                        {p.is_shared && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">📤 Partagé</span>}
+                      </div>
                       <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
                     </div>
-                    <span className="text-xs text-arc-blue">→</span>
+                    <span className="text-xs text-arc-blue ml-2">→</span>
                   </div>
+                  {!p.is_shared && groups.filter(g => g.is_member).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-arc-border/50">
+                      {showShareModal === p.id ? (
+                        <div className="flex items-center gap-2">
+                          <select className="flex-1 text-xs border border-arc-border rounded-lg px-2 py-1 outline-none" id={`share-sel-${p.id}`}>
+                            {groups.filter(g => g.is_member).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </select>
+                          <button onClick={() => {
+                            const sel = document.getElementById(`share-sel-${p.id}`) as HTMLSelectElement
+                            if (sel?.value) sharePlanWithGroup(p.id, sel.value)
+                          }} className="text-xs px-2 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">Partager</button>
+                          <button onClick={() => setShowShareModal(null)} className="text-xs text-arc-text2 hover:text-arc-navy">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={e => { e.stopPropagation(); loadGroups(); setShowShareModal(p.id) }}
+                          className="text-xs text-arc-text2 hover:text-arc-navy transition">🔗 Partager avec un groupe</button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {!plansLoading && plans.length === 0 && (
@@ -1040,51 +1111,154 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
 
       {tab === "groups" && activeGroup && (
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="shrink-0 px-4 py-2 border-b border-arc-navy/10 flex items-center gap-3 bg-white">
-            <button onClick={() => { setActiveGroup(null); setGroupMsgs([]) }} className="text-arc-text2 hover:text-arc-navy text-lg">←</button>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-arc-navy text-sm truncate">{activeGroup.name}</p>
-              <p className="text-[10px] text-arc-text2">{activeGroup.member_count} membre{activeGroup.member_count !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {groupMsgsLoading && <div className="text-center py-6 text-arc-text2 text-sm">Chargement…</div>}
-            {!groupMsgsLoading && groupMsgs.length === 0 && (
-              <div className="text-center py-10 text-arc-text2">
-                <p className="text-3xl mb-2">👋</p>
-                <p className="text-sm">Soyez le premier à écrire dans ce groupe !</p>
+          <div className="shrink-0 px-4 py-2 border-b border-arc-navy/10 bg-white">
+            <div className="flex items-center gap-3 mb-2">
+              <button onClick={() => { setActiveGroup(null); setGroupMsgs([]); setGroupPlans([]); setActivePlanId(null); setGroupSubTab("chat") }} className="text-arc-text2 hover:text-arc-navy text-lg">←</button>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-arc-navy text-sm truncate">{activeGroup.name}</p>
+                <p className="text-[10px] text-arc-text2">{activeGroup.member_count} membre{activeGroup.member_count !== 1 ? "s" : ""}</p>
               </div>
-            )}
-            {groupMsgs.map(m => {
-              const isMine = m.user_id === userId
-              const name = m.profiles ? `${m.profiles.first_name ?? ""} ${m.profiles.last_name ?? ""}`.trim() || "Membre" : isMine ? "Moi" : "Membre"
-              return (
-                <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? "bg-arc-navy text-white rounded-br-sm" : "bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm"}`}>
-                    {!isMine && <p className="text-[10px] font-bold text-arc-blue mb-1">{name}</p>}
-                    <p>{m.content}</p>
-                    {m.verse_refs.length > 0 && <p className="text-[10px] mt-1 opacity-70">{m.verse_refs.join(" · ")}</p>}
-                    <p className={`text-[10px] mt-1 ${isMine ? "text-white/60" : "text-slate-400"}`}>{new Date(m.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
-                </div>
-              )
-            })}
-            <div ref={groupBottomRef} />
-          </div>
-
-          <div className="shrink-0 border-t border-arc-navy/10 bg-white px-4 py-3">
-            <div className="flex items-end gap-2">
-              <textarea value={groupDraft} rows={2} onChange={e => setGroupDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGroupMessage() } }}
-                placeholder="Message au groupe… (Entrée pour envoyer)"
-                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-arc-blue focus:bg-white transition" />
-              <button onClick={sendGroupMessage} disabled={!groupDraft.trim() || groupSending}
-                className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-arc-navy text-white hover:bg-arc-blue disabled:opacity-40 transition">
-                <SendIcon />
-              </button>
+            </div>
+            <div className="flex gap-1">
+              {(["chat","plans"] as const).map(st => (
+                <button key={st} onClick={() => setGroupSubTab(st)}
+                  className={`text-xs px-3 py-1 rounded-full font-semibold transition ${groupSubTab === st ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}>
+                  {st === "chat" ? "💬 Chat" : "📅 Plans partagés"}
+                </button>
+              ))}
             </div>
           </div>
+
+          {groupSubTab === "chat" && (<>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {groupMsgsLoading && <div className="text-center py-6 text-arc-text2 text-sm">Chargement…</div>}
+              {!groupMsgsLoading && groupMsgs.length === 0 && (
+                <div className="text-center py-10 text-arc-text2">
+                  <p className="text-3xl mb-2">👋</p>
+                  <p className="text-sm">Soyez le premier à écrire dans ce groupe !</p>
+                </div>
+              )}
+              {groupMsgs.map(m => {
+                const isMine = m.user_id === userId
+                const name = m.profiles ? `${m.profiles.first_name ?? ""} ${m.profiles.last_name ?? ""}`.trim() || "Membre" : isMine ? "Moi" : "Membre"
+                return (
+                  <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? "bg-arc-navy text-white rounded-br-sm" : "bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm"}`}>
+                      {!isMine && <p className="text-[10px] font-bold text-arc-blue mb-1">{name}</p>}
+                      <p>{m.content}</p>
+                      {m.verse_refs.length > 0 && <p className="text-[10px] mt-1 opacity-70">{m.verse_refs.join(" · ")}</p>}
+                      <p className={`text-[10px] mt-1 ${isMine ? "text-white/60" : "text-slate-400"}`}>{new Date(m.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={groupBottomRef} />
+            </div>
+            <div className="shrink-0 border-t border-arc-navy/10 bg-white px-4 py-3">
+              <div className="flex items-end gap-2">
+                <textarea value={groupDraft} rows={2} onChange={e => setGroupDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGroupMessage() } }}
+                  placeholder="Message au groupe… (Entrée pour envoyer)"
+                  className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-arc-blue focus:bg-white transition" />
+                <button onClick={sendGroupMessage} disabled={!groupDraft.trim() || groupSending}
+                  className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-arc-navy text-white hover:bg-arc-blue disabled:opacity-40 transition">
+                  <SendIcon />
+                </button>
+              </div>
+            </div>
+          </>)}
+
+          {groupSubTab === "plans" && (
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {activePlanId ? (() => {
+                const plan = groupPlans.find(p => p.id === activePlanId)
+                if (!plan) return null
+                const me = memberProgress.find(m => m.is_me)
+                return (
+                  <div>
+                    <button onClick={() => { setActivePlanId(null); setMemberProgress([]) }} className="text-sm text-arc-blue hover:underline mb-3">← Plans du groupe</button>
+                    <p className="font-semibold text-arc-navy mb-1">{plan.title}</p>
+                    <p className="text-xs text-arc-text2 mb-3">{plan.duration_days} jours · Niveau {plan.level}</p>
+
+                    {/* Ma progression */}
+                    <div className="mb-4 bg-arc-blueBg rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-arc-navy">Ma progression</p>
+                        <p className="text-xs text-arc-text2">{plan.my_completed}/{plan.duration_days} jours</p>
+                      </div>
+                      <div className="w-full bg-white rounded-full h-2">
+                        <div className="bg-arc-navy h-2 rounded-full transition-all" style={{ width: `${Math.round((plan.my_completed / plan.duration_days) * 100)}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Progressions des membres */}
+                    {memberProgress.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        <p className="text-xs font-semibold text-arc-navy">Progression du groupe</p>
+                        {memberProgress.sort((a, b) => b.completed_days - a.completed_days).map((m, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <p className="text-xs text-arc-text2 w-24 truncate">{m.is_me ? "Moi" : m.name}</p>
+                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                              <div className="bg-arc-blue h-1.5 rounded-full" style={{ width: `${Math.round((m.completed_days / plan.duration_days) * 100)}%` }} />
+                            </div>
+                            <p className="text-[10px] text-arc-text2 w-10 text-right">{m.completed_days}j</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Jours à compléter */}
+                    <p className="text-xs font-semibold text-arc-navy mb-2">Marquer les jours</p>
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {Array.from({ length: plan.duration_days }, (_, i) => i + 1).map(day => {
+                        const me2 = memberProgress.find(m => m.is_me)
+                        const done = me2 ? me2.completed_days >= day : (plan.my_completed >= day)
+                        return (
+                          <button key={day} disabled={done || syncingDay === day}
+                            onClick={() => syncProgress(plan.id, day, plan.duration_days)}
+                            className={`aspect-square rounded-lg text-xs font-semibold transition ${done ? "bg-green-500 text-white" : "bg-slate-100 text-arc-navy hover:bg-arc-blueBg"} ${syncingDay === day ? "opacity-50" : ""}`}>
+                            {day}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })() : (
+                <>
+                  {groupPlansLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
+                  {!groupPlansLoading && groupPlans.length === 0 && (
+                    <div className="text-center py-10 text-arc-text2">
+                      <p className="text-3xl mb-2">📅</p>
+                      <p className="text-sm font-semibold">Aucun plan partagé</p>
+                      <p className="text-xs mt-1">Partagez un plan depuis l&apos;onglet Plans</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {groupPlans.map(p => (
+                      <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
+                        onClick={() => { setActivePlanId(p.id); loadMemberProgress(p.id) }}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                            <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
+                          </div>
+                          <span className="text-xs text-arc-blue">→</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                            <div className="bg-arc-navy h-1.5 rounded-full" style={{ width: `${Math.round((p.my_completed / p.duration_days) * 100)}%` }} />
+                          </div>
+                          <p className="text-[10px] text-arc-text2 shrink-0">{p.my_completed}/{p.duration_days}j</p>
+                          <p className="text-[10px] text-arc-text2 shrink-0">👥 {p.active_members}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

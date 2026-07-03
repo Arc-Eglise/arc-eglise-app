@@ -162,6 +162,91 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    case "get_group_plans": {
+      const { group_id } = body
+      if (!group_id) return badRequestResponse("group_id requis")
+
+      const { data: plans } = await supabase
+        .from("ai_reading_plans")
+        .select("id, title, level, duration_days, language, focus, created_at, user_id")
+        .eq("group_id", group_id)
+        .eq("is_shared", true)
+        .order("created_at", { ascending: false })
+
+      if (!plans || plans.length === 0) return NextResponse.json({ plans: [] })
+
+      const planIds = plans.map((p: any) => p.id)
+
+      // Progress counts per plan
+      const { data: progress } = await supabase
+        .from("ai_plan_member_progress")
+        .select("plan_id, user_id, day_number")
+        .in("plan_id", planIds)
+
+      const myProgress: Record<string, number[]> = {}
+      const allProgress: Record<string, Set<string>> = {}
+      for (const p of (progress ?? []) as any[]) {
+        if (p.user_id === userId) {
+          myProgress[p.plan_id] = [...(myProgress[p.plan_id] ?? []), p.day_number]
+        }
+        if (!allProgress[p.plan_id]) allProgress[p.plan_id] = new Set()
+        allProgress[p.plan_id].add(p.user_id)
+      }
+
+      return NextResponse.json({
+        plans: plans.map((p: any) => ({
+          ...p,
+          my_completed: (myProgress[p.id] ?? []).length,
+          active_members: allProgress[p.id]?.size ?? 0,
+        })),
+      })
+    }
+
+    case "sync_progress": {
+      const { plan_id, day_number } = body
+      if (!plan_id || day_number == null) return badRequestResponse("plan_id et day_number requis")
+
+      const { error } = await supabase
+        .from("ai_plan_member_progress")
+        .upsert({ plan_id, user_id: userId, day_number }, { onConflict: "plan_id,user_id,day_number" })
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ success: true })
+    }
+
+    case "get_group_progress": {
+      const { plan_id } = body
+      if (!plan_id) return badRequestResponse("plan_id requis")
+
+      const { data: progress } = await supabase
+        .from("ai_plan_member_progress")
+        .select("user_id, day_number, completed_at, profiles(first_name, last_name)")
+        .eq("plan_id", plan_id)
+        .order("completed_at", { ascending: false })
+
+      // Aggregate: map userId → { name, completed_days }
+      const byUser: Record<string, { name: string; days: number[] }> = {}
+      for (const p of (progress ?? []) as any[]) {
+        if (!byUser[p.user_id]) {
+          const prof = p.profiles
+          byUser[p.user_id] = {
+            name: prof ? `${prof.first_name ?? ""} ${prof.last_name ?? ""}`.trim() || "Membre" : "Membre",
+            days: [],
+          }
+        }
+        byUser[p.user_id].days.push(p.day_number)
+      }
+
+      return NextResponse.json({
+        members_progress: Object.entries(byUser).map(([uid, v]) => ({
+          user_id: uid,
+          name: v.name,
+          completed_days: v.days.length,
+          is_me: uid === userId,
+        })),
+      })
+    }
+
     default:
       return NextResponse.json({ error: "Action inconnue" }, { status: 400 })
   }
