@@ -440,6 +440,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [siteSaving, setSiteSaving]         = useState(false);
   const [siteLoaded, setSiteLoaded]         = useState(false);
 
+  /* Stream config */
+  const [youtubeChannelId, setYoutubeChannelId] = useState("UCxxxxxxxx");
+  const [youtubeVideoId, setYoutubeVideoId]     = useState("");
+  const [zoomMeetingId, setZoomMeetingId]       = useState("");
+  const [zoomPasscode, setZoomPasscode]         = useState("");
+
   /* Présence en ligne */
   const [onlineMembers, setOnlineMembers] = useState<{userId:string;name:string;initiale:string}[]>([]);
 
@@ -593,8 +599,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (showMajInfo && !siteLoaded) loadSiteSettings();
-  }, [showMajInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+    if ((showMajInfo || showMP || showGD || showGS || panel === "streaming") && !siteLoaded) loadSiteSettings();
+  }, [showMajInfo, showMP, showGD, showGS, panel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (panel === "dons" && isAdmin && recentDons.length === 0) loadRecentDons();
@@ -865,6 +871,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       const map = Object.fromEntries(data.map((r: any) => [r.key, r.value]));
       if (map.verset_du_jour) setSiteVerset(map.verset_du_jour);
       if (map.culte_1_label) setSiteCulte(map.culte_1_label);
+      if (map.youtube_channel_id) setYoutubeChannelId(map.youtube_channel_id);
+      if (map.zoom_meeting_id) setZoomMeetingId(map.zoom_meeting_id);
+      if (map.zoom_passcode) setZoomPasscode(map.zoom_passcode);
+      if (map.youtube_video_id) setYoutubeVideoId(map.youtube_video_id);
+      if (map.mp_cards) {
+        try { setMpCards(JSON.parse(map.mp_cards)); } catch { /* keep defaults */ }
+      }
+      if (map.role_permissions_matrix) {
+        try {
+          const saved = JSON.parse(map.role_permissions_matrix);
+          const merged: Record<string, Record<string, boolean>> = {};
+          for (const k in GD_DEFAULTS) merged[k] = { ...GD_DEFAULTS[k], ...(saved[k] ?? {}) };
+          setGdPerms(merged);
+        } catch { /* keep defaults */ }
+      }
     }
     setSiteLoaded(true);
   }
@@ -1706,7 +1727,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             </div>
             <div style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}>
               <iframe
-                src="https://www.youtube.com/embed/live_stream?channel=UCxxxxxxxx&autoplay=0&rel=0"
+                src={youtubeVideoId
+                  ? `https://www.youtube.com/embed/${youtubeVideoId}?autoplay=0&rel=0`
+                  : `https://www.youtube.com/embed/live_stream?channel=${youtubeChannelId}&autoplay=0&rel=0`}
                 title="ARC Live"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -2665,15 +2688,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               <div className="em-g2">
                 <div style={{background:"#f7f8fc",borderRadius:12,padding:16}}>
                   <div style={{fontWeight:700,color:"#1e2464",marginBottom:8}}>🎥 Zoom Meeting</div>
-                  <input className="em-input" placeholder="Meeting ID" style={{marginBottom:8}} />
-                  <input className="em-input" placeholder="Passcode" style={{marginBottom:8}} />
-                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>setToast("Zoom configuré ✓")}>Configurer Zoom</button>
+                  <input className="em-input" placeholder="Meeting ID" value={zoomMeetingId} onChange={e=>setZoomMeetingId(e.target.value)} style={{marginBottom:8}} />
+                  <input className="em-input" placeholder="Passcode" value={zoomPasscode} onChange={e=>setZoomPasscode(e.target.value)} style={{marginBottom:8}} />
+                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={async()=>{
+                    await updateSiteSettings({zoom_meeting_id:zoomMeetingId,zoom_passcode:zoomPasscode});
+                    setToast("Zoom configuré ✓");
+                  }}>Configurer Zoom</button>
                 </div>
                 <div style={{background:"#f7f8fc",borderRadius:12,padding:16}}>
                   <div style={{fontWeight:700,color:"#e53e3e",marginBottom:8}}>▶ YouTube Live</div>
-                  <input className="em-input" placeholder="Stream Key YouTube" style={{marginBottom:8}} />
-                  <input className="em-input" placeholder="ID de la vidéo live" style={{marginBottom:8}} />
-                  <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={()=>setToast("YouTube configuré ✓")}>Configurer YouTube</button>
+                  <input className="em-input" placeholder="Channel ID (UCxxxxxxxx)" value={youtubeChannelId} onChange={e=>setYoutubeChannelId(e.target.value)} style={{marginBottom:8}} />
+                  <input className="em-input" placeholder="ID de la vidéo live (optionnel)" value={youtubeVideoId} onChange={e=>setYoutubeVideoId(e.target.value)} style={{marginBottom:8}} />
+                  <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={async()=>{
+                    await updateSiteSettings({youtube_channel_id:youtubeChannelId,...(youtubeVideoId?{youtube_video_id:youtubeVideoId}:{})});
+                    setToast("YouTube configuré ✓");
+                  }}>Configurer YouTube</button>
                 </div>
               </div>
               <div style={{marginTop:16,padding:14,background:"#fff0f0",borderRadius:12}}>
@@ -3095,8 +3124,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 </div>
               </div>
               <div style={{background:"#f7f8fc",borderRadius:10,padding:12,marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
-                <div style={{fontSize:11,color:"#4a5070",flex:1}}>Lien de réunion : <strong>meet.arc-eglise.ch/reunion-{Math.random().toString(36).slice(2,6)}</strong></div>
-                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast("📋 Lien copié !")}>Copier</button>
+                {(() => { const roomCode = (userId ?? "arc").slice(0,6) + "-" + Date.now().toString(36).slice(-4); const jitsiUrl = `https://meet.jit.si/arc-eglise-${roomCode}`; return (<>
+                  <div style={{fontSize:11,color:"#4a5070",flex:1}}>Lien de réunion : <strong>{jitsiUrl.replace("https://","")}</strong></div>
+                  <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{navigator.clipboard.writeText(jitsiUrl);setToast("📋 Lien copié !");}}>Copier</button>
+                </>); })()}
               </div>
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Inviter des participants</label>
               <select className="em-select" multiple style={{minHeight:80,width:"100%",marginBottom:14}}>
