@@ -428,6 +428,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   /* Audit log */
   const [auditLogs, setAuditLogs] = useState<{action:string;detail:string;created_at:string}[]>([]);
 
+  /* Groupes dynamiques */
+  const [groupCounts, setGroupCounts] = useState<Record<string,number>>({});
+
+  /* Stats chart */
+  const [statsChart, setStatsChart] = useState<{month:string;count:number}[]>([]);
+
   /* Sermons */
   const [sermons, setSermons] = useState<{id:string;title:string;pastor:string;date:string;is_featured:boolean;is_published:boolean}[]>([]);
   const [sermonsLoading, setSermonsLoading] = useState(false);
@@ -612,6 +618,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
   useEffect(() => {
     if (panel === "admin" && adminTab === "sermons" && sermons.length === 0) loadSermons();
+  }, [panel, adminTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "admin" && adminTab === "groupes" && Object.keys(groupCounts).length === 0) loadGroupCounts();
+  }, [panel, adminTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "admin" && adminTab === "stats" && statsChart.length === 0) loadStatsChart();
   }, [panel, adminTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -819,6 +833,43 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           return `il y a ${Math.floor(diff/86400000)}j`;
         })(),
       })));
+    }
+  }
+
+  async function loadGroupCounts() {
+    const { data } = await supabase
+      .from("profiles")
+      .select("church_group")
+      .eq("validated", true)
+      .not("church_group", "is", null);
+    if (data) {
+      const counts: Record<string,number> = {};
+      for (const r of data as any[]) if (r.church_group) counts[r.church_group] = (counts[r.church_group] ?? 0) + 1;
+      setGroupCounts(counts);
+    }
+  }
+
+  async function loadStatsChart() {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    const { data } = await supabase
+      .from("profiles")
+      .select("created_at")
+      .gte("created_at", sixMonthsAgo.toISOString());
+    if (data) {
+      const countsByMonth: Record<string,number> = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const key = d.toLocaleString("fr-CH", { month: "short", year: "2-digit" });
+        countsByMonth[key] = 0;
+      }
+      for (const r of data as any[]) {
+        const d = new Date(r.created_at);
+        const key = d.toLocaleString("fr-CH", { month: "short", year: "2-digit" });
+        if (key in countsByMonth) countsByMonth[key]++;
+      }
+      setStatsChart(Object.entries(countsByMonth).map(([month, count]) => ({ month, count })));
     }
   }
 
@@ -2282,13 +2333,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   {GROUPES.map(g=>{
                     const gDef = getGroup(g.name);
                     const Icon = gDef.Icon;
+                    const realCount = groupCounts[g.name] ?? groupCounts[g.name.split(" ")[0]] ?? null;
                     return (
                     <div key={g.name} className="em-card-sm em-card-hover" style={{cursor:"pointer"}}>
                       <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,background:g.hexBg,border:`1px solid ${g.hex}30`}}>
                         <Icon size={20} strokeWidth={2} color={g.hex} />
                       </div>
                       <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{g.name}</div>
-                      <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{g.count} membres</div>
+                      <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>
+                        {realCount !== null ? `${realCount} membre${realCount!==1?"s":""}` : `${g.count} membres`}
+                      </div>
                       <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,width:"100%"}}>Gérer</button>
                     </div>
                     );
@@ -2436,10 +2490,23 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     ))}
                   </div>
                   <div className="em-card">
-                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Évolution des membres</div>
-                    <div style={{height:120,background:"#f0f2f9",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#8890aa",fontSize:13}}>
-                      Graphique d&apos;évolution — Bientôt disponible
-                    </div>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Inscriptions — 6 derniers mois</div>
+                    {statsChart.length === 0 ? (
+                      <div style={{height:100,display:"flex",alignItems:"center",justifyContent:"center",color:"#8890aa",fontSize:12}}>Chargement…</div>
+                    ) : (() => {
+                      const max = Math.max(...statsChart.map(s=>s.count), 1);
+                      return (
+                        <div style={{display:"flex",alignItems:"flex-end",gap:8,height:100}}>
+                          {statsChart.map((s,i)=>(
+                            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                              <div style={{fontSize:10,color:"#1e2464",fontWeight:700}}>{s.count||""}</div>
+                              <div style={{width:"100%",background:"linear-gradient(to top,#1e2464,#4a5490)",borderRadius:"4px 4px 0 0",height:`${Math.max((s.count/max)*72,s.count>0?6:2)}px`,transition:"height .4s ease"}} />
+                              <div style={{fontSize:9,color:"#8890aa",textAlign:"center",whiteSpace:"nowrap"}}>{s.month}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
