@@ -421,6 +421,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [inviteLink, setInviteLink]     = useState<string|null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  /* Support tickets (doléances admin) */
+  const [tickets, setTickets] = useState<{id:string;title:string;status:string;category:string;created_at:string}[]>([]);
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
+
+  /* Sermons */
+  const [sermons, setSermons] = useState<{id:string;title:string;pastor:string;date:string;is_featured:boolean;is_published:boolean}[]>([]);
+  const [sermonsLoading, setSermonsLoading] = useState(false);
+
   /* Site settings (Maj vitrine) */
   const [siteAdresse, setSiteAdresse]       = useState("Av. Charles-Naine 39, 2300 La Chaux-de-Fonds");
   const [siteCulte, setSiteCulte]           = useState("Dimanche 09h30");
@@ -588,6 +596,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     if (panel === "dons" && isAdmin && recentDons.length === 0) loadRecentDons();
   }, [panel, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "admin" && adminTab === "support" && isAdmin && !ticketsLoaded) loadTickets();
+  }, [panel, adminTab, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "admin" && adminTab === "sermons" && sermons.length === 0) loadSermons();
+  }, [panel, adminTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -791,6 +807,27 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         })(),
       })));
     }
+  }
+
+  async function loadSermons() {
+    setSermonsLoading(true);
+    const { data } = await supabase
+      .from("sermons")
+      .select("id, title, pastor, date, is_featured, is_published")
+      .order("date", { ascending: false })
+      .limit(20);
+    if (data) setSermons(data as any);
+    setSermonsLoading(false);
+  }
+
+  async function loadTickets() {
+    const { data } = await supabase
+      .from("grievances")
+      .select("id, title, status, category, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (data) setTickets(data as any);
+    setTicketsLoaded(true);
   }
 
   async function loadSiteSettings() {
@@ -2238,17 +2275,25 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {/* CRM */}
               {adminTab==="crm" && (
                 <div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>Suivi pastoral CRM</div>
+                    <a href="/espace-membres/crm" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Ouvrir le CRM complet →</a>
+                  </div>
                   <div className="em-kanban">
-                    {CRM_COLS.map(col=>(
+                    {[
+                      {title:"Visiteurs",color:"#8890aa",members:members.filter(m=>!m.validated&&m.role==="visiteur")},
+                      {title:"Membres à valider",color:"#c05621",members:members.filter(m=>!m.validated&&m.role!=="visiteur")},
+                      {title:"Membres actifs",color:"#276749",members:members.filter(m=>m.validated).slice(0,4)},
+                    ].map(col=>(
                       <div key={col.title} className="em-k-col">
-                        <div className="em-k-title" style={{color:col.color}}>{col.title}</div>
-                        {col.cards.map(c=>(
-                          <div key={c.name} className="em-k-card">
-                            <div style={{fontWeight:600,color:"#1e2464"}}>{c.name}</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{c.note}</div>
+                        <div className="em-k-title" style={{color:col.color}}>{col.title} <span style={{fontWeight:400,opacity:.7}}>({col.members.length})</span></div>
+                        {col.members.slice(0,4).map(c=>(
+                          <div key={c.id} className="em-k-card">
+                            <div style={{fontWeight:600,color:"#1e2464"}}>{[c.first_name,c.last_name].filter(Boolean).join(" ")||c.email}</div>
+                            <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{c.groups?.join(", ")||"Aucun groupe"}</div>
                           </div>
                         ))}
-                        <button className="em-btn em-btn-ghost em-btn-sm" style={{width:"100%",marginTop:6}}>+ Ajouter</button>
+                        {col.members.length > 4 && <div style={{fontSize:11,color:"#8890aa",textAlign:"center",padding:"4px 0"}}>+{col.members.length-4} autres</div>}
                       </div>
                     ))}
                   </div>
@@ -2271,11 +2316,18 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       }}>Activer RustDesk</button>
                     </div>
                     <div style={{padding:16,background:"#f7f8fc",borderRadius:12}}>
-                      <div style={{fontWeight:700,color:"#1e2464",marginBottom:10}}>Tickets récents</div>
-                      {[{title:"Problème connexion WiFi",status:"Résolu"},{title:"Mise à jour serveur",status:"En cours"},{title:"Backup base de données",status:"Planifié"}].map(t=>(
-                        <div key={t.title} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
-                          <span>{t.title}</span>
-                          <span className={`em-tag ${t.status==="Résolu"?"em-tag-vert":t.status==="En cours"?"em-tag-orange":"em-tag-marine"}`}>{t.status}</span>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                        <div style={{fontWeight:700,color:"#1e2464"}}>Doléances récentes</div>
+                        <a href="/espace-membres/doleances" style={{fontSize:11,color:"#8899cc",textDecoration:"none"}}>Tout voir →</a>
+                      </div>
+                      {tickets.length === 0 && <div style={{fontSize:12,color:"#8890aa"}}>Aucune doléance reçue</div>}
+                      {tickets.slice(0,5).map(t=>(
+                        <div key={t.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
+                          <div>
+                            <div style={{color:"#1e2464"}}>{t.title}</div>
+                            <div style={{fontSize:10,color:"#8890aa"}}>{t.category} · {new Date(t.created_at).toLocaleDateString("fr-CH")}</div>
+                          </div>
+                          <span className={`em-tag ${t.status==="resolved"?"em-tag-vert":t.status==="in_progress"?"em-tag-orange":"em-tag-marine"}`}>{t.status==="resolved"?"Résolu":t.status==="in_progress"?"En cours":"Nouveau"}</span>
                         </div>
                       ))}
                     </div>
@@ -2292,10 +2344,26 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {/* Sermons */}
               {adminTab==="sermons" && (
                 <div className="em-card">
-                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📺 Gestion des sermons</div>
-                  <a href="/admin/sermons" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#8899cc",textDecoration:"none"}}>
-                    Accéder au panneau de gestion des sermons →
-                  </a>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>📺 Sermons publiés</div>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowMajInfo(true)}>+ Ajouter via vitrine</button>
+                  </div>
+                  {sermons.length === 0 && !sermonsLoading && <div style={{fontSize:12,color:"#8890aa"}}>Aucun sermon chargé.</div>}
+                  {sermonsLoading && <div style={{fontSize:12,color:"#8890aa"}}>Chargement…</div>}
+                  {sermons.slice(0,8).map(s=>(
+                    <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.title}</div>
+                        <div style={{fontSize:11,color:"#8890aa"}}>{s.pastor} · {new Date(s.date).toLocaleDateString("fr-CH")}</div>
+                      </div>
+                      <span className={`em-tag ${s.is_featured?"em-tag-orange":"em-tag-marine"}`}>{s.is_featured?"Mis en avant":"Standard"}</span>
+                      <button className="em-btn em-btn-ghost em-btn-sm" onClick={async()=>{
+                        await supabase.from("sermons").update({is_featured:!s.is_featured}).eq("id",s.id);
+                        setSermons(prev=>prev.map(x=>x.id===s.id?{...x,is_featured:!x.is_featured}:x));
+                        setToast(s.is_featured?"Sermon retiré des mises en avant":"Sermon mis en avant ⭐");
+                      }}>⭐</button>
+                    </div>
+                  ))}
                 </div>
               )}
 
