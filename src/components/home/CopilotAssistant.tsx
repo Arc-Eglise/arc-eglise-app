@@ -5,35 +5,18 @@ import { useRef, useState } from "react";
 type Msg = { role: "assistant" | "user"; content: string };
 
 const QUICK = [
-  "Quels sont les horaires des cultes ?",
-  "Comment rejoindre la communauté ARC ?",
-  "Quels événements sont prévus prochainement ?",
-  "Comment puis-je faire partie d'un groupe ?",
+  "Horaires des cultes ?",
+  "Comment rejoindre ARC ?",
+  "Prochains événements ?",
+  "Rejoindre un groupe ?",
 ];
-
-function SparkleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  );
-}
 
 export default function CopilotAssistant() {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Bonjour ! Je suis l'assistant IA de l'église ARC. Comment puis-je vous aider ?" },
   ]);
-  const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [draft, setDraft]       = useState("");
+  const [loading, setLoading]   = useState(false);
   const [streaming, setStreaming] = useState("");
   const chatRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +35,6 @@ export default function CopilotAssistant() {
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
-
       const res = await fetch("/api/lunziko/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,7 +52,6 @@ export default function CopilotAssistant() {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += dec.decode(value, { stream: true });
-
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
 
@@ -78,24 +59,13 @@ export default function CopilotAssistant() {
           if (!line.startsWith("data: ")) continue;
           try {
             const ev = JSON.parse(line.slice(6));
-            if (ev.type === "chunk" && ev.content) {
-              fullContent += ev.content;
-              setStreaming(fullContent);
-              scrollBottom();
-            }
-            if (ev.type === "end") {
-              setMessages((prev) => [...prev, { role: "assistant", content: fullContent || "…" }]);
-              setStreaming("");
-              scrollBottom();
-            }
+            if (ev.type === "chunk" && ev.content) { fullContent += ev.content; setStreaming(fullContent); scrollBottom(); }
+            if (ev.type === "end") { setMessages((prev) => [...prev, { role: "assistant", content: fullContent || "…" }]); setStreaming(""); scrollBottom(); }
             if (ev.type === "error") throw new Error(ev.error);
-          } catch {
-            // ignore malformed lines
-          }
+          } catch { /* ignore malformed */ }
         }
       }
     } catch {
-      // Fallback: non-streaming call
       try {
         const res2 = await fetch("/api/lunziko/chat", {
           method: "POST",
@@ -115,97 +85,174 @@ export default function CopilotAssistant() {
   };
 
   return (
-    <section id="assistant" className="bg-white py-16">
-      <div className="max-w-6xl mx-auto px-5 md:px-10">
-        <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-[#f7f8ff] to-white p-6 md:p-8 shadow-sm">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-arc-blue">Assistant IA</p>
-              <h2 className="mt-2 text-2xl md:text-3xl font-serif font-semibold text-slate-900">Besoin d'aide ?</h2>
+    <section id="assistant" style={{ background: "#141738", padding: "90px 0" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: ".85fr 1.15fr", gap: 48, alignItems: "center" }} className="arc-two">
+
+          {/* Left — description */}
+          <div>
+            <div
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 9,
+                padding: "7px 15px", border: "1px solid rgba(255,255,255,.18)",
+                borderRadius: 999, fontSize: 12, letterSpacing: ".06em",
+                color: "#E6C763", fontWeight: 700, marginBottom: 20,
+              }}
+            >
+              ✦ Assistant IA
             </div>
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
-              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              Propulsé par Lunziko IA
+            <h2 className="font-serif" style={{ fontWeight: 600, fontSize: "clamp(32px,4vw,48px)", lineHeight: 1.07, color: "#fff", marginBottom: 16 }}>
+              Besoin d'aide ?
+            </h2>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,.65)", lineHeight: 1.7, marginBottom: 14 }}>
+              Posez votre question — horaires, événements, comment nous rejoindre. Notre assistant vous répond instantanément.
+            </p>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,.4)" }}>
+              Propulsé par <span style={{ color: "#E6C763", fontWeight: 700 }}>Lunziko IA</span>
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-            {/* Chat window */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div ref={chatRef} className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6 ${
-                      m.role === "assistant"
-                        ? "bg-slate-50 text-slate-700"
-                        : "ml-auto bg-[#1e2464] text-white"
-                    }`}
-                  >
-                    {m.content}
-                  </div>
-                ))}
-                {streaming && (
-                  <div className="max-w-[90%] rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                    {streaming}
-                    <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-indigo-400" />
-                  </div>
-                )}
-                {loading && !streaming && (
-                  <div className="flex gap-1.5 px-4 py-3">
-                    {[0, 1, 2].map((i) => (
-                      <span key={i} className="h-2 w-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
-                    ))}
-                  </div>
-                )}
+          {/* Right — chat UI */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 22,
+              overflow: "hidden",
+              boxShadow: "0 30px 70px rgba(0,0,0,.4)",
+              display: "flex",
+              flexDirection: "column",
+              height: 480,
+            }}
+          >
+            {/* Chat header */}
+            <div style={{ background: "#1e2464", color: "#fff", padding: "18px 22px", display: "flex", alignItems: "center", gap: 12 }}>
+              <span
+                style={{
+                  width: 40, height: 40, borderRadius: 11,
+                  background: "#C9A227", color: "#141738",
+                  display: "grid", placeItems: "center",
+                  fontSize: 20,
+                }}
+              >✦</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Assistant ARC</div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.6)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
+                  En ligne · Lunziko IA
+                </div>
               </div>
             </div>
 
-            {/* Input panel */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
+            {/* Messages */}
+            <div
+              ref={chatRef}
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: 20,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                background: "linear-gradient(180deg,#fff,#FAF7F0)",
+              }}
+            >
+              {messages.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div
+                    style={{
+                      maxWidth: "80%",
+                      padding: "12px 16px",
+                      borderRadius: 16,
+                      fontSize: 14,
+                      lineHeight: 1.55,
+                      background: m.role === "user" ? "#1e2464" : "#f0f2f9",
+                      color: m.role === "user" ? "#fff" : "#1a1c2e",
+                      borderBottomRightRadius: m.role === "user" ? 4 : 16,
+                      borderBottomLeftRadius: m.role === "assistant" ? 4 : 16,
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {streaming && (
+                <div style={{ display: "flex" }}>
+                  <div style={{ maxWidth: "80%", padding: "12px 16px", borderRadius: "16px 16px 16px 4px", fontSize: 14, lineHeight: 1.55, background: "#f0f2f9", color: "#1a1c2e" }}>
+                    {streaming}
+                    <span style={{ marginLeft: 2, display: "inline-block", width: 2, height: 14, background: "#C9A227", animation: "blink 1.2s infinite" }} />
+                  </div>
+                </div>
+              )}
+              {loading && !streaming && (
+                <div style={{ display: "flex", gap: 6, padding: "12px 16px" }}>
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "#b8c4e0", display: "inline-block", animation: `bounce .9s ${i * 0.15}s infinite` }} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Input area */}
+            <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(30,36,100,.12)", background: "#fff" }}>
+              {/* Suggestions */}
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 11 }}>
                 {QUICK.map((q) => (
                   <button
                     key={q}
-                    type="button"
                     onClick={() => send(q)}
                     disabled={loading}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition hover:border-[#1e2464] hover:text-[#1e2464] disabled:opacity-50"
+                    style={{
+                      background: "rgba(30,36,100,.06)",
+                      border: "1px solid rgba(30,36,100,.12)",
+                      color: "#1e2464",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      padding: "7px 12px",
+                      borderRadius: 999,
+                      cursor: "pointer",
+                    }}
                   >
                     {q}
                   </button>
                 ))}
               </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                <textarea
+              {/* Input + send */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  rows={4}
-                  placeholder="Posez votre question…"
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#1e2464]"
+                  placeholder="Écrivez votre message…"
+                  style={{ flex: 1, padding: "13px 16px", border: "1.5px solid rgba(30,36,100,.12)", borderRadius: 12, fontSize: 14, color: "#1a1c2e", outline: "none" }}
                 />
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <SparkleIcon />
-                    Réponse assistée par Lunziko IA
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => send()}
-                    disabled={!draft.trim() || loading}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#1e2464] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 transition hover:bg-[#181d5a]"
-                  >
-                    {loading ? "…" : <><SendIcon /> Envoyer</>}
-                  </button>
-                </div>
+                <button
+                  onClick={() => send()}
+                  disabled={!draft.trim() || loading}
+                  style={{
+                    background: "#1e2464", color: "#fff",
+                    border: "none", borderRadius: 12,
+                    padding: "0 20px",
+                    fontWeight: 700, fontSize: 14, cursor: "pointer",
+                    opacity: !draft.trim() || loading ? 0.5 : 1,
+                  }}
+                >
+                  Envoyer
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        @media (max-width: 820px) {
+          .arc-two { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }

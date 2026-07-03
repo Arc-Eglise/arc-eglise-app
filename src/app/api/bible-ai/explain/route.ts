@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const message = `Explique ce passage biblique en détail pour le niveau ${lvl} : ${verse_ref}`
 
   try {
-    return await streamFromLunziko(message, [], system, undefined, { reasoning: 'high' })
+    return await streamFromLunziko(message, [], system)
   } catch (err) {
     console.error("[bible-ai/explain]", err)
     const enc = new TextEncoder()

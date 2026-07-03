@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, buildCacheKey, getCachedResponse, setCachedResponse,
-  agentFromLunziko,
 } from "@/lib/bible-ai"
 import { buildSearchSystemPrompt } from "@/lib/bible-ai-prompts"
 import { lunzikoFetch } from "@/lib/lunziko"
@@ -39,24 +38,28 @@ export async function POST(req: NextRequest) {
   }
 
   const system = buildSearchSystemPrompt(mode, level, lang)
-  const task = `Recherche biblique [${mode}] : "${query.trim()}"`
 
-  // Agent research → tool calling + knowledge search ; fallback → plain /chat
-  let raw: string
-  try {
-    raw = await agentFromLunziko(task, 'research', system, lang)
-  } catch {
-    const res = await lunzikoFetch("/chat", {
-      method: "POST",
-      body: JSON.stringify({ message: task, history: [], context: { language: lang, system }, provider: "auto", stream: false }),
-    })
-    if (!res.ok) return NextResponse.json({ results: [], total: 0, query_interpretation: "" })
-    const data = await res.json()
-    raw = data.content ?? data.message ?? ""
+  const res = await lunzikoFetch("/chat", {
+    method: "POST",
+    body: JSON.stringify({
+      message: `Recherche biblique [${mode}] : "${query.trim()}"`,
+      history: [],
+      context: { language: lang, system },
+      provider: "auto",
+      stream: false,
+    }),
+  })
+
+  if (!res.ok) {
+    return NextResponse.json({ results: [], total: 0, query_interpretation: "" })
   }
+
+  const data = await res.json()
+  const raw = data.content ?? data.message ?? ""
 
   let parsed: { results: unknown[]; query_interpretation: string; total?: number }
   try {
+    // Extraire le JSON de la réponse (l'IA peut inclure du texte autour)
     const jsonMatch = raw.match(/\{[\s\S]*\}/)
     parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { results: [], query_interpretation: raw, total: 0 }
   } catch {

@@ -287,7 +287,7 @@ export default function BibleReader({ defaultBibleId, versions, books, initialCh
               </div>
               <div
                 ref={chapterRef}
-                className="bible-content font-serif text-lg leading-8 text-arc-navy cursor-pointer"
+                className="em-reading-zone bible-content font-serif text-lg leading-8 text-arc-navy cursor-pointer"
                 dangerouslySetInnerHTML={{ __html: chapter.content }}
               />
               <style>{`

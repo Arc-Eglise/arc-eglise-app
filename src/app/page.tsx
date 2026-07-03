@@ -1,3 +1,4 @@
+import AnnouncementBar from "@/components/home/AnnouncementBar";
 import Header         from "@/components/layout/Header";
 import Footer         from "@/components/layout/Footer";
 import HeroSection    from "@/components/home/HeroSection";
@@ -7,11 +8,13 @@ import SermonsSection from "@/components/home/SermonsSection";
 import EventsSection  from "@/components/home/EventsSection";
 import TeamSection    from "@/components/home/TeamSection";
 import DonSection     from "@/components/home/DonSection";
+import CopilotAssistant from "@/components/home/CopilotAssistant";
 import ContactSection from "@/components/home/ContactSection";
 
 export default function HomePage() {
   return (
     <>
+      <AnnouncementBar />
       <Header />
       <main>
         <HeroSection />
@@ -21,6 +24,7 @@ export default function HomePage() {
         <EventsSection />
         <TeamSection />
         <DonSection />
+        <CopilotAssistant />
         <ContactSection />
       </main>
       <Footer />

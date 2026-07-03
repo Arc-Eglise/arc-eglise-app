@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function MotDePasseOubliePage() {
@@ -32,11 +33,8 @@ export default function MotDePasseOubliePage() {
     <div className="min-h-screen flex items-center justify-center bg-arc-bg px-4">
       <div className="w-full max-w-[420px]">
 
-        <Link href="/" className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-arc-navy to-arc-blue flex items-center justify-center">
-            <span className="font-serif text-sm font-bold text-white">ARC</span>
-          </div>
-          <div className="font-serif text-lg font-bold text-arc-navy tracking-[3px]">ARC</div>
+        <Link href="/" className="flex mb-10">
+          <Image src="/images/logo-arc.jpeg" alt="ARC — Ambassade du Royaume de Christ" width={130} height={80} style={{ objectFit: "contain" }} />
         </Link>
 
         {sent ? (

@@ -91,3 +91,43 @@ export async function markAsRead(conversationId: string) {
     .eq("conversation_id", conversationId)
     .eq("user_id", user.id);
 }
+
+export async function reactToMessage(messageId: string, emoji: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  // Toggle : supprimer si existe déjà, sinon insérer
+  const { data: existing } = await supabase
+    .from("message_reactions")
+    .select("id")
+    .eq("message_id", messageId)
+    .eq("user_id", user.id)
+    .eq("emoji", emoji)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from("message_reactions").delete().eq("id", existing.id);
+    return { removed: true };
+  }
+
+  await supabase.from("message_reactions").insert({
+    message_id: messageId,
+    user_id: user.id,
+    emoji,
+  });
+  return { added: true };
+}
+
+export async function togglePinMessage(messageId: string, currentlyPinned: boolean) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  await supabase
+    .from("messages")
+    .update({ is_pinned: !currentlyPinned })
+    .eq("id", messageId);
+
+  return { ok: true };
+}

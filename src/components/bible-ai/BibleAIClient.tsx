@@ -1,0 +1,836 @@
+"use client"
+
+import { useState, useRef, useEffect, useCallback } from "react"
+import LangSelector from "@/components/bible-ai/LangSelector"
+import type { BibleLevel } from "@/lib/bible-ai-prompts"
+import type { AIUserPreferences } from "@/lib/bible-ai"
+
+/* ─── Types ─────────────────────────────────────────────────── */
+type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media"
+type Msg = { id: string; role: "user" | "assistant"; content: string; streaming?: boolean }
+
+interface ReadingPlan {
+  id: string; title: string; level: string; duration_days: number
+  language: string; focus: string | null; created_at: string; created_by_ai: boolean
+}
+interface PlanDay {
+  id: string; day_number: number; title: string | null; passages: string[]
+  reflection: string | null; prayer_guide: string | null; is_completed: boolean
+}
+interface JournalEntry {
+  id: string; date: string; content: string; verse_refs: string[]
+  mood: string | null; ai_reflection: string | null; updated_at: string
+}
+interface SearchResult {
+  reference: string; ref_id: string; text: string; relevance: number; explanation: string
+}
+interface EventItem {
+  id: string; title: string; date: string; time_start: string | null
+  location: string | null; description: string | null; price_chf: number | null; tags: string[] | null
+}
+interface MediaItem {
+  title: string; author?: string; type: string; url?: string
+  description: string; verse_refs: string[]; topics: string[]; language: string; saved: boolean; source?: string
+}
+
+/* ─── Helpers ───────────────────────────────────────────────── */
+function uid() { return Math.random().toString(36).slice(2) }
+
+const LEVEL_LABELS: Record<BibleLevel, string> = {
+  enfant: "Enfant", debutant: "Débutant", intermediaire: "Intermédiaire",
+  avance: "Avancé", enseignant: "Enseignant",
+}
+
+const SEARCH_MODES = [
+  { id: "semantic",  label: "Sémantique",  icon: "🔍" },
+  { id: "thematic",  label: "Thématique",  icon: "📚" },
+  { id: "character", label: "Personnage",  icon: "👤" },
+  { id: "location",  label: "Lieu",        icon: "📍" },
+  { id: "event",     label: "Événement",   icon: "⚡" },
+  { id: "keyword",   label: "Mot-clé",     icon: "🔤" },
+]
+
+const CHAT_SUGGESTIONS = [
+  { icon: "📖", label: "Jean 3:16",       text: "Explique-moi Jean 3:16 dans son contexte historique et théologique." },
+  { icon: "✝️", label: "La Grâce",        text: "Qu'est-ce que la grâce selon la Bible ? Donne-moi plusieurs passages clés." },
+  { icon: "🙏", label: "La Prière",       text: "Comment prier efficacement selon la Bible ? Quelle est la méthode de Jésus ?" },
+  { icon: "⛪", label: "La Trinité",      text: "Explique-moi la doctrine de la Trinité avec des références bibliques." },
+  { icon: "💡", label: "Le Saint-Esprit", text: "Quel est le rôle du Saint-Esprit dans la vie du croyant ?" },
+  { icon: "📜", label: "Confession",      text: "Résume la Confession de Westminster pour moi." },
+]
+
+/* ─── Sous-composants inline ────────────────────────────────── */
+function SendIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  )
+}
+
+function Spinner() {
+  return (
+    <span className="flex gap-1 items-center">
+      {[0, 1, 2].map(i => (
+        <span key={i} className="h-1.5 w-1.5 rounded-full bg-arc-blue animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+      ))}
+    </span>
+  )
+}
+
+/* ─── Composant principal ───────────────────────────────────── */
+interface Props {
+  userId: string
+  prefs: AIUserPreferences
+  role: string
+}
+
+export default function BibleAIClient({ userId, prefs, role }: Props) {
+  const [tab, setTab]         = useState<Tab>("chat")
+  const [language, setLang]   = useState(prefs.language)
+  const [level, setLevel]     = useState<BibleLevel>(prefs.level)
+
+  // Persister les changements de langue/niveau
+  useEffect(() => {
+    fetch("/api/bible-ai/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update", data: { language, level } }),
+    }).catch(() => {})
+  }, [language, level])
+
+  /* ══ CHAT ══════════════════════════════════════════════════ */
+  const [messages, setMessages]   = useState<Msg[]>([])
+  const [draft, setDraft]         = useState("")
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatMode, setChatMode]   = useState<"chat" | "theology">("chat")
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30)
+  }, [messages])
+
+  const sendChat = useCallback(async (override?: string) => {
+    const text = (override ?? draft).trim()
+    if (!text || chatLoading) return
+    setDraft("")
+    setChatLoading(true)
+    const userMsg: Msg = { id: uid(), role: "user", content: text }
+    const aiId = uid()
+    setMessages(prev => [...prev, userMsg, { id: aiId, role: "assistant", content: "", streaming: true }])
+
+    try {
+      const endpoint = chatMode === "theology" ? "/api/bible-ai/theology" : "/api/bible-ai/chat"
+      const body     = chatMode === "theology"
+        ? { question: text, history: messages.map(m => ({ role: m.role, content: m.content })), language, level, stream: true }
+        : { message: text, history: messages.map(m => ({ role: m.role, content: m.content })), context: { language, level }, stream: true }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok || !res.body) throw new Error("stream error")
+
+      const reader = res.body.getReader()
+      const dec = new TextDecoder()
+      let buf = ""; let full = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+        const lines = buf.split("\n"); buf = lines.pop() ?? ""
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          try {
+            const ev = JSON.parse(line.slice(6))
+            if (ev.type === "chunk" && ev.content) {
+              full += ev.content
+              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full } : m))
+            }
+            if (ev.type === "end") {
+              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full || "…", streaming: false } : m))
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch {
+      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: "Service temporairement indisponible.", streaming: false } : m))
+    } finally {
+      setChatLoading(false)
+    }
+  }, [draft, chatLoading, chatMode, language, level, messages])
+
+  /* ══ SEARCH ════════════════════════════════════════════════ */
+  const [searchQuery, setSearchQuery]     = useState("")
+  const [searchMode, setSearchMode]       = useState("semantic")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchInterp, setSearchInterp]   = useState("")
+
+  const doSearch = async () => {
+    if (!searchQuery.trim() || searchLoading) return
+    setSearchLoading(true); setSearchResults([]); setSearchInterp("")
+    try {
+      const res = await fetch("/api/bible-ai/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery.trim(), mode: searchMode, language }),
+      })
+      const data = await res.json()
+      setSearchResults(data.results ?? [])
+      setSearchInterp(data.query_interpretation ?? "")
+    } finally { setSearchLoading(false) }
+  }
+
+  /* ══ PLANS ═════════════════════════════════════════════════ */
+  const [plans, setPlans]             = useState<ReadingPlan[]>([])
+  const [plansLoading, setPlansLoading] = useState(false)
+  const [activePlan, setActivePlan]   = useState<ReadingPlan | null>(null)
+  const [planDays, setPlanDays]       = useState<PlanDay[]>([])
+  const [showNewPlan, setShowNewPlan] = useState(false)
+  const [newPlanFocus, setNewPlanFocus] = useState("")
+  const [newPlanDays, setNewPlanDays] = useState(30)
+  const [planGenMsg, setPlanGenMsg]   = useState("")
+
+  const loadPlans = useCallback(async () => {
+    setPlansLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
+      const data = await res.json()
+      setPlans(data.plans ?? [])
+    } finally { setPlansLoading(false) }
+  }, [])
+
+  useEffect(() => { if (tab === "plans") loadPlans() }, [tab, loadPlans])
+
+  const loadPlanDays = async (planId: string) => {
+    const res = await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_days", plan_id: planId }) })
+    const data = await res.json()
+    setPlanDays(data.days ?? [])
+  }
+
+  const createPlan = async () => {
+    setPlanGenMsg("Génération du plan en cours…")
+    setShowNewPlan(false)
+    try {
+      const res = await fetch("/api/bible-ai/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", level, language, duration_days: newPlanDays, focus: newPlanFocus || undefined, generate: true }),
+      })
+      if (!res.body) { setPlanGenMsg("Erreur"); return }
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ""
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break
+        buf += dec.decode(value, { stream: true })
+        const lines = buf.split("\n"); buf = lines.pop() ?? ""
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          try {
+            const ev = JSON.parse(line.slice(6))
+            if (ev.type === "end") setPlanGenMsg(`✅ Plan créé (${ev.days_count} jours)`)
+          } catch { /* skip */ }
+        }
+      }
+    } catch { setPlanGenMsg("Erreur lors de la création") }
+    setTimeout(() => { setPlanGenMsg(""); loadPlans() }, 2000)
+  }
+
+  const completeDay = async (planId: string, dayNum: number) => {
+    await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete_day", plan_id: planId, day_number: dayNum }) })
+    setPlanDays(prev => prev.map(d => d.day_number === dayNum ? { ...d, is_completed: true } : d))
+  }
+
+  /* ══ JOURNAL ═══════════════════════════════════════════════ */
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
+  const [journalLoading, setJournalLoading] = useState(false)
+  const [journalContent, setJournalContent] = useState("")
+  const [journalMood, setJournalMood]       = useState("")
+  const [journalSaving, setJournalSaving]   = useState(false)
+  const [selectedEntry, setSelectedEntry]   = useState<JournalEntry | null>(null)
+  const [reflectionLoading, setReflLoading] = useState(false)
+
+  const loadJournal = useCallback(async () => {
+    setJournalLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
+      const data = await res.json()
+      setJournalEntries(data.entries ?? [])
+    } finally { setJournalLoading(false) }
+  }, [])
+
+  useEffect(() => { if (tab === "journal") loadJournal() }, [tab, loadJournal])
+
+  const saveJournal = async () => {
+    if (!journalContent.trim()) return
+    setJournalSaving(true)
+    try {
+      await fetch("/api/bible-ai/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "upsert", content: journalContent, mood: journalMood || undefined, generate_reflection: true }) })
+      setJournalContent(""); setJournalMood("")
+      loadJournal()
+    } finally { setJournalSaving(false) }
+  }
+
+  const generateReflection = async (id: string) => {
+    setReflLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reflect", journal_id: id }) })
+      const data = await res.json()
+      if (data.reflection) {
+        setJournalEntries(prev => prev.map(e => e.id === id ? { ...e, ai_reflection: data.reflection } : e))
+        if (selectedEntry?.id === id) setSelectedEntry(prev => prev ? { ...prev, ai_reflection: data.reflection } : prev)
+      }
+    } finally { setReflLoading(false) }
+  }
+
+  /* ══ EVENTS ════════════════════════════════════════════════ */
+  const [churchEvents, setChurchEvents] = useState<EventItem[]>([])
+  const [webResults, setWebResults]     = useState<unknown[]>([])
+  const [eventQuery, setEventQuery]     = useState("")
+  const [eventsLoading, setEventsLoading] = useState(false)
+
+  const loadEvents = useCallback(async (q = "") => {
+    setEventsLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q, scope: q ? "both" : "church", language }) })
+      const data = await res.json()
+      setChurchEvents(data.church_events ?? [])
+      setWebResults(data.web_results ?? [])
+    } finally { setEventsLoading(false) }
+  }, [language])
+
+  useEffect(() => { if (tab === "events") loadEvents() }, [tab, loadEvents])
+
+  /* ══ MEDIA ═════════════════════════════════════════════════ */
+  const [media, setMedia]           = useState<MediaItem[]>([])
+  const [mediaLoading, setMediaLoading] = useState(false)
+  const [mediaQuery, setMediaQuery] = useState("")
+
+  const loadMedia = useCallback(async (q = "") => {
+    setMediaLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "recommend", topic: q || undefined, language }) })
+      const data = await res.json()
+      setMedia(data.recommendations ?? [])
+    } finally { setMediaLoading(false) }
+  }, [language])
+
+  useEffect(() => { if (tab === "media") loadMedia() }, [tab, loadMedia])
+
+  const TABS: { id: Tab; label: string; icon: string }[] = [
+    { id: "chat",    label: "Étude",       icon: "💬" },
+    { id: "search",  label: "Recherche",   icon: "🔍" },
+    { id: "plans",   label: "Plans",       icon: "📅" },
+    { id: "journal", label: "Journal",     icon: "📓" },
+    { id: "events",  label: "Événements",  icon: "🗓" },
+    { id: "media",   label: "Médias",      icon: "🎵" },
+  ]
+
+  /* ══ RENDER ════════════════════════════════════════════════ */
+  return (
+    <div className="flex flex-col h-full min-h-0">
+
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="shrink-0 px-4 md:px-6 py-3 border-b border-arc-navy/10 bg-white/80 backdrop-blur">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-arc-blue">ARC Église</p>
+            <h1 className="text-base font-serif font-semibold text-arc-navy leading-tight">Assistant Biblique IA</h1>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={level}
+              onChange={e => setLevel(e.target.value as BibleLevel)}
+              className="text-xs border border-arc-border rounded-lg px-2 py-1.5 text-arc-navy bg-white outline-none focus:border-arc-navy"
+            >
+              {(Object.entries(LEVEL_LABELS) as [BibleLevel, string][]).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <LangSelector value={language} onChange={setLang} />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mt-3 overflow-x-auto no-scrollbar">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                tab === t.id
+                  ? "bg-arc-navy text-white"
+                  : "text-arc-text2 hover:text-arc-navy hover:bg-arc-blueBg"
+              }`}
+            >
+              <span>{t.icon}</span>
+              <span className="hidden sm:inline">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CHAT ────────────────────────────────────────────── */}
+      {tab === "chat" && (
+        <div className="flex flex-col flex-1 min-h-0">
+          {/* Mode selector */}
+          <div className="shrink-0 px-4 py-2 flex gap-2 border-b border-arc-navy/5">
+            <button onClick={() => setChatMode("chat")} className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${chatMode === "chat" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}>
+              💬 Chat biblique
+            </button>
+            <button onClick={() => setChatMode("theology")} className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${chatMode === "theology" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}>
+              ⛪ Théologie
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="em-reading-zone flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[280px] text-center gap-5 pb-6">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-arc-blue to-arc-navy flex items-center justify-center text-2xl shadow-lg">✦</div>
+                <div>
+                  <p className="font-serif text-lg font-semibold text-arc-navy">ARC Église AI</p>
+                  <p className="text-sm text-slate-500 mt-1 max-w-xs">Assistant biblique spécialisé · Sourcing strict · {LEVEL_LABELS[level]}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+                  {CHAT_SUGGESTIONS.map(s => (
+                    <button key={s.label} onClick={() => sendChat(s.text)}
+                      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-700 hover:border-arc-blue transition shadow-sm">
+                      <span className="text-base">{s.icon}</span>
+                      <span className="font-medium">{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : messages.map(m => (
+              <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "assistant" && (
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-arc-blue to-arc-navy flex items-center justify-center text-white text-[10px] font-bold mr-2 mt-0.5 shrink-0">✦</div>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 em-ai-msg ${m.role === "user" ? "bg-arc-navy text-white rounded-br-sm" : "bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm"}`}>
+                  {m.content || (m.streaming && <Spinner />)}
+                  {m.streaming && m.content && <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-arc-blue align-middle" />}
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="shrink-0 border-t border-arc-navy/10 bg-white px-4 md:px-6 py-3">
+            {messages.length > 0 && (
+              <div className="flex gap-2 mb-2 overflow-x-auto pb-1 no-scrollbar">
+                {CHAT_SUGGESTIONS.slice(0, 3).map(s => (
+                  <button key={s.label} onClick={() => sendChat(s.text)} disabled={chatLoading}
+                    className="shrink-0 flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:border-arc-blue hover:text-arc-navy transition disabled:opacity-40">
+                    <span>{s.icon}</span> {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex items-end gap-3">
+              <textarea
+                ref={textareaRef} value={draft} rows={2}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat() } }}
+                placeholder="Posez votre question biblique ou théologique… (Entrée pour envoyer)"
+                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-arc-blue focus:bg-white transition"
+              />
+              <button onClick={() => sendChat()} disabled={!draft.trim() || chatLoading}
+                className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-arc-navy text-white hover:bg-arc-blue disabled:opacity-40 disabled:cursor-not-allowed transition">
+                <SendIcon />
+              </button>
+            </div>
+            <p className="mt-1.5 text-center text-[10px] text-slate-400">
+              ARC Église AI · Toute affirmation doit être sourcée · {chatMode === "theology" ? "Mode théologique" : "Mode biblique"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── SEARCH ──────────────────────────────────────────── */}
+      {tab === "search" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-arc-navy mb-3">Mode de recherche</p>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {SEARCH_MODES.map(m => (
+                <button key={m.id} onClick={() => setSearchMode(m.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                    searchMode === m.id ? "bg-arc-navy text-white border-arc-navy" : "border-arc-border text-arc-text2 hover:border-arc-navy hover:text-arc-navy bg-white"
+                  }`}>
+                  {m.icon} {m.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && doSearch()}
+                placeholder={searchMode === "character" ? "Ex: Abraham, David, Marie…" : searchMode === "location" ? "Ex: Jérusalem, Galilée…" : "Rechercher dans la Bible…"}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy transition"
+              />
+              <button onClick={doSearch} disabled={!searchQuery.trim() || searchLoading}
+                className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue disabled:opacity-40 transition">
+                {searchLoading ? "…" : "Chercher"}
+              </button>
+            </div>
+          </div>
+
+          {searchInterp && (
+            <div className="mb-4 px-4 py-3 bg-arc-blueBg border border-arc-bluePale rounded-xl text-sm text-arc-navy">
+              <span className="font-semibold">Interprétation : </span>{searchInterp}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {searchLoading && <div className="text-center py-8 text-arc-text2 text-sm">Recherche en cours…</div>}
+            {!searchLoading && searchResults.map((r, i) => (
+              <div key={i} className="bg-white border border-arc-border rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className="font-bold text-arc-navy text-sm">{r.reference}</span>
+                  <span className="text-xs text-arc-blue font-semibold shrink-0">{Math.round(r.relevance * 100)}%</span>
+                </div>
+                <p className="text-sm text-slate-700 italic mb-2">&ldquo;{r.text}&rdquo;</p>
+                {r.explanation && <p className="text-xs text-arc-text2">{r.explanation}</p>}
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => { setDraft(`Explique ${r.reference}`); setTab("chat") }}
+                    className="text-xs text-arc-blue hover:underline">
+                    Expliquer → Chat
+                  </button>
+                  <button onClick={() => { setDraft(`Explique ${r.reference} au niveau ${level}`); sendChat(`Explique ${r.reference} au niveau ${level} en ${language}`) }}
+                    className="text-xs text-arc-blue hover:underline">
+                    Explication rapide
+                  </button>
+                </div>
+              </div>
+            ))}
+            {!searchLoading && searchResults.length === 0 && searchQuery && !searchLoading && (
+              <div className="text-center py-8 text-arc-text2 text-sm">Lance une recherche pour voir les résultats</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PLANS ───────────────────────────────────────────── */}
+      {tab === "plans" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-arc-navy">Mes plans de lecture</h2>
+            <button onClick={() => setShowNewPlan(v => !v)}
+              className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue transition">
+              + Nouveau plan
+            </button>
+          </div>
+
+          {planGenMsg && (
+            <div className="mb-4 px-4 py-3 bg-arc-blueBg border border-arc-bluePale rounded-xl text-sm text-arc-navy">{planGenMsg}</div>
+          )}
+
+          {showNewPlan && (
+            <div className="mb-5 bg-white border border-arc-border rounded-2xl p-5 space-y-3">
+              <p className="font-semibold text-arc-navy text-sm">Nouveau plan</p>
+              <input value={newPlanFocus} onChange={e => setNewPlanFocus(e.target.value)}
+                placeholder="Focus : Évangile de Jean, Psaumes, épîtres de Paul… (optionnel)"
+                className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy" />
+              <div className="flex gap-3 items-center">
+                <label className="text-xs text-arc-text2 shrink-0">Durée :</label>
+                <select value={newPlanDays} onChange={e => setNewPlanDays(+e.target.value)}
+                  className="text-sm border border-arc-border rounded-lg px-2 py-1.5 outline-none">
+                  {[7, 14, 21, 30, 45, 60, 90].map(d => <option key={d} value={d}>{d} jours</option>)}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={createPlan}
+                  className="flex-1 py-2 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue transition">
+                  Générer avec l'IA
+                </button>
+                <button onClick={() => setShowNewPlan(false)}
+                  className="px-4 py-2 rounded-xl border border-arc-border text-sm text-arc-text2 hover:text-arc-navy transition">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+
+          {plansLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
+
+          {!activePlan ? (
+            <div className="space-y-3">
+              {plans.map(p => (
+                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
+                  onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                      <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
+                    </div>
+                    <span className="text-xs text-arc-blue">→</span>
+                  </div>
+                </div>
+              ))}
+              {!plansLoading && plans.length === 0 && (
+                <div className="text-center py-12 text-arc-text2">
+                  <p className="text-4xl mb-3">📅</p>
+                  <p className="font-semibold">Aucun plan de lecture</p>
+                  <p className="text-sm mt-1">Créez votre premier plan avec l'IA</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button onClick={() => { setActivePlan(null); setPlanDays([]) }}
+                className="mb-4 text-sm text-arc-blue hover:underline">
+                ← Retour aux plans
+              </button>
+              <h3 className="font-bold text-arc-navy mb-1">{activePlan.title}</h3>
+              <p className="text-xs text-arc-text2 mb-4">{activePlan.duration_days} jours · Niveau {activePlan.level}</p>
+              <div className="space-y-2">
+                {planDays.map(d => (
+                  <div key={d.id} className={`border rounded-xl p-4 transition-colors ${d.is_completed ? "bg-green-50 border-green-200" : "bg-white border-arc-border hover:border-arc-navy"}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-sm text-arc-navy">Jour {d.day_number}{d.title ? ` — ${d.title}` : ""}</p>
+                        <p className="text-xs text-arc-blue mt-0.5">{d.passages.join(" · ")}</p>
+                        {d.reflection && <p className="text-xs text-arc-text2 mt-1 italic">{d.reflection}</p>}
+                      </div>
+                      {!d.is_completed && (
+                        <button onClick={() => completeDay(activePlan.id, d.day_number)}
+                          className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">
+                          ✓ Fait
+                        </button>
+                      )}
+                      {d.is_completed && <span className="text-green-600 text-sm">✓</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── JOURNAL ─────────────────────────────────────────── */}
+      {tab === "journal" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          {!selectedEntry ? (
+            <>
+              <div className="mb-5 bg-white border border-arc-border rounded-2xl p-5">
+                <h2 className="font-bold text-arc-navy mb-3">Nouvelle entrée</h2>
+                <div className="space-y-3">
+                  <textarea value={journalContent} onChange={e => setJournalContent(e.target.value)}
+                    placeholder="Ce que Dieu m'a parlé aujourd'hui…"
+                    rows={4}
+                    className="w-full px-3 py-2.5 rounded-xl border border-arc-border text-sm resize-none outline-none focus:border-arc-navy transition" />
+                  <div className="flex gap-2 items-center">
+                    <label className="text-xs text-arc-text2 shrink-0">Humeur :</label>
+                    <select value={journalMood} onChange={e => setJournalMood(e.target.value)}
+                      className="text-sm border border-arc-border rounded-lg px-2 py-1.5 outline-none">
+                      <option value="">—</option>
+                      {["Serein(e)","Reconnaissant(e)","Inquiet(e)","En deuil","Joyeux(se)","Confiant(e)","Questionneur(se)"].map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={saveJournal} disabled={!journalContent.trim() || journalSaving}
+                    className="w-full py-2.5 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue disabled:opacity-40 transition">
+                    {journalSaving ? "Enregistrement…" : "Enregistrer + Réflexion IA 🙏"}
+                  </button>
+                </div>
+              </div>
+
+              {journalLoading && <div className="text-center py-6 text-arc-text2 text-sm">Chargement…</div>}
+              <div className="space-y-3">
+                {journalEntries.map(e => (
+                  <div key={e.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
+                    onClick={() => setSelectedEntry(e)}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-semibold text-arc-blue">{new Date(e.date).toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long" })}</p>
+                        <p className="text-sm text-slate-700 mt-1 line-clamp-2">{e.content}</p>
+                      </div>
+                      {e.mood && <span className="text-xs text-arc-text3 shrink-0 ml-2">{e.mood}</span>}
+                    </div>
+                    {e.ai_reflection && (
+                      <div className="mt-2 pt-2 border-t border-arc-border">
+                        <p className="text-xs text-arc-text2 italic line-clamp-1">✦ {e.ai_reflection}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {!journalLoading && journalEntries.length === 0 && (
+                  <div className="text-center py-12 text-arc-text2">
+                    <p className="text-4xl mb-3">📓</p>
+                    <p className="font-semibold">Journal vide</p>
+                    <p className="text-sm mt-1">Commencez à noter vos pensées et réflexions spirituelles</p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div>
+              <button onClick={() => setSelectedEntry(null)} className="mb-4 text-sm text-arc-blue hover:underline">← Retour</button>
+              <p className="text-xs font-semibold text-arc-blue mb-2">{new Date(selectedEntry.date).toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+              {selectedEntry.mood && <p className="text-xs text-arc-text3 mb-3">Humeur : {selectedEntry.mood}</p>}
+              <div className="bg-white border border-arc-border rounded-xl p-4 mb-4">
+                <p className="em-reading-zone em-reading-text text-slate-700 whitespace-pre-wrap">{selectedEntry.content}</p>
+              </div>
+              {selectedEntry.ai_reflection ? (
+                <div className="bg-arc-blueBg border border-arc-bluePale rounded-xl p-4">
+                  <p className="text-xs font-bold text-arc-navy mb-2">✦ Réflexion IA</p>
+                  <p className="em-reading-zone em-reading-text text-slate-700 italic">{selectedEntry.ai_reflection}</p>
+                </div>
+              ) : (
+                <button onClick={() => generateReflection(selectedEntry.id)} disabled={reflectionLoading}
+                  className="w-full py-2.5 rounded-xl border border-arc-border text-sm font-semibold text-arc-navy hover:bg-arc-blueBg disabled:opacity-40 transition">
+                  {reflectionLoading ? "Génération…" : "✦ Générer une réflexion IA"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── EVENTS ──────────────────────────────────────────── */}
+      {tab === "events" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="flex gap-2 mb-5">
+            <input value={eventQuery} onChange={e => setEventQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && loadEvents(eventQuery)}
+              placeholder="Rechercher des événements chrétiens…"
+              className="flex-1 px-4 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy transition" />
+            <button onClick={() => loadEvents(eventQuery)} disabled={eventsLoading}
+              className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue disabled:opacity-40 transition">
+              {eventsLoading ? "…" : "🔍"}
+            </button>
+          </div>
+
+          {churchEvents.length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs font-bold text-arc-navy uppercase tracking-wider mb-3">🏛️ Église ARC</p>
+              <div className="space-y-2">
+                {churchEvents.map(ev => (
+                  <div key={ev.id} className="bg-white border border-arc-border rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-center shrink-0">
+                        <p className="font-serif text-2xl font-bold text-arc-navy leading-none">{new Date(ev.date).getDate()}</p>
+                        <p className="text-xs text-arc-blue font-bold uppercase">{new Date(ev.date).toLocaleDateString("fr-CH", { month: "short" })}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-arc-navy text-sm">{ev.title}</p>
+                        <p className="text-xs text-arc-text2">{ev.time_start?.slice(0, 5)} · {ev.location}</p>
+                        {ev.price_chf !== null && ev.price_chf > 0 && <p className="text-xs text-arc-text3 mt-0.5">CHF {ev.price_chf}</p>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(webResults as { title: string; url: string; snippet: string; source?: string }[]).length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-arc-navy uppercase tracking-wider mb-3">🌐 Région / Web</p>
+              <p className="text-xs text-arc-text3 mb-3">⚠️ Informations issues du web — vérifiez auprès des organisateurs</p>
+              <div className="space-y-2">
+                {(webResults as { title: string; url: string; snippet: string; source?: string }[]).map((r, i) => (
+                  <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+                    className="block bg-white border border-arc-border rounded-xl p-4 hover:border-arc-navy transition">
+                    <p className="font-semibold text-arc-navy text-sm">{r.title}</p>
+                    {r.snippet && <p className="text-xs text-arc-text2 mt-1 line-clamp-2">{r.snippet}</p>}
+                    <p className="text-xs text-arc-blue mt-1">{r.source ?? r.url}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {eventsLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
+          {!eventsLoading && churchEvents.length === 0 && webResults.length === 0 && (
+            <div className="text-center py-12 text-arc-text2">
+              <p className="text-4xl mb-3">📅</p>
+              <p className="font-semibold">Aucun événement trouvé</p>
+              <p className="text-sm mt-1">Essayez une recherche comme "conférence évangélique 2026"</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MEDIA ───────────────────────────────────────────── */}
+      {tab === "media" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="flex gap-2 mb-5">
+            <input value={mediaQuery} onChange={e => setMediaQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && loadMedia(mediaQuery)}
+              placeholder="Thème ou passage (ex: grâce, Jean 3…)"
+              className="flex-1 px-4 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy transition" />
+            <button onClick={() => loadMedia(mediaQuery)} disabled={mediaLoading}
+              className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue disabled:opacity-40 transition">
+              {mediaLoading ? "…" : "Trouver"}
+            </button>
+          </div>
+
+          {mediaLoading && <div className="text-center py-8 text-arc-text2 text-sm">Recherche en cours…</div>}
+
+          <div className="space-y-3">
+            {media.map((m, i) => {
+              const typeIcon: Record<string, string> = {
+                sermon: "🎙", sermon_ext: "🎙", video: "🎬", podcast: "🎧",
+                article: "📄", book: "📚", audio_bible: "🔊", commentary: "📖", course: "🎓",
+              }
+              return (
+                <div key={i} className={`bg-white border rounded-xl p-4 ${m.saved ? "border-arc-gold/40 bg-arc-gold/5" : "border-arc-border"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{typeIcon[m.type] ?? "📄"}</span>
+                        <span className="text-xs font-bold text-arc-blue uppercase tracking-wide">{m.type}</span>
+                        {m.source === "arc" && <span className="text-xs bg-arc-navy/10 text-arc-navy px-2 py-0.5 rounded-full font-semibold">ARC</span>}
+                      </div>
+                      <p className="font-semibold text-arc-navy text-sm">{m.title}</p>
+                      {m.author && <p className="text-xs text-arc-text2 mt-0.5">{m.author}</p>}
+                      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{m.description}</p>
+                    </div>
+                    <div className="shrink-0 flex flex-col gap-2">
+                      {m.url && (
+                        <a href={m.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-2 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">
+                          Voir →
+                        </a>
+                      )}
+                      {!m.saved && (
+                        <button onClick={async () => {
+                          await fetch("/api/bible-ai/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save", recommendation: m }) })
+                          setMedia(prev => prev.map((r, j) => j === i ? { ...r, saved: true } : r))
+                        }} className="text-xs px-2 py-1 rounded-lg border border-arc-border text-arc-text2 hover:text-arc-navy transition">
+                          Sauver
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {m.verse_refs.length > 0 && (
+                    <div className="mt-2 flex gap-1 flex-wrap">
+                      {m.verse_refs.slice(0, 3).map(ref => (
+                        <span key={ref} className="text-[10px] bg-arc-blueBg text-arc-navy px-2 py-0.5 rounded-full">{ref}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {!mediaLoading && media.length === 0 && (
+              <div className="text-center py-12 text-arc-text2">
+                <p className="text-4xl mb-3">🎵</p>
+                <p className="font-semibold">Aucune recommandation</p>
+                <p className="text-sm mt-1">Entrez un thème ou cliquez sur Trouver</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -3,17 +3,22 @@ import { redirect } from "next/navigation";
 import { updateProfile } from "@/lib/actions/membres";
 import { uploadMemberAvatar } from "@/lib/actions/cms";
 import AvatarUpload from "@/components/membres/AvatarUpload";
+import { getSpiritualProfile } from "@/lib/spiritual-profile";
+import SpiritualProfileSection from "@/components/profil/SpiritualProfileSection";
 
 export default async function ProfilPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("first_name, last_name, email, role, groups, validated, country, phone, avatar_url")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, spiritualProfile] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("first_name, last_name, email, role, groups, validated, country, phone, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    getSpiritualProfile(user.id),
+  ]);
 
   const roleLabels: Record<string, string> = {
     admin:    "👑 Administrateur",
@@ -138,6 +143,8 @@ export default async function ProfilPage() {
               </div>
             </form>
           </div>
+
+          <SpiritualProfileSection initialProfile={spiritualProfile} />
 
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-1">Mot de passe</h2>

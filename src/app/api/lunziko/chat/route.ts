@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { lunzikoFetch, lunzikoAgent } from '@/lib/lunziko'
+import { lunzikoFetch } from '@/lib/lunziko'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptKey, claudeStream, openaiStream, geminiStream } from '@/lib/member-ai'
@@ -83,18 +83,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Priorité 2 : Lunziko Agent (tool calling, mémoire, knowledge search) ──
-    // Non-streaming uniquement — l'agent ne supporte pas SSE
-    if (!stream) {
-      try {
-        const result = await lunzikoAgent(message.trim(), { agent_type: 'auto', system: ARC_SYSTEM, language: 'fr' })
-        return NextResponse.json({ answer: result.content })
-      } catch {
-        // Fall through to plain /chat
-      }
-    }
-
-    // ── Priorité 3 : Lunziko Platform /chat (streaming ou fallback) ──────────
+    // ── Priorité 2 : Lunziko Platform API ──────────────────────────────────
     const res = await lunzikoFetch('/chat', {
       method: 'POST',
       body: JSON.stringify({

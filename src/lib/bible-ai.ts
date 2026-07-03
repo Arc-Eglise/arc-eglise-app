@@ -1,7 +1,7 @@
 // ARC Église AI — Helper partagé (server-side uniquement)
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lunzikoFetch, lunzikoAgent, lunzikoWorkflow } from "@/lib/lunziko"
+import { lunzikoFetch }      from "@/lib/lunziko"
 import { NextResponse }      from "next/server"
 import type { BibleLevel }   from "@/lib/bible-ai-prompts"
 import crypto                from "crypto"
@@ -138,31 +138,21 @@ export async function autoSummarizeSession(
   transcript: string,
 ): Promise<void> {
   try {
-    let summary: string | undefined
-
-    // Try workflow (ocrToSummary) first — better quality with retry/timeout
-    try {
-      const out = await lunzikoWorkflow('ocrToSummary', { text: transcript.slice(0, 8000) })
-      summary = out.summary as string | undefined
-    } catch {
-      // Fallback: /summarize endpoint
-      const res = await lunzikoFetch("/summarize", {
-        method: "POST",
-        body: JSON.stringify({
-          text: transcript.slice(0, 8000),
-          length: "short",
-          format: "paragraph",
-          language: "fr",
-          provider: "auto",
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        summary = data.summary as string | undefined
-      }
-    }
-
+    const res = await lunzikoFetch("/summarize", {
+      method: "POST",
+      body: JSON.stringify({
+        text: transcript.slice(0, 8000),
+        length: "short",
+        format: "paragraph",
+        language: "fr",
+        provider: "auto",
+      }),
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const summary = data.summary as string | undefined
     if (!summary) return
+
     const admin = createAdminClient()
     await admin
       .from("ai_bible_sessions")
@@ -260,18 +250,6 @@ export function extractVerseRefs(text: string): string[] {
   return Array.from(new Set(matches)).slice(0, 20)
 }
 
-// ── Agent non-streaming (research / document) ──────────────────────
-
-export async function agentFromLunziko(
-  task: string,
-  agentType: 'research' | 'document' | 'auto' = 'auto',
-  systemPrompt?: string,
-  language = 'fr',
-): Promise<string> {
-  const result = await lunzikoAgent(task, { agent_type: agentType, language, system: systemPrompt })
-  return result.content
-}
-
 // ── Lunziko chat stream forwarding ─────────────────────────────────
 
 export async function streamFromLunziko(
@@ -279,7 +257,6 @@ export async function streamFromLunziko(
   history: { role: string; content: string }[],
   systemPrompt: string,
   onChunk?: (text: string) => void,
-  options?: { reasoning?: 'disabled' | 'high' | 'max' },
 ): Promise<Response> {
   const res = await lunzikoFetch("/chat", {
     method: "POST",
@@ -289,7 +266,6 @@ export async function streamFromLunziko(
       context: { language: "fr", system: systemPrompt },
       provider: "auto",
       stream: true,
-      ...(options?.reasoning ? { reasoning: options.reasoning } : {}),
     }),
   })
 

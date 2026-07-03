@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { Sermon } from "@/lib/supabase/types";
 
 const FILTERS = ["Tout", "Série", "Évangélisation", "Prière", "Famille"];
 const GRADIENT = ["from-arc-navy to-arc-blue", "from-[#2d3a8e] to-arc-navy", "from-arc-navy2 to-[#2d3a8e]"];
 
-export default function SermonsClient({ sermons }: { sermons: Sermon[] }) {
+export default function SermonsClient({ sermons, dark = false }: { sermons: Sermon[]; dark?: boolean }) {
   const [activeFilter, setActiveFilter] = useState("Tout");
 
   const filtered =
@@ -24,16 +25,21 @@ export default function SermonsClient({ sermons }: { sermons: Sermon[] }) {
   return (
     <>
       {/* Filtres */}
-      <div className="flex flex-wrap gap-1.5 mb-8">
+      <div className="flex flex-wrap gap-2.5 mb-8">
         {FILTERS.map((f) => (
           <button
             key={f}
             onClick={() => setActiveFilter(f)}
-            className={`px-4 py-2 rounded-full text-xs font-semibold border-[1.5px] cursor-pointer select-none transition-all duration-200 ${
-              activeFilter === f
-                ? "border-arc-navy bg-arc-blueBg text-arc-navy"
-                : "border-arc-border bg-white text-arc-text2 hover:border-arc-navy hover:bg-arc-blueBg hover:text-arc-navy"
-            }`}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 999,
+              fontSize: 13.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              border: `1px solid ${activeFilter === f ? "#C9A227" : dark ? "rgba(255,255,255,.16)" : "rgba(30,36,100,.15)"}`,
+              background: activeFilter === f ? "#C9A227" : dark ? "rgba(255,255,255,.05)" : "transparent",
+              color: activeFilter === f ? "#141738" : dark ? "rgba(255,255,255,.8)" : "#4a5070",
+            }}
           >
             {f}
           </button>
@@ -41,106 +47,145 @@ export default function SermonsClient({ sermons }: { sermons: Sermon[] }) {
       </div>
 
       {featured ? (
-        <>
-          {/* Featured */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 mb-10 items-center">
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 20 }} className="arc-sermon-grid">
+          {/* Featured article */}
+          <article
+            style={{
+              background: dark ? "rgba(255,255,255,.04)" : "#fff",
+              border: `1px solid ${dark ? "rgba(255,255,255,.1)" : "rgba(30,36,100,.1)"}`,
+              borderRadius: 20,
+              overflow: "hidden",
+            }}
+          >
             <a
               href={featured.youtube_id ? `https://youtu.be/${featured.youtube_id}` : undefined}
               target={featured.youtube_id ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="rounded-[20px] aspect-video flex items-center justify-center relative overflow-hidden cursor-pointer group"
-              style={{ background: "linear-gradient(145deg,#1e2464,#161b4e)" }}
+              style={{ position: "relative", display: "block", height: 260, background: "linear-gradient(150deg,#2b327f,#141738)", cursor: "pointer" }}
             >
-              {featured.youtube_id ? (
-                <img
+              {featured.youtube_id && (
+                <Image
                   src={`https://img.youtube.com/vi/${featured.youtube_id}/hqdefault.jpg`}
                   alt={featured.title}
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                  fill
+                  sizes="(max-width:900px) 100vw, 50vw"
+                  style={{ objectFit: "cover", opacity: 0.6 }}
                 />
-              ) : (
-                <div className="absolute font-serif text-[80px] font-bold text-white/[0.04] select-none">ARC</div>
               )}
-              <div className="relative z-10 w-[72px] h-[72px] rounded-full bg-white/15 border-2 border-white/40 flex items-center justify-center text-2xl text-white group-hover:bg-white/25 group-hover:scale-105 transition-all duration-300">
-                ▶
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
+              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+                <span style={{ width: 66, height: 66, borderRadius: "50%", background: "rgba(255,255,255,.16)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", fontSize: 24 }}>▶</span>
               </div>
-              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 bg-arc-red text-white text-[9px] font-bold px-2.5 py-1 rounded-full tracking-widest">
-                <span className="w-[5px] h-[5px] bg-white rounded-full" /> REPLAY
+              <div style={{ position: "absolute", top: 16, left: 16, background: "#C9A227", color: "#141738", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, letterSpacing: ".05em" }}>
+                DERNIER MESSAGE
               </div>
             </a>
-
-            <div className="flex flex-col gap-2">
-              <div className="text-[9px] font-bold tracking-[2px] uppercase text-arc-blue">
-                {featured.series ?? "Sermon du dimanche"}
+            <div style={{ padding: 24 }}>
+              <div style={{ fontSize: 12, color: "#E6C763", fontWeight: 600, letterSpacing: ".05em" }}>
+                {featured.series ? `SÉRIE · ${featured.series.toUpperCase()}` : "SERMON DU DIMANCHE"}
               </div>
-              <h3 className="font-serif text-[26px] font-bold text-arc-navy leading-[1.25]">{featured.title}</h3>
-              <div className="text-[13px] text-arc-text3">
-                {new Date(featured.date).toLocaleDateString("fr-CH", { day: "numeric", month: "long", year: "numeric" })}
-                {" · "}{featured.pastor}
-                {featured.reference ? ` · ${featured.reference}` : ""}
-              </div>
-              {featured.excerpt && (
-                <p className="text-sm text-arc-text2 leading-[1.8] mt-1">{featured.excerpt}</p>
-              )}
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {featured.youtube_id && (
-                  <a
-                    href={`https://youtu.be/${featured.youtube_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-lg text-xs font-semibold bg-arc-navy text-white hover:bg-arc-navy2 transition-colors"
-                  >
-                    ▶ Regarder
-                  </a>
-                )}
-                <button className="px-4 py-2 rounded-lg text-xs font-semibold border border-arc-border text-arc-text2 hover:border-arc-blue hover:text-arc-navy transition-colors">
-                  📤 Partager
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Grille */}
-          {rest.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-              {rest.map((s: Sermon, i: number) => (
+              <h3 className="font-serif" style={{ fontSize: 28, fontWeight: 600, margin: "8px 0 6px", color: dark ? "#fff" : "#1e2464" }}>
+                {featured.title}
+              </h3>
+              <p style={{ fontSize: 14, color: dark ? "rgba(255,255,255,.6)" : "#6b6f86", lineHeight: 1.6 }}>
+                {featured.reference ? `${featured.reference} · ` : ""}{featured.pastor}
+              </p>
+              {featured.youtube_id && (
                 <a
-                  key={s.id}
-                  href={s.youtube_id ? `https://youtu.be/${s.youtube_id}` : undefined}
+                  href={`https://youtu.be/${featured.youtube_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="cursor-pointer rounded-[14px] overflow-hidden bg-white border border-arc-border hover:border-arc-bluePale hover:-translate-y-1 hover:shadow-arc transition-all duration-300 block"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 16, background: "#C9A227", color: "#141738", padding: "10px 20px", borderRadius: 999, fontWeight: 700, fontSize: 13, textDecoration: "none" }}
                 >
-                  <div className={`h-[120px] relative flex items-center justify-center bg-gradient-to-br ${GRADIENT[i % GRADIENT.length]}`}>
-                    {s.youtube_id ? (
-                      <img
-                        src={`https://img.youtube.com/vi/${s.youtube_id}/mqdefault.jpg`}
-                        alt={s.title}
-                        className="absolute inset-0 w-full h-full object-cover opacity-70"
-                      />
-                    ) : (
-                      <span className="font-serif text-sm italic text-white/40 px-3 text-center">{s.reference}</span>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-arc-navy/40 opacity-0 hover:opacity-100 transition-opacity text-white text-2xl z-10">▶</div>
-                  </div>
-                  <div className="p-3.5">
-                    <div className="text-[9px] font-bold text-arc-blue uppercase tracking-widest mb-1">
-                      {new Date(s.date).toLocaleDateString("fr-CH", { day: "numeric", month: "short", year: "numeric" })}
-                    </div>
-                    <div className="font-serif text-base font-semibold text-arc-navy leading-[1.35] mb-1">{s.title}</div>
-                    <div className="text-[11px] text-arc-text3">{s.pastor}</div>
-                  </div>
+                  ▶ Regarder
                 </a>
-              ))}
+              )}
             </div>
-          )}
-        </>
+          </article>
+
+          {/* Secondary sermons */}
+          {rest.slice(0, 2).map((s: Sermon) => (
+            <article
+              key={s.id}
+              style={{
+                background: dark ? "rgba(255,255,255,.04)" : "#fff",
+                border: `1px solid ${dark ? "rgba(255,255,255,.1)" : "rgba(30,36,100,.1)"}`,
+                borderRadius: 20,
+                overflow: "hidden",
+              }}
+            >
+              <a
+                href={s.youtube_id ? `https://youtu.be/${s.youtube_id}` : undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ position: "relative", display: "block", height: 148, background: "linear-gradient(150deg,#2b327f,#141738)", cursor: "pointer" }}
+              >
+                {s.youtube_id && (
+                  <Image
+                    src={`https://img.youtube.com/vi/${s.youtube_id}/mqdefault.jpg`}
+                    alt={s.title}
+                    fill
+                    sizes="(max-width:900px) 100vw, 25vw"
+                    style={{ objectFit: "cover", opacity: 0.65 }}
+                  />
+                )}
+                <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
+              </a>
+              <div style={{ padding: 18 }}>
+                <div style={{ fontSize: 11, color: "#E6C763", fontWeight: 600, letterSpacing: ".05em" }}>
+                  {s.series?.toUpperCase() ?? "SERMON"}
+                </div>
+                <h4 className="font-serif" style={{ fontSize: 21, fontWeight: 600, margin: "6px 0 4px", color: dark ? "#fff" : "#1e2464" }}>
+                  {s.title}
+                </h4>
+                <div style={{ fontSize: 12.5, color: dark ? "rgba(255,255,255,.55)" : "#6b6f86" }}>
+                  {s.reference ? `${s.reference} · ` : ""}{s.pastor}
+                </div>
+              </div>
+            </article>
+          ))}
+
+          {/* Empty slots when fewer than 3 sermons in DB */}
+          {rest.length < 2 && Array.from({ length: 2 - rest.length }).map((_, i) => (
+            <article
+              key={`empty-${i}`}
+              style={{
+                background: dark ? "rgba(255,255,255,.03)" : "rgba(30,36,100,.03)",
+                border: `1.5px dashed ${dark ? "rgba(255,255,255,.1)" : "rgba(30,36,100,.12)"}`,
+                borderRadius: 20,
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 220,
+              }}
+            >
+              <div style={{ textAlign: "center", padding: 24 }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>📺</div>
+                <div style={{ fontSize: 13, color: dark ? "rgba(255,255,255,.35)" : "#8890aa" }}>
+                  Prochain message<br />à venir
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
-        <div className="text-center py-16 text-arc-text3 text-sm">
+        <div style={{ textAlign: "center", padding: "64px 0", color: dark ? "rgba(255,255,255,.4)" : "#8890aa", fontSize: 14 }}>
           {activeFilter === "Tout"
             ? "Les sermons seront bientôt disponibles."
             : `Aucun sermon trouvé pour "${activeFilter}".`}
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 900px) {
+          .arc-sermon-grid { grid-template-columns: 1fr 1fr !important; }
+          .arc-sermon-grid article:first-child { grid-column: 1 / -1; }
+        }
+        @media (max-width: 560px) {
+          .arc-sermon-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </>
   );
 }

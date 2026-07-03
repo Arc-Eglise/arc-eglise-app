@@ -109,7 +109,7 @@ export default async function PrierePage() {
                   </div>
                 </div>
                 {p.description && (
-                  <p className="text-sm text-arc-text2 leading-relaxed">{p.description}</p>
+                  <p className="em-reading-zone em-reading-text text-arc-text2">{p.description}</p>
                 )}
               </div>
             );

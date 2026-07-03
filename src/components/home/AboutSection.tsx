@@ -1,96 +1,148 @@
-const PILLARS = [
-  { icon: "📖", title: "La Parole",  desc: "La Bible est notre autorité absolue et notre guide quotidien." },
-  { icon: "🙏", title: "La Prière",  desc: "Nous sommes une maison de prière et d'intercession." },
-  { icon: "❤️", title: "L'Amour",   desc: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
-  { icon: "🌍", title: "La Mission", desc: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
+const VALUES = [
+  { icon: "📖", title: "La Parole",  text: "La Bible est notre autorité absolue et notre guide quotidien." },
+  { icon: "🙏", title: "La Prière",  text: "Nous sommes une maison de prière et d'intercession." },
+  { icon: "❤️", title: "L'Amour",   text: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
+  { icon: "🌍", title: "La Mission", text: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
 ];
 
 export default function AboutSection() {
   return (
-    <section id="apropos" className="py-24 bg-white">
-      <div className="max-w-8xl mx-auto px-5 md:px-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+    <section id="apropos" style={{ maxWidth: 1240, margin: "0 auto", padding: "90px 32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: ".9fr 1.1fr", gap: 64, alignItems: "center" }} className="arc-two">
 
-          {/* Visual */}
-          <div className="relative">
-            <div
-              className="w-full h-[380px] md:h-[520px] rounded-3xl flex items-end overflow-hidden relative"
-              style={{ background: "linear-gradient(160deg,#1e2464,#8899cc)" }}
-            >
-              {/* dot pattern */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1' fill='rgba(255,255,255,.08)'/%3E%3C/svg%3E\")",
-                  backgroundSize: "60px",
-                }}
-              />
-              <div className="relative z-10 p-8 w-full">
-                <div className="text-[9px] text-arc-bluePale tracking-[2px] uppercase mb-1.5">
-                  Fondée en 2018 · La Chaux-de-Fonds
-                </div>
-                <blockquote className="font-serif text-[22px] italic text-white/85 leading-relaxed">
-                  "Construisons des générations de disciples qui influencent positivement leur environnement."
-                </blockquote>
-              </div>
-            </div>
-
-            {/* Floating stat */}
-            <div className="absolute bg-white rounded-[18px] px-6 py-5 shadow-arc-dark -right-4 md:-right-8 top-10">
-              <div className="font-serif text-[40px] font-bold text-arc-navy leading-none">600+</div>
-              <div className="text-[11px] text-arc-text3 mt-1">Personnes touchées</div>
+        {/* Visual */}
+        <div style={{ position: "relative" }}>
+          <div
+            style={{
+              borderRadius: 24, overflow: "hidden", height: 480,
+              background: "linear-gradient(150deg,#2b327f,#141738)",
+              boxShadow: "0 26px 60px rgba(20,23,56,.28)",
+              position: "relative",
+            }}
+          >
+            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 22px)" }} />
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: 24, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
+              [ Photo — Pasteur Pedro Obova & l'équipe ]
             </div>
           </div>
 
-          {/* Content */}
-          <div>
-            <div className="inline-flex items-center gap-2 text-[9px] font-bold tracking-[3px] uppercase text-arc-blue mb-4">
-              <span className="w-5 h-px bg-arc-blue" />
-              Notre histoire
-            </div>
-            <h2 className="font-serif text-[38px] md:text-[44px] font-bold text-arc-navy leading-[1.15] mb-4">
-              Une église enracinée<br />dans la Parole
-            </h2>
-            <div className="space-y-4 mb-8">
-              <p className="text-[15px] text-arc-text2 leading-[1.9]">
-                Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.
-              </p>
-              <p className="text-[15px] text-arc-text2 leading-[1.9]">
-                Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.
-              </p>
-            </div>
+          {/* Gold stat badge */}
+          <div
+            style={{
+              position: "absolute", right: -20, bottom: -26,
+              background: "#C9A227", color: "#141738",
+              borderRadius: 18, padding: "20px 24px",
+              boxShadow: "0 18px 40px rgba(201,162,39,.4)",
+            }}
+          >
+            <div className="font-serif" style={{ fontSize: 42, fontWeight: 700, lineHeight: 1 }}>600+</div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase" }}>Personnes touchées</div>
+          </div>
 
-            {/* Pillars */}
-            <div className="grid grid-cols-2 gap-3.5 mb-7">
-              {PILLARS.map((p) => (
-                <div
-                  key={p.title}
-                  className="bg-arc-bg border border-arc-border rounded-[14px] p-5 hover:border-arc-bluePale hover:-translate-y-0.5 transition-all duration-250"
-                >
-                  <div className="text-2xl mb-2.5">{p.icon}</div>
-                  <div className="text-sm font-bold text-arc-navy mb-1">{p.title}</div>
-                  <div className="text-[12px] text-arc-text2 leading-[1.65]">{p.desc}</div>
-                </div>
-              ))}
-            </div>
+          {/* Year chip */}
+          <div
+            style={{
+              position: "absolute", left: -16, top: -16,
+              background: "#fff", border: "1px solid rgba(30,36,100,.12)",
+              borderRadius: 14, padding: "11px 16px",
+              fontSize: 12.5, fontWeight: 600, color: "#1e2464",
+              boxShadow: "0 12px 30px rgba(20,23,56,.14)",
+            }}
+          >
+            Fondée en 2018 · La Chaux-de-Fonds
+          </div>
+        </div>
 
-            <div className="flex gap-3.5 flex-wrap">
-              <a
-                href="#equipe"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[11px] text-sm font-bold bg-arc-navy text-white hover:bg-arc-navy2 hover:-translate-y-0.5 hover:shadow-arc transition-all duration-300"
+        {/* Text */}
+        <div>
+          <div style={{ fontSize: 12, letterSpacing: ".2em", textTransform: "uppercase", color: "#C9A227", fontWeight: 700, marginBottom: 18 }}>
+            Notre histoire
+          </div>
+          <h2
+            className="font-serif"
+            style={{ fontWeight: 600, fontSize: "clamp(34px,4vw,52px)", lineHeight: 1.08, color: "#1e2464", marginBottom: 24 }}
+          >
+            Une église enracinée{" "}
+            <span style={{ fontStyle: "italic", color: "#C9A227" }}>dans la Parole</span>
+          </h2>
+          <p style={{ fontSize: 16, lineHeight: 1.75, color: "#6b6f86", marginBottom: 16 }}>
+            Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.
+          </p>
+          <p style={{ fontSize: 16, lineHeight: 1.75, color: "#6b6f86", marginBottom: 24 }}>
+            Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.
+          </p>
+          <blockquote
+            style={{
+              borderLeft: "3px solid #C9A227",
+              padding: "6px 0 6px 22px",
+              margin: "0 0 30px",
+              fontStyle: "italic",
+              fontSize: 23,
+              lineHeight: 1.4,
+              color: "#1e2464",
+            }}
+            className="font-serif"
+          >
+            « Construisons des générations de disciples qui influencent positivement leur environnement. »
+          </blockquote>
+
+          {/* Values grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 30 }}>
+            {VALUES.map((v) => (
+              <div
+                key={v.title}
+                style={{
+                  background: "#fff",
+                  border: "1px solid rgba(30,36,100,.12)",
+                  borderRadius: 14,
+                  padding: 18,
+                }}
               >
-                Rencontrer l'équipe →
-              </a>
-              <a
-                href="#contact"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[11px] text-sm font-bold bg-transparent text-arc-navy border-[1.5px] border-arc-navy/25 hover:bg-arc-blueBg hover:border-arc-navy transition-all duration-300"
-              >
-                Nous visiter
-              </a>
-            </div>
+                <div style={{ fontSize: 22, marginBottom: 10 }}>{v.icon}</div>
+                <div className="font-serif" style={{ fontSize: 19, fontWeight: 600, color: "#1e2464" }}>{v.title}</div>
+                <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, marginTop: 4 }}>{v.text}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <a
+              href="#equipe"
+              style={{
+                textDecoration: "none",
+                background: "#1e2464",
+                color: "#fff",
+                padding: "14px 26px",
+                borderRadius: 999,
+                fontWeight: 600,
+                fontSize: 14.5,
+              }}
+            >
+              Rencontrer l'équipe →
+            </a>
+            <a
+              href="#contact"
+              style={{
+                textDecoration: "none",
+                border: "1px solid #1e2464",
+                color: "#1e2464",
+                padding: "14px 26px",
+                borderRadius: 999,
+                fontWeight: 600,
+                fontSize: 14.5,
+              }}
+            >
+              Nous visiter
+            </a>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .arc-two { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }
