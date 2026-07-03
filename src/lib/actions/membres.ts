@@ -385,6 +385,66 @@ export async function updateSiteSettings(settings: Record<string, string>) {
   return { success: true };
 }
 
+export async function updateMemberRole(memberId: string, newRole: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (me?.role !== "admin") return { error: "Non autorisé — Admin uniquement" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", memberId);
+  if (error) return { error: error.message };
+
+  // Log dans activity_feed (best-effort, table may not exist yet)
+  try {
+    await admin.from("activity_feed").insert({
+      icon: "👤", text: `Rôle modifié → ${newRole}`,
+      user_id: user.id, target_user_id: memberId,
+    });
+  } catch { /* table pas encore créée */ }
+
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function savePermissionsMatrix(perms: Record<string, Record<string, boolean>>) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  await admin.from("site_settings").upsert(
+    { key: "role_permissions_matrix", value: JSON.stringify(perms), updated_by: user.id, updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
+
+  return { success: true };
+}
+
+export async function savePlatformCards(cards: object[]) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) return { error: "Non authentifié" };
+    const { data: p } = await supabase.from("profiles").select("role,groups").eq("id", u.id).single();
+    if (!["admin","pasteur"].includes(p?.role ?? "") && !(p?.groups ?? []).includes("Communication")) {
+      return { error: "Non autorisé" };
+    }
+  }
+
+  const admin = createAdminClient();
+  await admin.from("site_settings").upsert(
+    { key: "mp_cards", value: JSON.stringify(cards), updated_by: user?.id ?? null, updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
+
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function updateCrmTags(memberId: string, tags: string[]) {
   const supabase = createClient();
   const user = await assertAdmin(supabase);

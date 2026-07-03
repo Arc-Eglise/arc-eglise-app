@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { reactToMessage, togglePinMessage, sendMessage } from "@/lib/actions/messagerie";
-import { createBiblicalNote, createGrievance, createEvent, generateInviteLink, createRoomBooking, updateSiteSettings } from "@/lib/actions/membres";
+import { createBiblicalNote, createGrievance, createEvent, generateInviteLink, createRoomBooking, updateSiteSettings, updateMemberRole, savePermissionsMatrix, savePlatformCards } from "@/lib/actions/membres";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
@@ -425,6 +425,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [tickets, setTickets] = useState<{id:string;title:string;status:string;category:string;created_at:string}[]>([]);
   const [ticketsLoaded, setTicketsLoaded] = useState(false);
 
+  /* Audit log */
+  const [auditLogs, setAuditLogs] = useState<{action:string;detail:string;created_at:string}[]>([]);
+
   /* Sermons */
   const [sermons, setSermons] = useState<{id:string;title:string;pastor:string;date:string;is_featured:boolean;is_published:boolean}[]>([]);
   const [sermonsLoading, setSermonsLoading] = useState(false);
@@ -604,6 +607,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     if (panel === "admin" && adminTab === "sermons" && sermons.length === 0) loadSermons();
   }, [panel, adminTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showGD && gdTab === "audit" && isAdmin && auditLogs.length === 0) loadAuditLogs();
+  }, [showGD, gdTab, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -806,6 +813,28 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           return `il y a ${Math.floor(diff/86400000)}j`;
         })(),
       })));
+    }
+  }
+
+  async function loadAuditLogs() {
+    // Try audit_log table first, fallback to activity_feed
+    const { data: aData } = await supabase
+      .from("audit_log")
+      .select("action, detail, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (aData && aData.length > 0) {
+      setAuditLogs(aData as any);
+      return;
+    }
+    // Fallback: activity_feed
+    const { data: fData } = await supabase
+      .from("activity_feed")
+      .select("text, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (fData) {
+      setAuditLogs(fData.map((f: any) => ({ action: "Activité", detail: f.text, created_at: f.created_at })));
     }
   }
 
@@ -1613,7 +1642,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <div className="em-sect-title">Agenda</div>
                 <div className="em-sect-sub">Événements &amp; calendrier de l&apos;église</div>
               </div>
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <a href="/api/events/ical" download="arc-eglise-agenda.ics" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>📅 Export iCal</a>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>🏢 Réserver une salle</button>
                 {canAdmin && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowAddEvent(true)}>+ Ajouter un événement</button>}
               </div>
@@ -2728,9 +2758,13 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     </table>
                   </div>
                   <div style={{marginTop:16,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("💾 Modifications sauvegardées !")}>💾 Sauvegarder</button>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={async()=>{
+                      const res = await savePermissionsMatrix(gdPerms);
+                      if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                      setToast("💾 Matrice des droits sauvegardée !");
+                    }}>💾 Sauvegarder</button>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{const p:Record<string,Record<string,boolean>>={};for(const k in GD_DEFAULTS)p[k]={...GD_DEFAULTS[k]};setGdPerms(p);setToast("↺ Matrice réinitialisée aux défauts");}}>↺ Réinitialiser aux défauts</button>
-                    <span style={{fontSize:11,color:"#8890aa",marginLeft:8}}>Les modifications sont propagées via Supabase RLS en production</span>
+                    <span style={{fontSize:11,color:"#8890aa",marginLeft:8}}>Les modifications sont sauvegardées dans Supabase</span>
                   </div>
                 </div>
               )}
@@ -2755,8 +2789,13 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Pasteur · {m.email}</div>
                           </div>
                           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-                            <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast(`✏️ Modifier ${name}`)}>✏️ Modifier</button>
-                            <button className="em-btn em-btn-sm" style={{background:"rgba(229,62,62,.1)",color:"#c53030",border:"1px solid rgba(229,62,62,.2)"}} onClick={()=>{if(confirm(`⚠️ Révoquer le statut pastoral de ${name} ?`))setToast(`❌ Statut révoqué : ${name}`);}}>❌ Révoquer</button>
+                            <button className="em-btn em-btn-sm" style={{background:"rgba(229,62,62,.1)",color:"#c53030",border:"1px solid rgba(229,62,62,.2)"}} onClick={async()=>{
+                              if(!confirm(`⚠️ Révoquer le statut pastoral de ${name} ? Cette action est journalisée.`)) return;
+                              const res = await updateMemberRole(m.id, "membre");
+                              if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                              setMembers(prev => prev.map(x => x.id === m.id ? {...x, role:"membre"} : x));
+                              setToast(`❌ Statut pastoral révoqué : ${name}`);
+                            }}>❌ Révoquer</button>
                           </div>
                         </div>
                       );
@@ -2784,13 +2823,25 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
                             <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}</div>
                           </div>
-                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={e=>setToast(`✅ Rôle de ${name} changé → ${e.target.value}`)}>
+                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={async e=>{
+                            const newRole = e.target.value;
+                            const res = await updateMemberRole(m.id, newRole);
+                            if (res?.error) { setToast(`⚠️ ${res.error}`); e.currentTarget.value = m.role; return; }
+                            setMembers(prev => prev.map(x => x.id === m.id ? {...x, role: newRole} : x));
+                            setToast(`✅ Rôle de ${name} → ${newRole}`);
+                          }}>
                             <option value="visiteur">Visiteur</option>
                             <option value="membre">Membre</option>
                             <option value="pasteur">Pasteur</option>
                             <option value="admin">Admin</option>
                           </select>
-                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={()=>{if(confirm(`❌ Révoquer ${name} ?`))setToast(`❌ Accès révoqué : ${name}`);}}>❌</button>
+                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={async()=>{
+                            if(!confirm(`❌ Révoquer l'accès de ${name} ?`)) return;
+                            const res = await updateMemberRole(m.id, "visiteur");
+                            if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                            setMembers(prev => prev.map(x => x.id === m.id ? {...x, role:"visiteur", validated:false} : x));
+                            setToast(`❌ Accès révoqué : ${name}`);
+                          }}>❌</button>
                         </div>
                       );
                     })}
@@ -2803,14 +2854,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Journal d&apos;audit système</div>
                   <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Toutes les actions d&apos;administration sont journalisées. Seul l&apos;Admin y a accès.</div>
                   <div style={{fontFamily:"Courier New,monospace",fontSize:11,background:"#0a0d1a",color:"#a8e6cf",borderRadius:10,padding:16,maxHeight:400,overflowY:"auto",lineHeight:1.8}}>
-                    {[
-                      {ts:"2026-06-23 10:42",action:"Permission accordée",detail:"stream → Média",by:"Admin (Jaise)"},
-                      {ts:"2026-06-23 10:41",action:"Permission révoquée",detail:"crm → Chorale",by:"Admin (Jaise)"},
-                      {ts:"2026-06-22 15:30",action:"Rôle modifié",detail:"Marie Kalinda → pasteur",by:"Admin (Jaise)"},
-                      {ts:"2026-06-22 09:15",action:"Membre validé",detail:"Jean Dupont (nouveau membre)",by:"Pasteur Pedro"},
-                      {ts:"2026-06-20 14:22",action:"Compte révoqué",detail:"user@xxx.com — raison : inactivité",by:"Admin (Jaise)"},
-                    ].map((l,i) => (
-                      <div key={i}>[{l.ts}] <span style={{color:"#f6ad55"}}>{l.action}</span> : {l.detail} — <span style={{color:"#81e6d9"}}>{l.by}</span></div>
+                    {auditLogs.length === 0 && <div style={{color:"#718096"}}>Aucune entrée dans le journal.</div>}
+                    {auditLogs.map((l,i) => (
+                      <div key={i}>[{new Date(l.created_at).toLocaleString("fr-CH")}] <span style={{color:"#f6ad55"}}>{l.action}</span> : {l.detail}</div>
                     ))}
                   </div>
                 </div>
@@ -2852,7 +2898,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   </button>
                 ))}
                 <div style={{marginTop:"auto",paddingTop:16,borderTop:"1px solid rgba(30,36,100,.1)"}}>
-                  <button className="em-btn em-btn-primary em-btn-sm" style={{width:"100%",justifyContent:"center"}} onClick={()=>{setToast("🚀 Toutes les cartes publiées sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier toutes les cartes</button>
+                  <button className="em-btn em-btn-primary em-btn-sm" style={{width:"100%",justifyContent:"center"}} onClick={async()=>{
+                    const res = await savePlatformCards(mpCards);
+                    if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                    setToast("🚀 Toutes les cartes publiées sur arc-eglise.ch !");
+                    setShowMP(false);
+                  }}>🚀 Publier toutes les cartes</button>
                 </div>
               </div>
               {/* Éditeur */}
@@ -2910,8 +2961,17 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               <div style={{fontSize:11,color:"#8890aa"}}>Modifications publiées instantanément sur arc-eglise.ch via API Supabase</div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowMP(false)}>Annuler</button>
-                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={()=>setToast("💾 Carte sauvegardée !")}>💾 Sauvegarder cette carte</button>
-                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2f855a,#38a169)",color:"white"}} onClick={()=>{setToast("🚀 Publié sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier sur le site</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={async()=>{
+                  const res = await savePlatformCards(mpCards);
+                  if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                  setToast("💾 Carte sauvegardée !");
+                }}>💾 Sauvegarder</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2f855a,#38a169)",color:"white"}} onClick={async()=>{
+                  const res = await savePlatformCards(mpCards);
+                  if (res?.error) { setToast(`⚠️ ${res.error}`); return; }
+                  setToast("🚀 Publié sur arc-eglise.ch !");
+                  setShowMP(false);
+                }}>🚀 Publier sur le site</button>
               </div>
             </div>
           </div>
