@@ -368,6 +368,23 @@ export async function createRoomBooking(data: {
   return { success: true };
 }
 
+export async function updateSiteSettings(settings: Record<string, string>) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  for (const [key, value] of Object.entries(settings)) {
+    await supabase
+      .from("site_settings")
+      .update({ value, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("key", key);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
 export async function updateCrmTags(memberId: string, tags: string[]) {
   const supabase = createClient();
   const user = await assertAdmin(supabase);

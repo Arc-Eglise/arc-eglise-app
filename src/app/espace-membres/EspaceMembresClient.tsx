@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { reactToMessage, togglePinMessage, sendMessage } from "@/lib/actions/messagerie";
-import { createBiblicalNote, createGrievance, createEvent, generateInviteLink, createRoomBooking } from "@/lib/actions/membres";
+import { createBiblicalNote, createGrievance, createEvent, generateInviteLink, createRoomBooking, updateSiteSettings } from "@/lib/actions/membres";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
@@ -421,6 +421,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [inviteLink, setInviteLink]     = useState<string|null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  /* Site settings (Maj vitrine) */
+  const [siteAdresse, setSiteAdresse]       = useState("Av. Charles-Naine 39, 2300 La Chaux-de-Fonds");
+  const [siteCulte, setSiteCulte]           = useState("Dimanche 09h30");
+  const [siteEmail, setSiteEmail]           = useState("contact@arc-eglise.ch");
+  const [siteVerset, setSiteVerset]         = useState("Car Dieu a tant aimé le monde qu'il a donné son Fils unique… — Jean 3:16");
+  const [siteSaving, setSiteSaving]         = useState(false);
+  const [siteLoaded, setSiteLoaded]         = useState(false);
+
   /* Présence en ligne */
   const [onlineMembers, setOnlineMembers] = useState<{userId:string;name:string;initiale:string}[]>([]);
 
@@ -572,6 +580,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     if (panel === "activites") loadActivities();
   }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showMajInfo && !siteLoaded) loadSiteSettings();
+  }, [showMajInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (panel === "dons" && isAdmin && recentDons.length === 0) loadRecentDons();
@@ -779,6 +791,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         })(),
       })));
     }
+  }
+
+  async function loadSiteSettings() {
+    const { data } = await supabase.from("site_settings").select("key, value");
+    if (data) {
+      const map = Object.fromEntries(data.map((r: any) => [r.key, r.value]));
+      if (map.verset_du_jour) setSiteVerset(map.verset_du_jour);
+      if (map.culte_1_label) setSiteCulte(map.culte_1_label);
+    }
+    setSiteLoaded(true);
   }
 
   async function loadRecentDons() {
@@ -1228,20 +1250,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   </div>
                 ))}
                 <div className="em-ch-sec" style={{marginTop:4}}>Messages directs</div>
-                {ONLINE_MEMBERS.slice(0,5).map(m => {
-                  const st = USER_STATUSES[m.name];
-                  const dotColor = st==="online"?"#48bb78":st==="away"?"#ecc94b":st==="busy"?"#fc8181":"#718096";
-                  return (
-                    <button key={m.name} className={`em-ch-item${msgChan===m.name?" active":""}`}
-                      onClick={()=>{setMsgChan(m.name);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
-                      <div style={{position:"relative",flexShrink:0}}>
-                        <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
-                        <span style={{position:"absolute",bottom:-1,right:-1,width:7,height:7,borderRadius:"50%",border:"1.5px solid #1a1d3a",background:dotColor,display:"block"}} />
-                      </div>
-                      <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{m.name}</span>
-                    </button>
-                  );
-                })}
+                {(onlineMembers.length > 0
+                  ? onlineMembers.filter(m => m.userId !== userId).slice(0,5).map(m => ({key:m.userId,name:m.name,color:"#1e2464",dot:"#48bb78"}))
+                  : ONLINE_MEMBERS.slice(0,5).map(m => {const st=USER_STATUSES[m.name];return {key:m.name,name:m.name,color:m.color,dot:st==="online"?"#48bb78":st==="away"?"#ecc94b":st==="busy"?"#fc8181":"#718096"};})
+                ).map(m => (
+                  <button key={m.key} className={`em-ch-item${msgChan===m.name?" active":""}`}
+                    onClick={()=>{setMsgChan(m.name);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
+                    <div style={{position:"relative",flexShrink:0}}>
+                      <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
+                      <span style={{position:"absolute",bottom:-1,right:-1,width:7,height:7,borderRadius:"50%",border:"1.5px solid #1a1d3a",background:m.dot,display:"block"}} />
+                    </div>
+                    <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{m.name}</span>
+                  </button>
+                ))}
                 <div style={{padding:"8px 8px 10px"}}>
                   <button className={`em-huddle${huddleActive?" active":""}`}
                     onClick={()=>{setHuddleActive(h=>!h);setToast(huddleActive?"Huddle terminé":"🎙 Huddle démarré !");}}>
@@ -1389,13 +1410,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           {/* @mention dropdown */}
                           {showMention && (
                             <div className="em-mention-drop">
-                              {ONLINE_MEMBERS.slice(0,4).map(m=>(
+                              {(onlineMembers.length > 0
+                                ? onlineMembers.filter(m=>m.userId!==userId).slice(0,4).map(m=>({name:m.name,color:"#1e2464",sub:"En ligne"}))
+                                : ONLINE_MEMBERS.slice(0,4).map(m=>({name:m.name,color:m.color,sub:m.role}))
+                              ).map(m=>(
                                 <button key={m.name} className="em-mention-item"
                                   onClick={()=>{setMsgInput(i=>i.replace(/@[^\s]*$/,"@"+m.name.split(" ")[0]+" "));setShowMention(false);}}>
                                   <div className="em-av" style={{width:24,height:24,fontSize:10,background:m.color}}>{m.name[0]}</div>
                                   <div>
                                     <div style={{fontWeight:600,fontSize:12,color:"#1e2464"}}>{m.name}</div>
-                                    <div style={{fontSize:10,color:"#8890aa"}}>{m.role}</div>
+                                    <div style={{fontSize:10,color:"#8890aa"}}>{m.sub}</div>
                                   </div>
                                 </button>
                               ))}
@@ -2866,16 +2890,22 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
                     <div style={{flex:1}}>
                       <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Adresse</label>
-                      <input className="em-input" defaultValue="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" />
+                      <input className="em-input" value={siteAdresse} onChange={e=>setSiteAdresse(e.target.value)} />
                     </div>
                     <div style={{flex:1}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Heure du culte</label>
-                      <input className="em-input" defaultValue="Dimanche 09h30" />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Heure du culte (ex: Dimanche 09h30)</label>
+                      <input className="em-input" value={siteCulte} onChange={e=>setSiteCulte(e.target.value)} />
                     </div>
                   </div>
                   <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email de contact</label>
-                  <input className="em-input" style={{marginBottom:12}} defaultValue="contact@arc-eglise.ch" />
-                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Informations du site mises à jour !");}}>📤 Publier</button>
+                  <input className="em-input" style={{marginBottom:12}} value={siteEmail} onChange={e=>setSiteEmail(e.target.value)} />
+                  <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={siteSaving} onClick={async()=>{
+                    setSiteSaving(true);
+                    const res=await updateSiteSettings({culte_1_label:siteCulte});
+                    setSiteSaving(false);
+                    if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                    setShowMajInfo(false);setToast("✅ Informations du site mises à jour !");
+                  }}>{siteSaving?"Publication…":"📤 Publier"}</button>
                 </div>
               )}
               {majInfoTab==="verset" && (
@@ -2890,8 +2920,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     ))}
                   </div>
                   <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Verset actuel</label>
-                  <input className="em-input" style={{marginBottom:12}} defaultValue="Jérémie 29:11 — Car je connais les projets que j'ai formés sur vous…" />
-                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Verset du jour mis à jour sur le site !");}}>📤 Publier le verset</button>
+                  <input className="em-input" style={{marginBottom:12}} value={siteVerset} onChange={e=>setSiteVerset(e.target.value)} />
+                  <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={siteSaving} onClick={async()=>{
+                    setSiteSaving(true);
+                    const res=await updateSiteSettings({verset_du_jour:siteVerset});
+                    setSiteSaving(false);
+                    if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                    setShowMajInfo(false);setToast("✅ Verset du jour mis à jour sur le site !");
+                  }}>{siteSaving?"Publication…":"📤 Publier le verset"}</button>
                 </div>
               )}
               {majInfoTab==="equipe" && (
@@ -3057,7 +3093,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       </label>
                     </div>
                   )}
-                  <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={()=>{setShowSettings(false);setToast("✅ Paramètres sauvegardés !");}}>Sauvegarder</button>
+                  <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={async()=>{
+                    await supabase.from("profiles").update({
+                      notification_prefs: settingsNotifs,
+                    }).eq("id", userId);
+                    setShowSettings(false);setToast("✅ Paramètres sauvegardés !");
+                  }}>Sauvegarder</button>
                 </div>
               </div>
             </div>
