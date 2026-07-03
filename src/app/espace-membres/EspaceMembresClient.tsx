@@ -10,6 +10,8 @@ import {
   UserCheck, Settings, BarChart3,
   type LucideIcon,
 } from "lucide-react";
+import { reactToMessage, togglePinMessage, sendMessage } from "@/lib/actions/messagerie";
+import { createBiblicalNote, createGrievance, createEvent, generateInviteLink, createRoomBooking } from "@/lib/actions/membres";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
@@ -358,20 +360,18 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [msgChan, setMsgChan]     = useState("général");
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
-  const [messages, setMessages]   = useState([
-    {id:"1",from:"Pedro Obova",text:"Bonjour à tous ! Le culte de dimanche sera à 9h30.",mine:false,time:"9:15"},
-    {id:"2",from:"Marie Kalinda",text:"Merci Pasteur ! Je confirme ma présence 🙏",mine:false,time:"9:18"},
-    {id:"3",from:"Moi",text:"Bonjour ! Est-ce que la chorale est prévue ce dimanche ?",mine:true,time:"9:22"},
-    {id:"4",from:"Samuel Nkosi",text:"Oui, la chorale sera présente ! Répétition à 8h45.",mine:false,time:"9:24"},
-  ]);
+  const [messages, setMessages]   = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [dbChannels, setDbChannels] = useState<{id:string;name:string;emoji:string;conversation_id:string|null}[]>([]);
+  const [chConvId, setChConvId]   = useState<string|null>(null);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
-  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({"1":{"🙏":4,"❤️":2},"4":{"🙌":1}});
+  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({});
   const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
-  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>(["1"]);
+  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>([]);
   const [openThread, setOpenThread]         = useState<string|null>(null);
-  const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({"4":[{id:"t1",from:"Marie Kalinda",text:"C'est une super nouvelle, merci Samuel ! 🙌",time:"9:26",mine:false}]});
+  const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({});
   const [threadInput, setThreadInput]       = useState("");
   const [huddleActive, setHuddleActive]     = useState(false);
   const [msgHover, setMsgHover]             = useState<string|null>(null);
@@ -394,6 +394,32 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
   /* Countdown */
   const [countdown, setCountdown] = useState("");
+
+  /* Données dynamiques */
+  const [dynamicActivities, setDynamicActivities] = useState<{icon:string;text:string;time:string}[]>([]);
+  const [recentDons, setRecentDons] = useState<{name:string;amount:string;method:string;date:string}[]>([]);
+
+  /* Formulaire événement */
+  const [evtTitle, setEvtTitle]   = useState("");
+  const [evtDate, setEvtDate]     = useState("");
+  const [evtTime, setEvtTime]     = useState("09:30");
+  const [evtType, setEvtType]     = useState("culte");
+  const [evtLieu, setEvtLieu]     = useState("Av. Charles-Naine 39, La Chaux-de-Fonds");
+  const [evtDesc, setEvtDesc]     = useState("");
+  const [evtLoading, setEvtLoading] = useState(false);
+
+  /* Formulaire salle */
+  const [salleRoom, setSalleRoom]     = useState("Écodim 0–6 ans");
+  const [salleDate, setSalleDate]     = useState(new Date().toISOString().split("T")[0]);
+  const [salleStart, setSalleStart]   = useState("17:00");
+  const [salleEnd, setSalleEnd]       = useState("19:00");
+  const [salleGroupe, setSalleGroupe] = useState("");
+  const [salleMotif, setSalleMotif]   = useState("");
+  const [salleLoading, setSalleLoading] = useState(false);
+
+  /* Invitation */
+  const [inviteLink, setInviteLink]     = useState<string|null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   /* Présence en ligne */
   const [onlineMembers, setOnlineMembers] = useState<{userId:string;name:string;initiale:string}[]>([]);
@@ -514,6 +540,44 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   }, [panel]);
 
   useEffect(() => {
+    if (panel === "messagerie" && dbChannels.length === 0) loadChannels();
+  }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!chConvId) return;
+    const ch = supabase.channel(`msgs:${chConvId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `conversation_id=eq.${chConvId}`,
+      }, async ({ new: msg }) => {
+        const m = msg as {id:string;content:string;sender_id:string;created_at:string};
+        let fromName = "Moi";
+        if (m.sender_id !== userId) {
+          const { data: s } = await supabase.from("profiles").select("first_name,last_name").eq("id", m.sender_id).single();
+          fromName = `${s?.first_name ?? ""} ${s?.last_name ?? ""}`.trim() || "Membre";
+        }
+        setMessages(prev => {
+          const withoutTemp = m.sender_id === userId ? prev.filter(x => !x.id.startsWith("tmp-")) : prev;
+          if (withoutTemp.some(x => x.id === m.id)) return withoutTemp;
+          return [...withoutTemp, {
+            id: m.id, from: fromName, text: m.content, mine: m.sender_id === userId,
+            time: new Date(m.created_at).toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
+          }];
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [chConvId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "activites") loadActivities();
+  }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (panel === "dons" && isAdmin && recentDons.length === 0) loadRecentDons();
+  }, [panel, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -606,18 +670,75 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     }, 0);
   }
 
-  function sendMsg() {
-    if (!msgInput.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(), from: "Moi",
-      text: msgInput.trim(), mine: true,
-      time: new Date().toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
-    }]);
-    setMsgInput("");
-    setShowMention(false);
+  async function loadChannelMessages(convId: string) {
+    setMsgLoading(true);
+    const { data } = await supabase
+      .from("messages")
+      .select("id, content, sender_id, created_at, is_pinned, profiles(first_name, last_name)")
+      .eq("conversation_id", convId)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    const mapped = (data ?? []).map((m: any) => ({
+      id: m.id as string,
+      from: m.sender_id === userId
+        ? "Moi"
+        : `${m.profiles?.first_name ?? ""} ${m.profiles?.last_name ?? ""}`.trim() || "Membre",
+      text: m.content as string,
+      mine: m.sender_id === userId,
+      time: new Date(m.created_at as string).toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
+    }));
+    setMessages(mapped);
+    setPinnedMsgs((data ?? []).filter((m: any) => m.is_pinned).map((m: any) => m.id as string));
+    setMsgReactions({});
+    setMsgLoading(false);
   }
 
-  function addReaction(msgId: string, emoji: string) {
+  async function loadChannels() {
+    const { data } = await supabase
+      .from("channels")
+      .select("id, name, emoji, conversation_id")
+      .order("created_at", { ascending: true });
+    if (data && data.length > 0) {
+      setDbChannels(data as any);
+      const general = data.find((c: any) => (c.name as string)?.toLowerCase() === "général") ?? data[0];
+      if (general?.conversation_id) {
+        setMsgChan(general.name as string);
+        setChConvId(general.conversation_id as string);
+        await loadChannelMessages(general.conversation_id as string);
+      }
+    }
+  }
+
+  async function switchChannel(name: string) {
+    const ch = dbChannels.find(c => c.name === name);
+    setMsgChan(name);
+    setMessages([]);
+    if (ch?.conversation_id) {
+      setChConvId(ch.conversation_id);
+      await loadChannelMessages(ch.conversation_id);
+    }
+  }
+
+  async function sendMsg() {
+    if (!msgInput.trim()) return;
+    const text = msgInput.trim();
+    setMsgInput("");
+    setShowMention(false);
+    const tempId = `tmp-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId, from: "Moi", text, mine: true,
+      time: new Date().toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
+    }]);
+    if (chConvId) {
+      const res = await sendMessage(chConvId, text);
+      if (res?.error) {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setToast(`⚠️ ${res.error}`);
+      }
+    }
+  }
+
+  async function addReaction(msgId: string, emoji: string) {
     if ((myReactions[msgId]??[]).includes(emoji)) return;
     setMsgReactions(prev => {
       const cur = prev[msgId] ?? {};
@@ -625,12 +746,55 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     });
     setMyReactions(prev => ({...prev, [msgId]: [...(prev[msgId]??[]), emoji]}));
     setShowEmojiPicker(null);
+    if (!msgId.startsWith("tmp-")) {
+      await reactToMessage(msgId, emoji);
+    }
   }
 
-  function togglePin(msgId: string) {
+  async function togglePin(msgId: string) {
     const wasPin = pinnedMsgs.includes(msgId);
     setPinnedMsgs(prev => wasPin ? prev.filter(i=>i!==msgId) : [...prev, msgId]);
     setToast(wasPin ? "Message désépinglé" : "Message épinglé 📌");
+    if (!msgId.startsWith("tmp-")) {
+      await togglePinMessage(msgId, wasPin);
+    }
+  }
+
+  async function loadActivities() {
+    const { data } = await supabase
+      .from("activity_feed")
+      .select("icon, text, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data && data.length > 0) {
+      setDynamicActivities(data.map((a: any) => ({
+        icon: a.icon ?? "📋",
+        text: a.text ?? "",
+        time: (() => {
+          const diff = Date.now() - new Date(a.created_at).getTime();
+          if (diff < 60000) return "à l'instant";
+          if (diff < 3600000) return `il y a ${Math.floor(diff/60000)} min`;
+          if (diff < 86400000) return `il y a ${Math.floor(diff/3600000)}h`;
+          return `il y a ${Math.floor(diff/86400000)}j`;
+        })(),
+      })));
+    }
+  }
+
+  async function loadRecentDons() {
+    const { data } = await supabase
+      .from("donations")
+      .select("montant, type, date, is_anonymous, profiles(first_name, last_name)")
+      .order("date", { ascending: false })
+      .limit(10);
+    if (data) {
+      setRecentDons(data.map((d: any) => ({
+        name: d.is_anonymous ? "Anonyme" : `${d.profiles?.first_name ?? ""} ${d.profiles?.last_name ?? ""}`.trim() || "Anonyme",
+        amount: `${d.montant} CHF`,
+        method: d.type ?? "Don",
+        date: new Date(d.date).toLocaleDateString("fr-CH"),
+      })));
+    }
   }
 
   function sendThreadReply() {
@@ -1054,7 +1218,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     <div className="em-ch-sec">{sect.section}</div>
                     {sect.items.map(ch => (
                       <button key={ch.id} className={`em-ch-item${msgChan===ch.id?" active":""}`}
-                        onClick={()=>{setMsgChan(ch.id);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
+                        onClick={()=>{switchChannel(ch.id);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
                         <span style={{color:"#8890aa",fontSize:13,minWidth:16}}>{ch.icon}</span>
                         <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ch.id}</span>
                         {"locked" in ch && ch.locked && <span style={{fontSize:10,opacity:.5}}>🔒</span>}
@@ -1122,6 +1286,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
+                      {msgLoading && <div style={{textAlign:"center",padding:24,color:"#8890aa",fontSize:13}}>Chargement des messages…</div>}
+                      {!msgLoading && messages.length === 0 && <div style={{textAlign:"center",padding:24,color:"#8890aa",fontSize:13}}>Aucun message dans ce canal. Soyez le premier à écrire !</div>}
                       {messages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
@@ -1848,7 +2014,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             <div className="em-sect-title">Activités</div>
             <div className="em-sect-sub">Fil d&apos;actualité de la communauté</div>
             <div className="em-card">
-              {ACTIVITIES.map((a,i) => (
+              {(dynamicActivities.length > 0 ? dynamicActivities : ACTIVITIES).map((a,i) => (
                 <div key={i} className="em-activity">
                   <div className="em-act-ico">{a.icon}</div>
                   <div style={{flex:1}}>
@@ -1897,7 +2063,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               <div>
                 <div className="em-card">
                   <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Dons récents</div>
-                  {DONS_RECENTS.map((d,i)=>(
+                  {(recentDons.length > 0 ? recentDons : DONS_RECENTS).map((d,i)=>(
                     <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
                       <div>
                         <div style={{fontWeight:500}}>{d.name}</div>
@@ -2215,7 +2381,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {/* Activités récentes */}
           <div className="em-rp-sec">
             <div className="em-rp-title">Activités récentes</div>
-            {ACTIVITIES.slice(0,4).map((a,i)=>(
+            {(dynamicActivities.length > 0 ? dynamicActivities : ACTIVITIES).slice(0,4).map((a,i)=>(
               <div key={i} style={{display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
                 <span style={{fontSize:14}}>{a.icon}</span>
                 <div>
@@ -2803,7 +2969,17 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <input type="checkbox" checked={doleanceAnon} onChange={e=>setDoleanceAnon(e.target.checked)} />
                 Signalement anonyme
               </label>
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Vous recevrez une réponse sous 48h.");}}>Envoyer</button>
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={async()=>{
+                if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}
+                const f=new FormData();
+                f.set("title",doleanceType==="bug"?"Problème technique":doleanceType==="suggestion"?"Suggestion":doleanceType==="pastoral"?"Question pastorale":"Doléance");
+                f.set("description",doleanceText.trim());
+                f.set("category",doleanceType);
+                if(doleanceAnon)f.set("is_anonymous","on");
+                const res=await createGrievance(f);
+                if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Vous recevrez une réponse sous 48h.");
+              }}>Envoyer</button>
             </div>
           </div>
         </div>
@@ -2891,11 +3067,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
       {/* ── Inviter un membre ── */}
       {showInvite && isAdmin && (
-        <div className="em-overlay" onClick={()=>setShowInvite(false)}>
+        <div className="em-overlay" onClick={()=>{setShowInvite(false);setInviteLink(null);}}>
           <div className="em-modal" onClick={e=>e.stopPropagation()}>
             <div className="em-modal-hdr">
-              <span className="em-modal-title">✉️ Inviter un nouveau membre</span>
-              <button className="em-modal-close" onClick={()=>setShowInvite(false)}>✕</button>
+              <span className="em-modal-title">🔗 Inviter un nouveau membre</span>
+              <button className="em-modal-close" onClick={()=>{setShowInvite(false);setInviteLink(null);}}>✕</button>
             </div>
             <div className="em-modal-body">
               <div style={{display:"flex",gap:10,marginBottom:10}}>
@@ -2917,7 +3093,25 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               </select>
               <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Message personnalisé</label>
               <textarea className="em-input" style={{minHeight:80,resize:"vertical",width:"100%",marginBottom:14}} defaultValue={`Bonjour${invitePrenom ? ` ${invitePrenom}` : ""},\n\nJe vous invite à rejoindre l'espace membres de l'Église ARC La Chaux-de-Fonds.\n\nQue Dieu vous bénisse !`} />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!inviteEmail.trim()){setToast("⚠️ L'email est requis");return;}setShowInvite(false);setToast(`✅ Invitation envoyée à ${inviteEmail} ! Le lien expire dans 7 jours.`);}}>Envoyer l&apos;invitation</button>
+              {inviteLink && (
+                <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"10px 12px",marginBottom:12,fontSize:12}}>
+                  <div style={{fontWeight:600,color:"#166534",marginBottom:4}}>✅ Lien d&apos;invitation généré</div>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <input readOnly className="em-input" style={{fontSize:11,flex:1}} value={inviteLink} />
+                    <button className="em-btn em-btn-sm em-btn-outline" onClick={()=>{navigator.clipboard.writeText(inviteLink);setToast("📋 Lien copié !");}}>Copier</button>
+                  </div>
+                  <div style={{color:"#6b7280",marginTop:4}}>Partagez ce lien via WhatsApp ou un autre canal.</div>
+                </div>
+              )}
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={inviteLoading} onClick={async()=>{
+                if(!inviteEmail.trim()){setToast("⚠️ L'email est requis");return;}
+                setInviteLoading(true);setInviteLink(null);
+                const res=await generateInviteLink(inviteEmail.trim(),invitePrenom.trim(),inviteNom.trim());
+                setInviteLoading(false);
+                if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                if(res?.link)setInviteLink(res.link);
+                setToast("✅ Lien d'invitation généré — à partager manuellement !");
+              }}>{inviteLoading?"Génération…":"Générer le lien d'invitation"}</button>
             </div>
           </div>
         </div>
@@ -2933,37 +3127,45 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             </div>
             <div className="em-modal-body">
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Salle</label>
-              <select className="em-select" style={{marginBottom:12}}>
-                <option>📚 Écodim 0–6 ans (Libre)</option>
-                <option>🏢 Bureau Pastoral (Libre)</option>
-                <option disabled>🎵 Salle de musique (Réservée — Chorale sam 15h)</option>
-                <option disabled>🏛 Salle Principale (Culte dimanche)</option>
+              <select className="em-select" style={{marginBottom:12}} value={salleRoom} onChange={e=>setSalleRoom(e.target.value)}>
+                <option value="Écodim 0–6 ans">📚 Écodim 0–6 ans</option>
+                <option value="Bureau Pastoral">🏢 Bureau Pastoral</option>
+                <option value="Salle de musique">🎵 Salle de musique</option>
+                <option value="Salle Principale">🏛 Salle Principale</option>
               </select>
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
-                  <input type="date" className="em-input" defaultValue={new Date().toISOString().split("T")[0]} />
+                  <input type="date" className="em-input" value={salleDate} onChange={e=>setSalleDate(e.target.value)} />
                 </div>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure début</label>
-                  <input type="time" className="em-input" defaultValue="17:00" />
+                  <input type="time" className="em-input" value={salleStart} onChange={e=>setSalleStart(e.target.value)} />
                 </div>
               </div>
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure fin</label>
-                  <input type="time" className="em-input" defaultValue="19:00" />
+                  <input type="time" className="em-input" value={salleEnd} onChange={e=>setSalleEnd(e.target.value)} />
                 </div>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Groupe</label>
-                  <select className="em-select" style={{marginBottom:0}}>
-                    {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
+                  <select className="em-select" style={{marginBottom:0}} value={salleGroupe} onChange={e=>setSalleGroupe(e.target.value)}>
+                    <option value="">— Aucun groupe —</option>
+                    {GROUPES.map(g=><option key={g.name} value={g.name}>{g.name}</option>)}
                   </select>
                 </div>
               </div>
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Motif</label>
-              <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowSalle(false);setToast("✅ Salle réservée ! Confirmation envoyée par email.");}}>Confirmer la réservation</button>
+              <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" value={salleMotif} onChange={e=>setSalleMotif(e.target.value)} />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={salleLoading} onClick={async()=>{
+                if(!salleDate||!salleMotif.trim()){setToast("⚠️ Date et motif requis");return;}
+                setSalleLoading(true);
+                const res=await createRoomBooking({room:salleRoom,date:salleDate,time_start:salleStart,time_end:salleEnd,groupe:salleGroupe,motif:salleMotif});
+                setSalleLoading(false);
+                if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                setSalleMotif("");setShowSalle(false);setToast("✅ Salle réservée !");
+              }}>{salleLoading?"Réservation…":"Confirmer la réservation"}</button>
             </div>
           </div>
         </div>
@@ -2979,27 +3181,37 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             </div>
             <div className="em-modal-body">
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Titre</label>
-              <input className="em-input" style={{marginBottom:10}} placeholder="Nom de l&apos;événement" />
+              <input className="em-input" style={{marginBottom:10}} placeholder="Nom de l&apos;événement" value={evtTitle} onChange={e=>setEvtTitle(e.target.value)} />
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
-                  <input type="date" className="em-input" />
+                  <input type="date" className="em-input" value={evtDate} onChange={e=>setEvtDate(e.target.value)} />
                 </div>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure</label>
-                  <input type="time" className="em-input" defaultValue="09:30" />
+                  <input type="time" className="em-input" value={evtTime} onChange={e=>setEvtTime(e.target.value)} />
                 </div>
               </div>
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Type</label>
-              <select className="em-select" style={{marginBottom:10}}>
-                <option>⛪ Culte (gratuit)</option>
-                <option>🎵 Concert (ticket gratuit requis)</option>
-                <option>💛 Événement payant</option>
-                <option>🤝 Réunion interne</option>
+              <select className="em-select" style={{marginBottom:10}} value={evtType} onChange={e=>setEvtType(e.target.value)}>
+                <option value="culte">⛪ Culte (gratuit)</option>
+                <option value="concert">🎵 Concert (ticket gratuit requis)</option>
+                <option value="payant">💛 Événement payant</option>
+                <option value="reunion">🤝 Réunion interne</option>
               </select>
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Lieu</label>
-              <input className="em-input" style={{marginBottom:14}} defaultValue="Av. Charles-Naine 39, La Chaux-de-Fonds" />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowAddEvent(false);setToast("✅ Événement ajouté à l'agenda et au site vitrine !");}}>Publier l&apos;événement</button>
+              <input className="em-input" style={{marginBottom:10}} value={evtLieu} onChange={e=>setEvtLieu(e.target.value)} />
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Description (optionnel)</label>
+              <textarea className="em-input" style={{minHeight:60,resize:"vertical",width:"100%",marginBottom:14}} placeholder="Informations complémentaires…" value={evtDesc} onChange={e=>setEvtDesc(e.target.value)} />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={evtLoading} onClick={async()=>{
+                if(!evtTitle.trim()||!evtDate){setToast("⚠️ Titre et date requis");return;}
+                setEvtLoading(true);
+                const res=await createEvent({title:evtTitle,date:evtDate,time_start:evtTime,location:evtLieu,type:evtType,description:evtDesc});
+                setEvtLoading(false);
+                if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                setEvtTitle("");setEvtDate("");setEvtDesc("");
+                setShowAddEvent(false);setToast("✅ Événement ajouté à l'agenda !");
+              }}>{evtLoading?"Publication…":"Publier l'événement"}</button>
             </div>
           </div>
         </div>
@@ -3026,7 +3238,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline" onClick={()=>setShowNote(false)}>Annuler</button>
-                <button className="em-btn em-btn-primary" style={{flex:1}} onClick={()=>{if(!noteContent.trim()){setToast("⚠️ Ajoutez du contenu à votre note");return;}setShowNote(false);setNoteContent("");setToast("✅ Note biblique sauvegardée !");}}>Sauvegarder</button>
+                <button className="em-btn em-btn-primary" style={{flex:1}} onClick={async()=>{
+                if(!noteContent.trim()){setToast("⚠️ Ajoutez du contenu à votre note");return;}
+                const f=new FormData();
+                f.set("title",noteRef.trim()||"Note biblique");
+                f.set("content",noteContent.trim());
+                f.set("reference",noteRef.trim());
+                const res=await createBiblicalNote(f);
+                if(res?.error){setToast(`⚠️ ${res.error}`);return;}
+                setShowNote(false);setNoteContent("");setNoteRef("");setToast("✅ Note biblique sauvegardée !");
+              }}>Sauvegarder</button>
               </div>
             </div>
           </div>

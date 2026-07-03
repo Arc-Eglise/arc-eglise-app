@@ -306,6 +306,68 @@ export async function deleteMemberNote(noteId: string, memberId: string) {
   return { success: true };
 }
 
+export async function createEvent(data: {
+  title: string; date: string; time_start: string;
+  location: string; type: string; description?: string;
+}) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("events").insert({
+    title: data.title.trim(),
+    date: data.date,
+    time_start: data.time_start || null,
+    location: data.location.trim() || null,
+    description: data.description?.trim() || null,
+    is_published: true,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function generateInviteLink(email: string, firstName: string, lastName: string) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email: email.trim(),
+    options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
+  });
+
+  if (error) return { error: error.message };
+  return { link: (data.properties as { action_link?: string } | null)?.action_link ?? null };
+}
+
+export async function createRoomBooking(data: {
+  room: string; date: string; time_start: string;
+  time_end: string; groupe: string; motif: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { error } = await supabase.from("room_bookings").insert({
+    user_id: user.id,
+    room: data.room,
+    date: data.date,
+    time_start: data.time_start,
+    time_end: data.time_end,
+    groupe: data.groupe || null,
+    motif: data.motif.trim(),
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
 export async function updateCrmTags(memberId: string, tags: string[]) {
   const supabase = createClient();
   const user = await assertAdmin(supabase);
