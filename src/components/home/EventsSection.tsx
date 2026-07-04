@@ -1,112 +1,208 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ArcEvent } from "@/lib/supabase/types";
 
+const CULTES = [
+  { icon: "⛪", day: "Dimanche · 09h30", name: "Culte principal", time: "09h30" },
+  { icon: "🌙", day: "Dimanche · 17h00", name: "Culte du soir",  time: "17h00" },
+  { icon: "🙏", day: "Mercredi · 19h00", name: "Prière & Parole", time: "19h00" },
+];
+
 export default async function EventsSection() {
   const supabase = createClient();
 
   const { data: events } = await supabase
     .from("events")
-    .select(`
-      *,
-      registrations_count:event_registrations(count)
-    `)
+    .select(`*, registrations_count:event_registrations(count)`)
     .eq("is_published", true)
     .eq("is_public", true)
     .gte("date", new Date().toISOString().split("T")[0])
     .order("date", { ascending: true })
     .limit(3);
 
+  type EventWithCount = ArcEvent & { registrations_count: { count: number }[] };
+  const featured  = events?.[0] as EventWithCount | undefined;
+  const upcoming  = (events?.slice(1) ?? []) as EventWithCount[];
+
   return (
-    <section id="evenements" className="py-24 bg-white">
-      <div className="max-w-8xl mx-auto px-5 md:px-10">
-
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 text-[9px] font-bold tracking-[3px] uppercase text-arc-blue mb-4">
-            <span className="w-5 h-px bg-arc-blue" /> Agenda <span className="w-5 h-px bg-arc-blue" />
-          </div>
-          <h2 className="font-serif text-[38px] md:text-[44px] font-bold text-arc-navy leading-[1.15] mb-4">
-            Événements & Cultes
-          </h2>
-          <p className="text-base text-arc-text2 leading-relaxed max-w-[560px] mx-auto">
-            Rejoignez-nous pour nos célébrations, formations et événements spéciaux tout au long de l'année.
-          </p>
+    <section id="evenements" style={{ maxWidth: 1240, margin: "0 auto", padding: "96px 32px" }}>
+      {/* Header */}
+      <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 48px" }}>
+        <div style={{ fontSize: 12, letterSpacing: ".2em", textTransform: "uppercase", color: "#C9A227", fontWeight: 700, marginBottom: 14 }}>
+          Agenda
         </div>
+        <h2 className="font-serif" style={{ fontWeight: 600, fontSize: "clamp(34px,4vw,52px)", lineHeight: 1.05, color: "#1e2464", marginBottom: 16 }}>
+          Événements & Cultes
+        </h2>
+        <p style={{ fontSize: 16, color: "#6b6f86", lineHeight: 1.7 }}>
+          Rejoignez-nous pour nos célébrations, formations et événements spéciaux tout au long de l'année.
+        </p>
+      </div>
 
-        {events && events.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-[22px]">
-              {events.map((ev: ArcEvent & { registrations_count: { count: number }[] }) => {
-                const registered = ev.registrations_count?.[0]?.count ?? 0;
-                const fillPct    = ev.capacity ? Math.round((registered / ev.capacity) * 100) : 0;
-                const spotsLeft  = ev.capacity ? ev.capacity - registered : null;
-                const month      = new Date(ev.date + "T12:00:00").toLocaleDateString("fr-CH", { month: "short" }).toUpperCase();
-                const day        = new Date(ev.date + "T12:00:00").getDate();
+      {/* Grid: featured (left) + cultes (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 24, alignItems: "start" }} className="arc-two">
 
-                return (
-                  <div
-                    key={ev.id}
-                    className="rounded-[20px] overflow-hidden cursor-pointer hover:-translate-y-1.5 hover:shadow-[0_24px_60px_rgba(30,36,100,0.16)] transition-all duration-300 bg-white border border-arc-border"
-                  >
-                    <div className="px-7 pt-7 pb-4 flex items-start justify-between gap-4">
-                      <div className="text-center flex-shrink-0">
-                        <div className="font-serif text-[40px] font-bold leading-none text-arc-navy">{day}</div>
-                        <div className="text-[9px] font-bold uppercase tracking-[1.5px] text-arc-blue">{month}</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex gap-1.5 flex-wrap mb-2">
-                          {ev.price_chf > 0
-                            ? <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-arc-goldLight text-arc-goldDark">CHF {ev.price_chf}</span>
-                            : <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-green-100 text-arc-green">Gratuit</span>
-                          }
-                          {ev.tags?.map((t: string) => (
-                            <span key={t} className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-arc-blueBg text-arc-navy">{t}</span>
-                          ))}
-                        </div>
-                        <div className="font-serif text-[19px] font-bold text-arc-navy mb-1">{ev.title}</div>
-                        <div className="text-xs text-arc-text3">
-                          {ev.time_start.slice(0,5)}{ev.time_end ? ` → ${ev.time_end.slice(0,5)}` : ""} · {ev.location}
-                        </div>
-                      </div>
-                    </div>
-
-                    {ev.capacity && (
-                      <div className="px-7 pb-4">
-                        <div className="h-[3px] bg-arc-border rounded-sm overflow-hidden">
-                          <div
-                            className="h-full rounded-sm bg-gradient-to-r from-arc-navy to-arc-blue"
-                            style={{ width: `${fillPct}%` }}
-                          />
-                        </div>
-                        <div className="text-[11px] text-arc-text3 mt-1">{registered}/{ev.capacity} inscrits</div>
-                      </div>
-                    )}
-
-                    <div className="px-[22px] py-4 border-t border-arc-border bg-arc-bg flex items-center justify-between">
-                      <span className="text-[11px] text-arc-text3">
-                        {spotsLeft !== null ? `${spotsLeft} place${spotsLeft > 1 ? "s" : ""} disponible${spotsLeft > 1 ? "s" : ""}` : "Entrée libre"}
-                      </span>
-                      <button className="text-xs font-bold px-3 py-1.5 rounded-lg bg-arc-navy text-white hover:bg-arc-navy2 transition-colors">
-                        S'inscrire →
-                      </button>
-                    </div>
+        {/* Featured event */}
+        {featured ? (
+          <div style={{ background: "#1e2464", color: "#fff", borderRadius: 22, overflow: "hidden", boxShadow: "0 24px 56px rgba(20,23,56,.28)" }}>
+            <div style={{ position: "relative", height: 220, background: "linear-gradient(150deg,#3a4196,#1e2464)" }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
+              <div style={{ position: "absolute", top: 18, left: 18, background: "#C9A227", color: "#141738", fontWeight: 700, fontSize: 12, padding: "6px 13px", borderRadius: 999 }}>
+                À LA UNE {featured.price_chf > 0 ? `· CHF ${featured.price_chf}` : "· Gratuit"}
+              </div>
+              <div style={{ position: "absolute", bottom: 16, left: 18, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
+                [ Photo — {featured.title} ]
+              </div>
+            </div>
+            <div style={{ padding: 28 }}>
+              <div style={{ display: "flex", gap: 18, marginBottom: 14 }}>
+                <div style={{ textAlign: "center", background: "rgba(255,255,255,.1)", borderRadius: 12, padding: "10px 16px" }}>
+                  <div className="font-serif" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1 }}>
+                    {new Date(featured.date + "T12:00:00").getDate()}
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase" }}>
+                    {new Date(featured.date + "T12:00:00").toLocaleDateString("fr-CH", { month: "short" })}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <h3 className="font-serif" style={{ fontSize: 28, fontWeight: 600 }}>{featured.title}</h3>
+                  <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.65)", marginTop: 3 }}>
+                    {featured.time_start?.slice(0, 5)}{featured.time_end ? ` — ${featured.time_end.slice(0, 5)}` : ""} · {featured.location}
+                  </div>
+                </div>
+              </div>
+              {featured.description && (
+                <p style={{ fontSize: 14.5, color: "rgba(255,255,255,.7)", lineHeight: 1.6, marginBottom: 18 }}>{featured.description}</p>
+              )}
+              <a
+                href="#contact"
+                style={{
+                  textDecoration: "none",
+                  display: "inline-block",
+                  background: "#C9A227", color: "#141738",
+                  padding: "14px 28px", borderRadius: 999,
+                  fontWeight: 700, fontSize: 14.5,
+                }}
+              >
+                🎟 Réserver ma place
+              </a>
             </div>
-
-            <div className="text-center mt-10">
-              <button className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[11px] text-sm font-bold bg-transparent text-arc-navy border-[1.5px] border-arc-navy/25 hover:bg-arc-blueBg hover:border-arc-navy transition-all duration-300">
-                Voir tout l'agenda →
-              </button>
-            </div>
-          </>
+          </div>
         ) : (
-          <div className="text-center py-16 text-arc-text3 text-sm">
-            Les prochains événements seront bientôt annoncés.
+          /* Placeholder featured */
+          <div style={{ background: "#1e2464", color: "#fff", borderRadius: 22, overflow: "hidden", boxShadow: "0 24px 56px rgba(20,23,56,.28)" }}>
+            <div style={{ position: "relative", height: 220, background: "linear-gradient(150deg,#3a4196,#1e2464)" }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
+              <div style={{ position: "absolute", top: 18, left: 18, background: "#C9A227", color: "#141738", fontWeight: 700, fontSize: 12, padding: "6px 13px", borderRadius: 999 }}>
+                À LA UNE · CHF 25
+              </div>
+              <div style={{ position: "absolute", bottom: 16, left: 18, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
+                [ Photo — Soirée Gospel ]
+              </div>
+            </div>
+            <div style={{ padding: 28 }}>
+              <div style={{ display: "flex", gap: 18, marginBottom: 14 }}>
+                <div style={{ textAlign: "center", background: "rgba(255,255,255,.1)", borderRadius: 12, padding: "10px 16px" }}>
+                  <div className="font-serif" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1 }}>27</div>
+                  <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase" }}>Juin</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <h3 className="font-serif" style={{ fontSize: 28, fontWeight: 600 }}>Soirée Gospel & Dîner</h3>
+                  <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.65)", marginTop: 3 }}>Samedi · 18h00 — 22h00 · 22/60 places réservées</div>
+                </div>
+              </div>
+              <p style={{ fontSize: 14.5, color: "rgba(255,255,255,.7)", lineHeight: 1.6, marginBottom: 18 }}>
+                Une soirée de louange gospel suivie d'un dîner convivial. Ouvert à tous — invitez vos amis et votre famille !
+              </p>
+              <a
+                href="#contact"
+                style={{ textDecoration: "none", display: "inline-block", background: "#C9A227", color: "#141738", padding: "14px 28px", borderRadius: 999, fontWeight: 700, fontSize: 14.5 }}
+              >
+                🎟 Réserver ma place
+              </a>
+            </div>
           </div>
         )}
+
+        {/* Cultes schedule */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="font-serif" style={{ fontSize: 24, fontWeight: 600, color: "#1e2464", marginBottom: 2 }}>
+            📅 Prochains cultes
+          </div>
+          {CULTES.map((c) => (
+            <div
+              key={c.day}
+              style={{
+                display: "flex", alignItems: "center", gap: 16,
+                background: "#fff", border: "1px solid rgba(30,36,100,.12)",
+                borderRadius: 14, padding: 18,
+              }}
+            >
+              <div style={{ width: 54, height: 54, borderRadius: 12, background: "rgba(30,36,100,.07)", display: "grid", placeItems: "center", fontSize: 22, flexShrink: 0 }}>
+                {c.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: "#1e2464", fontSize: 15 }}>{c.day}</div>
+                <div style={{ fontSize: 13, color: "#6b6f86" }}>{c.name}</div>
+              </div>
+              <div className="font-serif" style={{ fontSize: 20, fontWeight: 600, color: "#C9A227" }}>{c.time}</div>
+            </div>
+          ))}
+          <a
+            href="#contact"
+            style={{ textDecoration: "none", color: "#1e2464", fontWeight: 600, fontSize: 14, marginTop: 4, alignSelf: "flex-start" }}
+            className="arc-link"
+          >
+            Voir tous les horaires →
+          </a>
+
+          {/* Additional upcoming events */}
+          {upcoming.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: "#6b6f86", fontWeight: 700 }}>
+                Prochainement
+              </div>
+              {upcoming.map((ev) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    background: "#fff", border: "1px solid rgba(30,36,100,.12)",
+                    borderRadius: 12, padding: "13px 16px",
+                  }}
+                >
+                  <div style={{ textAlign: "center", minWidth: 42 }}>
+                    <div className="font-serif" style={{ fontSize: 20, fontWeight: 700, color: "#1e2464", lineHeight: 1 }}>
+                      {new Date(ev.date + "T12:00:00").getDate()}
+                    </div>
+                    <div style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "#6b6f86" }}>
+                      {new Date(ev.date + "T12:00:00").toLocaleDateString("fr-CH", { month: "short" })}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: "#1e2464", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {ev.title}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b6f86" }}>
+                      {ev.time_start?.slice(0, 5)} · {ev.location}
+                    </div>
+                  </div>
+                  {ev.price_chf > 0 && (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#C9A227", flexShrink: 0 }}>
+                      CHF {ev.price_chf}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 820px) {
+          .arc-two { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }

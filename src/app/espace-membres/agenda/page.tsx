@@ -1,21 +1,80 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { EventCard } from "./AgendaClient";
 
 export default async function AgendaPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: events } = await supabase
-    .from("events")
-    .select("*")
-    .gte("date", new Date().toISOString().split("T")[0])
-    .eq("is_published", true)
-    .order("date");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
 
-  const grouped: Record<string, typeof events> = {};
-  for (const ev of events ?? []) {
-    const key = new Date(ev.date).toLocaleDateString("fr-CH", { month: "long", year: "numeric" });
+  const isAdmin = ["admin", "pasteur"].includes(profile?.role ?? "");
+  const today   = new Date().toISOString().split("T")[0];
+  const past30  = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const [upcomingRes, pastRes, myRsvpRes, myAttendRes] = await Promise.all([
+    supabase.from("events")
+      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags")
+      .eq("is_published", true).gte("date", today).order("date"),
+    supabase.from("events")
+      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags")
+      .eq("is_published", true).gte("date", past30).lt("date", today).order("date", { ascending: false }),
+    supabase.from("event_rsvp").select("event_id, status").eq("user_id", user.id),
+    supabase.from("event_attendance").select("event_id, checked_in_at").eq("user_id", user.id),
+  ]);
+
+  const upcoming = upcomingRes.data ?? [];
+  const past     = pastRes.data ?? [];
+  const allEvents = [...upcoming, ...past];
+
+  const myRsvpMap     = Object.fromEntries((myRsvpRes.data ?? []).map(r => [r.event_id, r.status as "going" | "maybe" | "declined"]));
+  const myAttendMap   = Object.fromEntries((myAttendRes.data ?? []).map(r => [r.event_id, r.checked_in_at as string]));
+
+  // Counts RSVP + attendance per event
+  let countsMap:    Record<string, { going: number; maybe: number }> = {};
+  let attendMap:    Record<string, number> = {};
+  let attendeesMap: Record<string, { userId: string; name: string }[]> = {};
+
+  if (allEvents.length > 0) {
+    const ids = allEvents.map(e => e.id);
+
+    const [rsvpCounts, attendCounts] = await Promise.all([
+      supabase.from("event_rsvp").select("event_id, status").in("event_id", ids),
+      isAdmin
+        ? supabase.from("event_attendance")
+            .select("event_id, user_id, profiles!event_attendance_user_id_fkey(first_name, last_name)")
+            .in("event_id", ids)
+        : supabase.from("event_attendance").select("event_id, user_id").in("event_id", ids),
+    ]);
+
+    for (const r of rsvpCounts.data ?? []) {
+      if (!countsMap[r.event_id]) countsMap[r.event_id] = { going: 0, maybe: 0 };
+      if (r.status === "going")  countsMap[r.event_id].going++;
+      if (r.status === "maybe")  countsMap[r.event_id].maybe++;
+    }
+
+    for (const a of attendCounts.data ?? []) {
+      attendMap[a.event_id] = (attendMap[a.event_id] ?? 0) + 1;
+      if (isAdmin) {
+        if (!attendeesMap[a.event_id]) attendeesMap[a.event_id] = [];
+        const p = (a as { profiles?: { first_name: string | null; last_name: string | null } | null }).profiles;
+        attendeesMap[a.event_id].push({
+          userId: a.user_id,
+          name: [p?.first_name, p?.last_name].filter(Boolean).join(" ") || "Membre",
+        });
+      }
+    }
+  }
+
+  // Group upcoming by month
+  const grouped: Record<string, typeof upcoming> = {};
+  for (const ev of upcoming) {
+    const key = new Date(ev.date + "T00:00:00").toLocaleDateString("fr-CH", { month: "long", year: "numeric" });
     if (!grouped[key]) grouped[key] = [];
     grouped[key]!.push(ev);
   }
@@ -24,10 +83,11 @@ export default async function AgendaPage() {
     <div>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Agenda</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">Événements à venir</p>
+        <p className="text-sm text-arc-text2 mt-0.5">Événements à venir — confirme ta présence</p>
       </div>
 
-      {Object.keys(grouped).length === 0 && (
+      {/* ── Événements à venir ── */}
+      {Object.keys(grouped).length === 0 && past.length === 0 && (
         <div className="bg-white border border-arc-border rounded-2xl py-16 text-center text-arc-text3 text-sm">
           Aucun événement prévu pour le moment.
         </div>
@@ -37,48 +97,46 @@ export default async function AgendaPage() {
         <div key={month} className="mb-8">
           <h2 className="text-xs font-bold uppercase tracking-widest text-arc-blue mb-3 capitalize">{month}</h2>
           <div className="space-y-3">
-            {(evts ?? []).map((ev) => (
-              <div key={ev.id} className="bg-white border border-arc-border rounded-2xl p-5 flex gap-5">
-                <div className="flex-shrink-0 text-center bg-arc-blueBg rounded-xl px-4 py-3 min-w-[64px]">
-                  <div className="font-serif text-3xl font-bold text-arc-navy leading-none">
-                    {new Date(ev.date).getDate()}
-                  </div>
-                  <div className="text-[10px] font-bold text-arc-blue uppercase mt-0.5">
-                    {new Date(ev.date).toLocaleDateString("fr-CH", { month: "short" })}
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 flex-wrap mb-1">
-                    <h3 className="font-bold text-arc-navy">{ev.title}</h3>
-                    {ev.price_chf > 0
-                      ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-arc-goldLight text-arc-goldDark flex-shrink-0">CHF {ev.price_chf}</span>
-                      : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">Gratuit</span>
-                    }
-                  </div>
-                  <div className="text-sm text-arc-text3">
-                    🕐 {ev.time_start?.slice(0, 5)}{ev.time_end ? ` — ${ev.time_end.slice(0, 5)}` : ""}
-                  </div>
-                  <div className="text-sm text-arc-text3">📍 {ev.location}</div>
-                  {ev.description && (
-                    <p className="text-sm text-arc-text2 mt-2 leading-relaxed">{ev.description}</p>
-                  )}
-                  {ev.tags?.length > 0 && (
-                    <div className="flex gap-1.5 mt-2 flex-wrap">
-                      {ev.tags.map((t: string) => (
-                        <span key={t} className="text-[10px] bg-arc-blueBg text-arc-navy px-2 py-0.5 rounded-full">{t}</span>
-                      ))}
-                    </div>
-                  )}
-                  {ev.capacity && (
-                    <div className="text-[11px] text-arc-text3 mt-2">Capacité : {ev.capacity} places</div>
-                  )}
-                </div>
-              </div>
+            {(evts ?? []).map(ev => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                myRsvp={myRsvpMap[ev.id] ?? null}
+                counts={countsMap[ev.id] ?? { going: 0, maybe: 0 }}
+                attendCount={attendMap[ev.id] ?? 0}
+                myCheckedIn={myAttendMap[ev.id] ?? null}
+                isPast={false}
+                isAdmin={isAdmin}
+                attendees={attendeesMap[ev.id] ?? []}
+              />
             ))}
           </div>
         </div>
       ))}
+
+      {/* ── Événements passés (30 derniers jours) ── */}
+      {past.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-arc-text3 mb-3">
+            Événements passés (30 jours)
+          </h2>
+          <div className="space-y-3">
+            {past.map(ev => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                myRsvp={myRsvpMap[ev.id] ?? null}
+                counts={countsMap[ev.id] ?? { going: 0, maybe: 0 }}
+                attendCount={attendMap[ev.id] ?? 0}
+                myCheckedIn={myAttendMap[ev.id] ?? null}
+                isPast={true}
+                isAdmin={isAdmin}
+                attendees={attendeesMap[ev.id] ?? []}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

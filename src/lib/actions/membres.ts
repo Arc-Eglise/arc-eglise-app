@@ -87,3 +87,245 @@ export async function deletePrayerRequest(id: string) {
   revalidatePath("/espace-membres/priere");
   return { success: true };
 }
+
+// ─── RSVP ──────────────────────────────────────────────────────────────────
+
+export async function rsvpEvent(
+  eventId: string,
+  status: "going" | "maybe" | "declined" | null,
+) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  if (status === null) {
+    await supabase
+      .from("event_rsvp")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", user.id);
+  } else {
+    await supabase
+      .from("event_rsvp")
+      .upsert({ event_id: eventId, user_id: user.id, status }, { onConflict: "event_id,user_id" });
+  }
+
+  revalidatePath("/espace-membres/agenda");
+  return { success: true };
+}
+
+// ── Présences événements ──────────────────────────────────────────
+
+export async function checkInEvent(eventId: string, targetUserId?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const userId = targetUserId ?? user.id;
+
+  // Si admin checke quelqu'un d'autre, vérifier le rôle
+  if (targetUserId && targetUserId !== user.id) {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (!["admin", "pasteur"].includes(profile?.role ?? "")) return { error: "Non autorisé" };
+  }
+
+  const { error } = await supabase.from("event_attendance").upsert(
+    { event_id: eventId, user_id: userId, checked_in_by: user.id },
+    { onConflict: "event_id,user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/agenda");
+  return { success: true };
+}
+
+export async function cancelCheckIn(eventId: string, targetUserId?: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const userId = targetUserId ?? user.id;
+
+  if (targetUserId) {
+    const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (!["admin", "pasteur"].includes(p?.role ?? "")) return { error: "Non autorisé" };
+  }
+
+  await supabase.from("event_attendance").delete().eq("event_id", eventId).eq("user_id", userId);
+  revalidatePath("/espace-membres/agenda");
+  revalidatePath(`/espace-membres/presences/${eventId}`);
+  return { success: true };
+}
+
+// ── Notes bibliques ────────────────────────────────────────────────
+
+export async function createBiblicalNote(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const title     = (formData.get("title") as string)?.trim();
+  const content   = (formData.get("content") as string)?.trim();
+  const reference = (formData.get("reference") as string)?.trim() || null;
+
+  if (!title || !content) return { error: "Titre et contenu requis" };
+
+  const { data, error } = await supabase
+    .from("biblical_notes")
+    .insert({ user_id: user.id, title, content, reference })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/notes");
+  return { id: data.id };
+}
+
+export async function updateBiblicalNote(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const id        = formData.get("id") as string;
+  const title     = (formData.get("title") as string)?.trim();
+  const content   = (formData.get("content") as string)?.trim();
+  const reference = (formData.get("reference") as string)?.trim() || null;
+
+  if (!title || !content) return { error: "Titre et contenu requis" };
+
+  const { error } = await supabase
+    .from("biblical_notes")
+    .update({ title, content, reference })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/notes");
+  return { success: true };
+}
+
+export async function deleteBiblicalNote(id: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  await supabase.from("biblical_notes").delete().eq("id", id).eq("user_id", user.id);
+  revalidatePath("/espace-membres/notes");
+  return { success: true };
+}
+
+// ── Doléances ─────────────────────────────────────────────────────
+
+export async function createGrievance(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const title        = (formData.get("title") as string)?.trim();
+  const description  = (formData.get("description") as string)?.trim();
+  const category     = (formData.get("category") as string) || "autre";
+  const is_anonymous = formData.get("is_anonymous") === "on";
+
+  if (!title || !description) return { error: "Titre et description requis" };
+
+  const { error } = await supabase.from("grievances").insert({
+    user_id: user.id, title, description, category, is_anonymous,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/doleances");
+  return { success: true };
+}
+
+export async function updateGrievanceStatus(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const id             = formData.get("id") as string;
+  const status         = formData.get("status") as string;
+  const admin_response = (formData.get("admin_response") as string)?.trim() || null;
+
+  const { error } = await supabase
+    .from("grievances")
+    .update({ status, admin_response })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/doleances");
+  return { success: true };
+}
+
+export async function deleteGrievance(id: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  await supabase.from("grievances").delete().eq("id", id).eq("user_id", user.id);
+  revalidatePath("/espace-membres/doleances");
+  return { success: true };
+}
+
+// ── CRM (admin/pasteur) ───────────────────────────────────────────
+
+async function assertAdmin(supabase: ReturnType<typeof createClient>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (!["admin", "pasteur"].includes(data?.role ?? "")) return null;
+  return user;
+}
+
+export async function addMemberNote(formData: FormData) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const member_id = formData.get("member_id") as string;
+  const content   = (formData.get("content") as string)?.trim();
+  const type      = (formData.get("type") as string) || "general";
+
+  if (!content) return { error: "Contenu requis" };
+
+  const { error } = await supabase.from("member_notes").insert({
+    member_id, author_id: user.id, content, type,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(`/espace-membres/crm/${member_id}`);
+  return { success: true };
+}
+
+export async function deleteMemberNote(noteId: string, memberId: string) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  await supabase.from("member_notes").delete().eq("id", noteId).eq("author_id", user.id);
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  return { success: true };
+}
+
+export async function updateCrmTags(memberId: string, tags: string[]) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("profiles").update({ crm_tags: tags }).eq("id", memberId);
+  if (error) return { error: error.message };
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  return { success: true };
+}
+
+export async function updateMemberValidation(memberId: string, validated: boolean) {
+  const admin = createAdminClient();
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { error } = await admin.from("profiles").update({ validated }).eq("id", memberId);
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres/crm");
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  return { success: true };
+}

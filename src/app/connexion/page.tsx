@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -68,13 +69,15 @@ function ConnexionForm() {
             backgroundSize: "40px 40px",
           }}
         />
-        <Link href="/" className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-arc-navy to-arc-blue flex items-center justify-center">
-            <span className="font-serif text-base font-bold text-white tracking-widest">ARC</span>
-          </div>
-          <div>
-            <div className="font-serif text-xl font-bold text-white tracking-[3px]">ARC</div>
-            <div className="text-[8px] text-arc-bluePale tracking-[1.5px] uppercase">Ambassade du Royaume</div>
+        <Link href="/" className="relative z-10">
+          <div style={{ background: "rgba(255,255,255,.95)", borderRadius: 12, padding: "8px 14px", display: "inline-flex" }}>
+            <Image
+              src="/images/logo-arc.jpeg"
+              alt="ARC — Ambassade du Royaume de Christ"
+              width={140} height={86}
+              style={{ objectFit: "contain" }}
+              priority
+            />
           </div>
         </Link>
 
@@ -100,11 +103,13 @@ function ConnexionForm() {
         <div className="w-full max-w-[440px]">
 
           {/* Mobile logo */}
-          <Link href="/" className="flex lg:hidden items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-arc-navy to-arc-blue flex items-center justify-center">
-              <span className="font-serif text-sm font-bold text-white">ARC</span>
-            </div>
-            <div className="font-serif text-lg font-bold text-arc-navy tracking-[3px]">ARC</div>
+          <Link href="/" className="flex lg:hidden mb-8">
+            <Image
+              src="/images/logo-arc.jpeg"
+              alt="ARC — Ambassade du Royaume de Christ"
+              width={120} height={74}
+              style={{ objectFit: "contain" }}
+            />
           </Link>
 
           <h1 className="font-serif text-[32px] font-bold text-arc-navy mb-1">

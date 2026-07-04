@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 const STEPS = ["Identité", "Compte", "Confirmation"];
 
 export default function InscriptionPage() {
-  const router   = useRouter();
   const supabase = createClient();
 
-  const [step, setStep] = useState(0);
+  const [step,    setStep]    = useState(0);
+  const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
     first_name: "",
     last_name:  "",
@@ -64,69 +64,139 @@ export default function InscriptionPage() {
 
     if (error) {
       setError(
-        error.message.includes("already registered")
+        error.message.includes("already registered") || error.message.includes("already been registered")
+          ? "Cet email est déjà utilisé. Connecte-toi."
+          : error.message.includes("User already registered")
           ? "Cet email est déjà utilisé. Connecte-toi."
           : "Erreur lors de l'inscription. Réessaie."
       );
       setLoading(false);
     } else {
-      router.push("/connexion?message=check_email");
+      setSuccess(true);
     }
   };
 
-  return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
-
-      {/* LEFT — brand panel */}
+  /* ── Panneau gauche (partagé) ── */
+  const leftPanel = (
+    <div
+      className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
+      style={{ background: "linear-gradient(135deg,#0a0d2e 0%,#1e2464 50%,#0f123a 100%)" }}
+    >
       <div
-        className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#0a0d2e 0%,#1e2464 50%,#0f123a 100%)" }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "radial-gradient(circle,rgba(136,153,204,.07) 1px,transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-        <Link href="/" className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-arc-navy to-arc-blue flex items-center justify-center">
-            <span className="font-serif text-base font-bold text-white tracking-widest">ARC</span>
-          </div>
-          <div>
-            <div className="font-serif text-xl font-bold text-white tracking-[3px]">ARC</div>
-            <div className="text-[8px] text-arc-bluePale tracking-[1.5px] uppercase">Ambassade du Royaume</div>
-          </div>
-        </Link>
-
-        {/* Journey steps */}
-        <div className="relative z-10">
-          <h2 className="font-serif text-[28px] font-bold text-white mb-2">Rejoins la famille ARC</h2>
-          <p className="text-sm text-white/60 mb-8">Une communauté de 250 membres issus de 32 nations.</p>
-          <div className="flex flex-col gap-4">
-            {[
-              { icon: "✍️", title: "Tu remplis le formulaire", desc: "Prénom, nom, email, mot de passe." },
-              { icon: "📧", title: "Confirme ton email",       desc: "Un lien de confirmation t'est envoyé." },
-              { icon: "✅", title: "Le Pasteur valide",        desc: "Ton compte Visiteur devient Membre." },
-              { icon: "🎉", title: "Bienvenue dans l'ARC !",  desc: "Accès complet à l'espace membres." },
-            ].map((j, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center text-base flex-shrink-0">
-                  {j.icon}
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white">{j.title}</div>
-                  <div className="text-[11px] text-white/50">{j.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "radial-gradient(circle,rgba(136,153,204,.07) 1px,transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+      <Link href="/" className="relative z-10">
+        <div style={{ background: "rgba(255,255,255,.95)", borderRadius: 12, padding: "8px 14px", display: "inline-flex" }}>
+          <Image
+            src="/images/logo-arc.jpeg"
+            alt="ARC — Ambassade du Royaume de Christ"
+            width={140} height={86}
+            style={{ objectFit: "contain" }}
+            priority
+          />
         </div>
+      </Link>
 
-        <div className="relative z-10 text-[11px] text-white/30">
-          Données hébergées en Europe · Conformité nLPD Suisse
+      <div className="relative z-10">
+        <h2 className="font-serif text-[28px] font-bold text-white mb-2">Rejoins la famille ARC</h2>
+        <p className="text-sm text-white/60 mb-8">Une communauté de 250 membres issus de 32 nations.</p>
+        <div className="flex flex-col gap-4">
+          {[
+            { icon: "✍️", title: "Tu remplis le formulaire", desc: "Prénom, nom, email, mot de passe." },
+            { icon: "📧", title: "Confirme ton email",       desc: "Un lien de confirmation t'est envoyé." },
+            { icon: "✅", title: "Le Pasteur valide",        desc: "Ton compte Visiteur devient Membre." },
+            { icon: "🎉", title: "Bienvenue dans l'ARC !",  desc: "Accès complet à l'espace membres." },
+          ].map((j, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center text-base flex-shrink-0">
+                {j.icon}
+              </div>
+              <div>
+                <div className="text-sm font-bold text-white">{j.title}</div>
+                <div className="text-[11px] text-white/50">{j.desc}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+
+      <div className="relative z-10 text-[11px] text-white/30">
+        Données hébergées en Europe · Conformité nLPD Suisse
+      </div>
+    </div>
+  );
+
+  /* ── État succès ── */
+  if (success) {
+    return (
+      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+        {leftPanel}
+        <div className="flex items-center justify-center p-6 md:p-12 bg-arc-bg">
+          <div className="w-full max-w-[440px] text-center">
+            {/* Mobile logo */}
+            <Link href="/" className="flex lg:hidden justify-center mb-8">
+              <Image src="/images/logo-arc.jpeg" alt="ARC — Ambassade du Royaume de Christ" width={120} height={74} style={{ objectFit: "contain" }} />
+            </Link>
+
+            <div className="w-20 h-20 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center text-4xl mx-auto mb-6">
+              📧
+            </div>
+            <h1 className="font-serif text-[28px] font-bold text-arc-navy mb-3">
+              Vérifie ton email !
+            </h1>
+            <p className="text-sm text-arc-text2 leading-relaxed mb-2">
+              Un lien de confirmation a été envoyé à
+            </p>
+            <p className="text-sm font-bold text-arc-navy mb-6">{form.email}</p>
+
+            <div className="bg-arc-blueBg border border-arc-bluePale rounded-2xl p-5 text-left mb-6">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-3">
+                Prochaines étapes
+              </div>
+              {[
+                { icon: "1️⃣", text: "Ouvre l'email envoyé par ARC" },
+                { icon: "2️⃣", text: "Clique sur « Confirmer mon adresse »" },
+                { icon: "3️⃣", text: "Tu seras redirigé vers ton espace membres" },
+                { icon: "4️⃣", text: "Le Pasteur validera ton compte sous 24–48h" },
+              ].map((s, i) => (
+                <div key={i} className="flex items-start gap-2.5 mb-2 last:mb-0">
+                  <span className="text-sm">{s.icon}</span>
+                  <span className="text-sm text-arc-text2">{s.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-xs text-amber-700">
+              ⏱ L&apos;email peut prendre quelques minutes. Vérifie aussi tes spams.
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/connexion"
+                className="w-full py-3.5 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors text-center"
+              >
+                Se connecter →
+              </Link>
+              <Link
+                href="/"
+                className="w-full py-3.5 rounded-xl border-[1.5px] border-arc-border text-arc-text2 text-sm font-bold hover:bg-arc-bg transition-colors text-center"
+              >
+                ← Retour à l&apos;accueil
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+      {leftPanel}
 
       {/* RIGHT — form */}
       <div className="flex items-center justify-center p-6 md:p-12 bg-arc-bg">
@@ -194,7 +264,7 @@ export default function InscriptionPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.8px] text-arc-blue mb-1.5">Pays d'origine</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.8px] text-arc-blue mb-1.5">Pays d&apos;origine</label>
                 <input
                   type="text" value={form.country} onChange={set("country")}
                   placeholder="Suisse, Congo, France…"
@@ -259,15 +329,15 @@ export default function InscriptionPage() {
                 {form.country && <div>🌍 {form.country}</div>}
                 <div>✉️ {form.email}</div>
                 <div className="mt-2 text-[11px] text-arc-text3">
-                  Ton compte sera créé en tant que <strong>Visiteur</strong>. Le Pasteur Pedro Obova devra valider ton accès à l'espace membres.
+                  Ton compte sera créé en tant que <strong>Visiteur</strong>. Le Pasteur Pedro Obova devra valider ton accès à l&apos;espace membres.
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <input type="checkbox" required id="cgu" className="mt-0.5 accent-arc-navy" />
                 <label htmlFor="cgu" className="text-xs text-arc-text2 leading-relaxed cursor-pointer">
-                  J'accepte les{" "}
-                  <span className="text-arc-navy font-semibold underline cursor-pointer">conditions d'utilisation</span>
+                  J&apos;accepte les{" "}
+                  <span className="text-arc-navy font-semibold underline cursor-pointer">conditions d&apos;utilisation</span>
                   {" "}et la{" "}
                   <span className="text-arc-navy font-semibold underline cursor-pointer">politique de confidentialité</span>
                   {" "}(nLPD Suisse).

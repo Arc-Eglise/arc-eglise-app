@@ -9,9 +9,12 @@ const navItems = [
   { href: "/espace-membres/annuaire",    label: "Annuaire",     icon: "👥" },
   { href: "/espace-membres/agenda",      label: "Agenda",       icon: "📅" },
   { href: "/espace-membres/messagerie",  label: "Messages",     icon: "💬" },
-  { href: "/espace-membres/priere",      label: "Prière",       icon: "🙏" },
-  { href: "/espace-membres/streaming",   label: "Streaming",    icon: "📺" },
-  { href: "/espace-membres/bible",       label: "Bible",        icon: "📖" },
+  { href: "/espace-membres/priere",       label: "Prière",         icon: "🙏" },
+  { href: "/espace-membres/ai-biblique", label: "ARC Église AI", icon: "✦" },
+  { href: "/espace-membres/streaming",   label: "Streaming",      icon: "📺" },
+  { href: "/espace-membres/bible",       label: "Bible",          icon: "📖" },
+  { href: "/espace-membres/notes",       label: "Notes",          icon: "📝" },
+  { href: "/espace-membres/doleances",   label: "Doléances",      icon: "📨" },
 ];
 
 const sidebarExtra = [

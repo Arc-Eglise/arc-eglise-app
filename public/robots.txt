@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /espace-membres/
+
+Sitemap: https://www.arc-eglise.ch/sitemap.xml

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MemberAIKeys from "@/components/membres/MemberAIKeys";
 
 type Msg = {
   id: string;
@@ -43,6 +44,7 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -159,20 +161,36 @@ export default function AssistantPage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-arc-blue">Lunziko IA</p>
           <h1 className="text-base font-serif font-semibold text-arc-navy leading-tight">Assistant IA</h1>
         </div>
-        {!isEmpty && (
+        <div className="flex items-center gap-2">
+          {!isEmpty && (
+            <button
+              type="button"
+              onClick={clearChat}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 transition"
+            >
+              <ClearIcon />
+              Effacer
+            </button>
+          )}
           <button
             type="button"
-            onClick={clearChat}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 transition"
+            onClick={() => setShowKeys((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:text-arc-navy transition"
           >
-            <ClearIcon />
-            Effacer
+            🔑 Mes clés IA
           </button>
-        )}
+        </div>
       </div>
 
+      {/* Panel clés IA */}
+      {showKeys && (
+        <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-4 md:px-6 py-3">
+          <MemberAIKeys />
+        </div>
+      )}
+
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
+      <div className="em-reading-zone flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center gap-6 pb-8">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-arc-blue to-arc-navy flex items-center justify-center text-2xl shadow-lg">
@@ -207,7 +225,7 @@ export default function AssistantPage() {
                 </div>
               )}
               <div
-                className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[78%] rounded-2xl px-4 py-3 em-ai-msg ${
                   m.role === "user"
                     ? "bg-arc-navy text-white rounded-br-sm"
                     : "bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm"
