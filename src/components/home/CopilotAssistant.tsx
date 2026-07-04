@@ -35,7 +35,7 @@ export default function CopilotAssistant() {
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
-      const res = await fetch("/api/lunziko/chat", {
+      const res = await fetch("/api/copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history, stream: true }),
@@ -67,7 +67,7 @@ export default function CopilotAssistant() {
       }
     } catch {
       try {
-        const res2 = await fetch("/api/lunziko/chat", {
+        const res2 = await fetch("/api/copilot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text, history: messages.map((m) => ({ role: m.role, content: m.content })), stream: false }),
