@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { getGroup } from "@/lib/groups";
+import {
+  Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
+  Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
+  UserCheck, Settings, BarChart3,
+  type LucideIcon,
+} from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
@@ -49,9 +56,12 @@ const BOOKS = [
   {n:"Apocalypse",c:22},
 ];
 const TRANS = [
-  {code:"lsg",label:"Louis Segond (1910)"},{code:"neg",label:"Nouv. Éd. Genève"},
-  {code:"fob",label:"Français Courant"},{code:"kjv",label:"King James Version"},
-  {code:"bbe",label:"Bible Basic English"},{code:"niv",label:"NIV"},{code:"esv",label:"ESV"},
+  {code:"NBS",   label:"Nouvelle Bible Segond (FR)"},
+  {code:"FRDBY", label:"Darby (français)"},
+  {code:"NKJV",  label:"New King James Version"},
+  {code:"KJV",   label:"King James Version"},
+  {code:"YLT",   label:"Young's Literal Translation"},
+  {code:"ASV",   label:"American Standard Version"},
 ];
 const DAILY_VERSES = [
   {text:"Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.",ref:"Jean 3:16"},
@@ -135,41 +145,22 @@ const ONLINE_MEMBERS = [
   {name:"Marie Kalinda",role:"membre",color:"#9d174d"},{name:"Samuel Nkosi",role:"membre",color:"#1e40af"},
   {name:"Grace Mbeki",role:"membre",color:"#3730a3"},{name:"David Lumbala",role:"membre",color:"#065f46"},
 ];
-const ACTIVITIES = [
-  {icon:"🙏",text:"Marie Kalinda a ajouté une demande de prière",time:"il y a 5 min"},
-  {icon:"✅",text:"Samuel Nkosi a rejoint le groupe Jeunesse",time:"il y a 20 min"},
-  {icon:"💬",text:"Nouveau message dans #général",time:"il y a 45 min"},
-  {icon:"📅",text:"Culte du dimanche confirmé — 120 présences",time:"il y a 2h"},
-  {icon:"🎵",text:"Groupe Chorale : répétition ajoutée au calendrier",time:"il y a 3h"},
-  {icon:"💰",text:"Don reçu : 150 CHF (TWINT)",time:"il y a 5h"},
-  {icon:"👥",text:"David Lumbala a créé un nouveau contact",time:"hier"},
-  {icon:"📺",text:"Sermon du 08 juin disponible en rediffusion",time:"il y a 2j"},
-];
-const DONS_RECENTS = [
-  {name:"Anonyme",amount:"200 CHF",method:"TWINT",date:"10.06.2026"},
-  {name:"Marie K.",amount:"150 CHF",method:"Stripe",date:"08.06.2026"},
-  {name:"Samuel N.",amount:"100 CHF",method:"PostFinance",date:"05.06.2026"},
-  {name:"Anonyme",amount:"500 CHF",method:"Virement",date:"01.06.2026"},
-];
+const ACTIVITIES: {icon:string;text:string;time:string}[] = [];
+const DONS_RECENTS: {name:string;amount:string;method:string;date:string}[] = [];
 const GROUPES = [
-  {name:"Pasteurs & Anciens",count:4,icon:"⛪",color:"#92400e"},
-  {name:"Médias & Communication",count:8,icon:"📺",color:"#1e40af"},
-  {name:"Chorale & Louange",count:18,icon:"🎵",color:"#9d174d"},
-  {name:"Jeunesse ARC",count:32,icon:"🌱",color:"#065f46"},
-  {name:"Femmes ARC",count:28,icon:"💐",color:"#831843"},
-  {name:"Action Sociale",count:12,icon:"❤️",color:"#3730a3"},
-  {name:"Sanitaire & Accueil",count:9,icon:"🏥",color:"#991b1b"},
-  {name:"École du Dimanche",count:15,icon:"📚",color:"#854d0e"},
-  {name:"Suivi & Accompagnement",count:7,icon:"🤝",color:"#5b21b6"},
-  {name:"Administration",count:3,icon:"⚙️",color:"#4a5568"},
-  {name:"Support Technique",count:2,icon:"💻",color:"#2d3748"},
+  {name:"Pasteur",              count:0, hex:"#92400e", hexBg:"#fffbeb"},
+  {name:"Équipe Média",         count:0, hex:"#1d4ed8", hexBg:"#eff6ff"},
+  {name:"Chorale",              count:0, hex:"#be185d", hexBg:"#fdf2f8"},
+  {name:"La Jeunesse",          count:0, hex:"#c2410c", hexBg:"#fff7ed"},
+  {name:"Groupe des Femmes",    count:0, hex:"#be123c", hexBg:"#fff1f2"},
+  {name:"Social & Hospitalité", count:0, hex:"#047857", hexBg:"#ecfdf5"},
+  {name:"Sanitaire & Propreté", count:0, hex:"#0f766e", hexBg:"#f0fdfa"},
+  {name:"Écodim",               count:0, hex:"#4d7c0f", hexBg:"#f7fee7"},
+  {name:"Suivi d'âmes",         count:0, hex:"#0369a1", hexBg:"#f0f9ff"},
+  {name:"Communication",        count:0, hex:"#6d28d9", hexBg:"#f5f3ff"},
+  {name:"Support",              count:0, hex:"#334155", hexBg:"#f1f5f9"},
 ];
-const MSG_FILES = [
-  {name:"Programme Culte Juin 2026.pdf",size:"245 Ko",from:"Pedro Obova",time:"9:15",icon:"📄"},
-  {name:"Photo chorale 2026.jpg",size:"1.2 Mo",from:"Marie Kalinda",time:"hier",icon:"🖼"},
-  {name:"Budget Missions 2026.xlsx",size:"98 Ko",from:"Jaise Buka",time:"lundi",icon:"📊"},
-  {name:"Horaires Été 2026.pdf",size:"54 Ko",from:"Pedro Obova",time:"23.05",icon:"📄"},
-];
+const MSG_FILES: {name:string;size:string;from:string;time:string;icon:string}[] = [];
 const MSG_TASKS = [
   {id:"mt1",title:"Préparer le programme du culte",done:false,assignee:"Pedro Obova",due:"15.06"},
   {id:"mt2",title:"Mettre à jour le site web",done:true,assignee:"Jaise Buka",due:"10.06"},
@@ -206,6 +197,65 @@ const ETUDE_DB: Record<string,{ref:string;contexte:string;theologie:string;appli
   },
 };
 
+/* ─── Gestion des Droits ──────────────────────────────────────────── */
+const GD_FEATURES = [
+  { id:"live",          label:"📺 Streaming live (vitrine)" },
+  { id:"replays",       label:"📼 Accès replays vidéos" },
+  { id:"stream",        label:"🎛 Gestion Stream (Zoom+YouTube)" },
+  { id:"plateformes",   label:"🖼 Maj Plateformes (vitrine)" },
+  { id:"crm",           label:"🗂 Gestion CRM" },
+  { id:"analytics",     label:"📊 Analytics / Tableau de bord" },
+  { id:"rdv",           label:"📹 Rendez-vous pastoral" },
+  { id:"contacts_all",  label:"👥 Contacts : tous les membres" },
+  { id:"contacts_grp",  label:"👤 Contacts : groupe uniquement" },
+  { id:"dons_recur",    label:"📅 Dons récurrents (Stripe)" },
+  { id:"events_rsvp",   label:"🎟 Réservation événements (RSVP)" },
+  { id:"chat_invite",   label:"💬 Invitation canal chat temporaire" },
+  { id:"support_rd",    label:"🖥 Prise en main à distance (RustDesk)" },
+  { id:"user_promote",  label:"⬆ Promouvoir Visiteur → Membre" },
+  { id:"user_revoke",   label:"❌ Révoquer / bloquer un compte" },
+  { id:"pastor_manage", label:"👑 Gérer les Pasteurs (Admin only)" },
+];
+const GD_GROUPS = ["admin","pasteur","media","chorale","jeunesse","femmes","social","sanitaire","ecodim","suivi","communication","support"] as const;
+const GD_GROUP_LABELS: Record<string,string> = {admin:"Admin",pasteur:"Pasteur",media:"Média",chorale:"Chorale",jeunesse:"Jeunesse",femmes:"Femmes",social:"Social",sanitaire:"Sanit.",ecodim:"Écodim",suivi:"Suivi",communication:"Comm.",support:"Support"};
+const GD_DEFAULTS: Record<string,Record<string,boolean>> = {
+  live:         {admin:true,pasteur:true,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:true},
+  replays:      {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  stream:       {admin:true,pasteur:false,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
+  plateformes:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:false},
+  crm:          {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:true},
+  analytics:    {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
+  rdv:          {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  contacts_all: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
+  contacts_grp: {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  dons_recur:   {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  events_rsvp:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  chat_invite:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
+  support_rd:   {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
+  user_promote: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
+  user_revoke:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
+  pastor_manage:{admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
+};
+
+/* ─── Maj Plateformes ─────────────────────────────────────────────── */
+interface MPCard { id:number; icon:string; title:string; tag:string; desc:string; descLong:string; cta:string; link:string; video:string; schedule:string; contact:string; bg:string; }
+const MP_CARDS_DEFAULT: MPCard[] = [
+  { id:0, icon:"🔥", title:"La Jeunesse ARC", tag:"Pour les Jeunes · 15-35 ans", desc:"Un espace de croissance, d'amitié profonde et de foi engagée pour les 15-35 ans.", descLong:"La Jeunesse ARC est un mouvement de foi pour les 15-35 ans. Chaque vendredi soir, nous nous réunissons pour la louange, la Parole et des activités.", cta:"En savoir plus →", link:"/jeunesse", video:"", schedule:"Vendredi soir · 19h00 — 21h30", contact:"Past. Daniel Mwamba", bg:"linear-gradient(135deg,#c53030,#e53e3e,#2d3a8e)" },
+  { id:1, icon:"🌸", title:"Groupe des Femmes", tag:"Pour les Femmes", desc:"Un espace sacré de sœurie, de prière partagée et d'encouragement mutuel.", descLong:"Le Groupe des Femmes ARC se réunit chaque mardi pour prier, partager la Parole et s'encourager mutuellement.", cta:"En savoir plus →", link:"/femmes", video:"", schedule:"Mardi · 18h00 — 20h00", contact:"Christine Mabika", bg:"linear-gradient(135deg,#7b3f00,#c05621,#d4a843)" },
+  { id:2, icon:"🌱", title:"Écodim", tag:"Pour les Enfants · 0-14 ans", desc:"Des enseignements adaptés et des activités créatives pour vos enfants.", descLong:"L'École du Dimanche ARC accueille les enfants de 0 à 14 ans chaque dimanche pendant le culte principal.", cta:"En savoir plus →", link:"/ecodim", video:"", schedule:"Dimanche · 09h30 — 12h00", contact:"Félicité Mukuna", bg:"linear-gradient(135deg,#276749,#4a9e6e,#0f123a)" },
+  { id:3, icon:"🏠", title:"La Famille ARC", tag:"Toute la communauté", desc:"Rejoignez une communauté chaleureuse fondée sur l'amour, la prière et la fraternité.", descLong:"La Famille ARC, c'est vous ! Une communauté unie par la foi et l'amour du Christ. Bienvenue dans votre famille spirituelle.", cta:"Rejoindre la famille →", link:"/rejoindre", video:"", schedule:"Dimanche · 09h30 & 17h00", contact:"contact@arc-eglise.ch", bg:"linear-gradient(135deg,#1e2464,#2d3a8e,#553c9a)" },
+];
+const MP_GRADIENTS = [
+  "linear-gradient(135deg,#c53030,#e53e3e,#2d3a8e)",
+  "linear-gradient(135deg,#7b3f00,#c05621,#d4a843)",
+  "linear-gradient(135deg,#276749,#4a9e6e,#0f123a)",
+  "linear-gradient(135deg,#1e2464,#2d3a8e,#553c9a)",
+  "linear-gradient(135deg,#0d47a1,#42a5f5)",
+  "linear-gradient(135deg,#6a1b9a,#e91e63)",
+  "linear-gradient(135deg,#1a237e,#00bcd4)",
+  "linear-gradient(135deg,#33691e,#f9a825)",
+];
+
 /* ─── Component ──────────────────────────────────────────────────── */
 export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events }: EMClientProps) {
   const supabase = createClient();
@@ -226,12 +276,42 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [showGS, setShowGS] = useState(false);
   const [showGD, setShowGD] = useState(false);
   const [showNewPrayer, setShowNewPrayer] = useState(false);
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [showSalle, setShowSalle]       = useState(false);
+  const [showMP, setShowMP]           = useState(false);
+  const [showMajInfo, setShowMajInfo] = useState(false);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [showDoleance, setShowDoleance]   = useState(false);
+  const [showSettings, setShowSettings]   = useState(false);
+  const [showInvite, setShowInvite]       = useState(false);
+  const [showNote, setShowNote]           = useState(false);
+  // Sub-states for modals
+  const [gdTab, setGdTab] = useState<"matrix"|"pasteurs"|"membres"|"audit">("matrix");
+  const [gdPerms, setGdPerms] = useState<Record<string,Record<string,boolean>>>(() => {
+    const p: Record<string,Record<string,boolean>> = {};
+    for (const k in GD_DEFAULTS) p[k] = {...GD_DEFAULTS[k]};
+    return p;
+  });
+  const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
+  const [mpCard, setMpCard]   = useState(0);
+  const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
+  const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible">("notifs");
+  const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
+  const [noteRef, setNoteRef]     = useState("Jean 3:16");
+  const [noteContent, setNoteContent] = useState("");
+  const [doleanceType, setDoleanceType] = useState("bug");
+  const [doleanceText, setDoleanceText] = useState("");
+  const [doleanceAnon, setDoleanceAnon] = useState(false);
+  const [invitePrenom, setInvitePrenom] = useState("");
+  const [inviteNom, setInviteNom]       = useState("");
+  const [inviteEmail, setInviteEmail]   = useState("");
+  const [inviteGroupe, setInviteGroupe] = useState("");
 
   /* Bible */
   const [bTab, setBTab]         = useState<BTab>("verset");
   const [bBook, setBBook]       = useState(42);   // Jean = index 42 (0-based)
   const [bCh, setBCh]           = useState(3);
-  const [bTrans, setBTrans]     = useState("lsg");
+  const [bTrans, setBTrans]     = useState("NBS");
   const [bVerses, setBVerses]   = useState<{verse:number;text:string}[]>([]);
   const [bLoading, setBLoading] = useState(false);
   const [bError, setBError]     = useState<string|null>(null);
@@ -296,6 +376,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   /* Countdown */
   const [countdown, setCountdown] = useState("");
 
+  /* Présence en ligne */
+  const [onlineMembers, setOnlineMembers] = useState<{userId:string;name:string;initiale:string}[]>([]);
+
+  /* Notifications */
+  type Notif = { id:string; type:string; title:string; body:string|null; link:string|null; read_at:string|null; created_at:string };
+  const [notifs, setNotifs]     = useState<Notif[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef                = useRef<HTMLDivElement>(null);
+  const unreadCount             = notifs.filter(n => !n.read_at).length;
+
   /* Computed */
   const role        = profile?.role ?? "visiteur";
   const isAdmin     = role === "admin";
@@ -306,6 +396,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     : "Membre";
   const initiale    = (profile?.first_name?.[0] ?? profile?.email?.[0] ?? "?").toUpperCase();
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
+  const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("Communication");
 
   /* ── Effects ─────────────────────────────────────────────────── */
   useEffect(() => {
@@ -332,6 +423,65 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
   }, [toast]);
 
+  /* ── Supabase Realtime — UN seul client partagé ─────────────── */
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Présence
+    const presenceCh = supabase.channel("em-presence", { config: { presence: { key: userId } } });
+    presenceCh.on("presence", { event: "sync" }, () => {
+      const state = presenceCh.presenceState<{name:string;initiale:string}>();
+      setOnlineMembers(
+        Object.entries(state)
+          .map(([uid, arr]) => arr[0] ? { userId: uid, name: arr[0].name, initiale: arr[0].initiale } : null)
+          .filter((x): x is {userId:string;name:string;initiale:string} => x !== null)
+      );
+    }).subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        const ini = (profile?.first_name?.[0] ?? profile?.email?.[0] ?? "?").toUpperCase();
+        await presenceCh.track({ name: displayName, initiale: ini });
+      }
+    });
+
+    // Notifications — chargement initial
+    supabase.from("notifications").select("*").eq("user_id", userId)
+      .order("created_at", { ascending: false }).limit(20)
+      .then(({ data }) => { if (data) setNotifs(data as Notif[]); });
+
+    // Notifications — Realtime (nouvelles insertions)
+    const notifCh = supabase.channel(`notifs:${userId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "notifications",
+        filter: `user_id=eq.${userId}`,
+      }, ({ new: n }) => {
+        setNotifs(prev => [n as Notif, ...prev].slice(0, 20));
+      })
+      .subscribe();
+
+    // Fermer notif dropdown au clic extérieur
+    function handleOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+
+    return () => {
+      supabase.removeChannel(presenceCh);
+      supabase.removeChannel(notifCh);
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleNotifOpen() {
+    const opening = !notifOpen;
+    setNotifOpen(opening);
+    if (opening && unreadCount > 0) {
+      const supabase = createClient();
+      const ids = notifs.filter(n => !n.read_at).map(n => n.id);
+      await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", ids);
+      setNotifs(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+    }
+  }
+
   useEffect(() => {
     if (panel === "priere") loadPrayers();
   }, [panel]);
@@ -348,27 +498,20 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ── Bible loader ────────────────────────────────────────────── */
+  /* ── Bible loader — bolls.life API ─────────────────────────── */
   const loadChapter = useCallback(async (bookIdx: number, ch: number, trans: string) => {
     setBLoading(true);
     setBVerses([]);
     setBError(null);
     try {
       const bookNum = bookIdx + 1;
-      const res = await fetch(`https://api.getbible.net/v2/${trans}/${bookNum}/${ch}.json`);
+      const res = await fetch(`https://bolls.life/get-text/${trans}/${bookNum}/${ch}/`);
       if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
-      const data = await res.json();
-      // getbible.net v2 : les versets peuvent être à data.verses (objet ou tableau)
-      // ou à data.book[0].verses selon la version
-      const raw: unknown =
-        data.verses ??
-        (Array.isArray(data.book) ? data.book[0]?.verses : undefined) ??
-        null;
-      if (!raw) throw new Error("Format inattendu — aucun verset trouvé");
-      const arr: {verse:number;text:string}[] = Array.isArray(raw)
-        ? (raw as {verse:number;text:string}[]).map(v => ({ verse: v.verse, text: v.text.trim() }))
-        : Object.values(raw as Record<string,{verse:number;text:string}>).map(v => ({ verse: v.verse, text: v.text.trim() }));
-      if (arr.length === 0) throw new Error("Chapitre vide");
+      const data: {verse:number;text:string}[] = await res.json();
+      if (!Array.isArray(data) || data.length === 0) throw new Error("Chapitre vide ou introuvable");
+      // KJV/ASV contiennent des numéros Strong (<S>1063</S>) — on les supprime
+      const stripStrong = (t: string) => t.replace(/<S>\d+<\/S>/g, "").replace(/\s+/g, " ").trim();
+      const arr = data.map(v => ({ verse: v.verse, text: stripStrong(v.text) }));
       setBVerses(arr);
     } catch (e) {
       setBError(e instanceof Error ? e.message : "Erreur inconnue");
@@ -520,24 +663,36 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const { cells, today: todayDay } = buildCalendar(calYear, calMonth);
 
   /* ── Sidebar nav items ───────────────────────────────────────── */
-  type NavItem = { id:string; lbl:string; ico:string; badge?:number; live?:boolean; count?:number; };
+  type NavItem = { id:string; lbl:string; ico:string; Icon:LucideIcon; badge?:number; live?:boolean; count?:number; href?:string; };
   type NavGroup = { section:string; items:NavItem[] };
   const NAV_ITEMS: NavGroup[] = [
     { section:"Principal", items:[
-      { id:"accueil",    lbl:"Accueil",        ico:"⌂" },
-      { id:"messagerie", lbl:"Messagerie",     ico:"✉",  badge:5 },
-      { id:"agenda",     lbl:"Agenda",         ico:"◉" },
-      { id:"streaming",  lbl:"Streaming",      ico:"▶",  live:true },
-      { id:"priere",     lbl:"Prière & Bible", ico:"✦" },
+      { id:"accueil",     lbl:"Accueil",        ico:"⌂",  Icon:Home },
+      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, badge:5 },
+      { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar },
+      { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle, live:true },
+      { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen },
+      { id:"ai-biblique", lbl:"ARC Église AI",  ico:"✦",  Icon:Sparkles, href:"/espace-membres/ai-biblique" },
     ]},
     { section:"Communauté", items:[
-      { id:"contacts",   lbl:"Contacts",       ico:"👥", count:membresValides },
-      { id:"presences",  lbl:"Présences",      ico:"✓" },
-      { id:"activites",  lbl:"Activités",      ico:"◈",  badge:7 },
+      { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users, count:membresValides },
+      ...(canAdmin ? [
+        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, href:"/espace-membres/presences" },
+      ] : [
+        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck },
+      ]),
+      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell, badge:7 },
+    ]},
+    { section:"Personnel", items:[
+      { id:"notes",     lbl:"Notes bibliques", ico:"📝", Icon:BookMarked, href:"/espace-membres/notes" },
+      { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox, href:"/espace-membres/doleances" },
     ]},
     { section:"Gestion", items:[
-      { id:"dons",       lbl:"Dons & Paiements",ico:"♡" },
-      ...(canAdmin ? [{ id:"admin", lbl:"Administration", ico:"⚙" }] : []),
+      { id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins },
+      ...(canAdmin ? [
+        { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, href:"/espace-membres/crm" },
+        { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings },
+      ] : []),
     ]},
   ];
 
@@ -560,9 +715,43 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <button className="em-hdr-ico" onClick={() => setShowSearch(true)}>🔍</button>
-          <button className="em-hdr-ico" style={{position:"relative"}}>
-            🔔<span className="em-hdr-dot" />
-          </button>
+          <div ref={notifRef} style={{position:"relative"}}>
+            <button className="em-hdr-ico" title="Notifications" onClick={handleNotifOpen} style={{position:"relative"}}>
+              🔔
+              {unreadCount > 0 && (
+                <span style={{position:"absolute",top:2,right:2,background:"#e53e3e",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:700,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid #1a1d3a",lineHeight:1}}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid rgba(30,36,100,.1)",width:320,zIndex:300,overflow:"hidden"}}>
+                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontWeight:700,fontSize:14,color:"#1a1d3a"}}>Notifications</span>
+                  <span style={{fontSize:11,color:"#8890aa"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
+                </div>
+                <div style={{maxHeight:360,overflowY:"auto"}}>
+                  {notifs.length === 0 ? (
+                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8890aa",fontSize:13}}>Aucune notification</div>
+                  ) : notifs.map(n => (
+                    <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
+                      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                        <span style={{fontSize:17,lineHeight:"1.3",flexShrink:0}}>
+                          {({message:"✉",prayer:"🙏",event:"📅",rsvp:"✓",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
+                        </span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
+                          {n.body && <div style={{fontSize:12,color:"#6670aa",lineHeight:1.4}}>{n.body}</div>}
+                          <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                        </div>
+                        {!n.read_at && <span style={{width:7,height:7,borderRadius:"50%",background:"#1E2464",flexShrink:0,marginTop:5}} />}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="em-av" style={{width:32,height:32,fontSize:12,cursor:"pointer"}}
             onClick={() => { nav("accueil"); }}>
             {profile?.avatar_url
@@ -598,10 +787,43 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {canAdmin && (
             <button className="em-hdr-ico" title="Gestion Stream" onClick={() => setShowGS(true)}>📡</button>
           )}
-          <button className="em-hdr-ico" title="Notifications">
-            🔔
-            <span className="em-hdr-dot" />
-          </button>
+          <div ref={notifRef} style={{position:"relative"}}>
+            <button className="em-hdr-ico" title="Notifications" onClick={handleNotifOpen} style={{position:"relative"}}>
+              🔔
+              {unreadCount > 0 && (
+                <span style={{position:"absolute",top:2,right:2,background:"#e53e3e",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:700,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid #1a1d3a",lineHeight:1}}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid rgba(30,36,100,.1)",width:320,zIndex:300,overflow:"hidden"}}>
+                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontWeight:700,fontSize:14,color:"#1a1d3a"}}>Notifications</span>
+                  <span style={{fontSize:11,color:"#8890aa"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
+                </div>
+                <div style={{maxHeight:360,overflowY:"auto"}}>
+                  {notifs.length === 0 ? (
+                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8890aa",fontSize:13}}>Aucune notification</div>
+                  ) : notifs.map(n => (
+                    <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
+                      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                        <span style={{fontSize:17,lineHeight:"1.3",flexShrink:0}}>
+                          {({message:"✉",prayer:"🙏",event:"📅",rsvp:"✓",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
+                        </span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
+                          {n.body && <div style={{fontSize:12,color:"#6670aa",lineHeight:1.4}}>{n.body}</div>}
+                          <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                        </div>
+                        {!n.read_at && <span style={{width:7,height:7,borderRadius:"50%",background:"#1E2464",flexShrink:0,marginTop:5}} />}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div
             className="em-av" style={{width:32,height:32,fontSize:12,cursor:"pointer"}}
             onClick={() => setPanel("accueil")}
@@ -621,10 +843,18 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             {NAV_ITEMS.map(group => (
               <div key={group.section}>
                 <div className="em-sb-section">{group.section}</div>
-                {group.items.map(item => (
+                {group.items.map(item => {
+                  const NavIcon = item.Icon;
+                  return item.href ? (
+                  <a key={item.id} href={item.href} className="em-ni"
+                    style={{textDecoration:"none",display:"flex",alignItems:"center"}}>
+                    <span className="em-ni-ico"><NavIcon size={16} strokeWidth={1.75} /></span>
+                    <span className="em-ni-lbl">{item.lbl}</span>
+                  </a>
+                ) : (
                   <button key={item.id} className={`em-ni${panel === item.id ? " active" : ""}`}
                     onClick={() => nav(item.id as Panel)}>
-                    <span className="em-ni-ico">{item.ico}</span>
+                    <span className="em-ni-ico"><NavIcon size={16} strokeWidth={1.75} /></span>
                     <span className="em-ni-lbl">{item.lbl}</span>
                     {"badge" in item && item.badge
                       ? <span className="em-badge">{item.badge}</span>
@@ -634,7 +864,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           ? <span className="em-live">LIVE</span>
                           : null}
                   </button>
-                ))}
+                );})}
               </div>
             ))}
           </div>
@@ -653,6 +883,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               </div>
             </div>
           </a>
+          <button className="em-ni" style={{margin:"4px 8px 0",color:"rgba(255,255,255,.35)",fontSize:12}}
+            onClick={()=>setShowSettings(true)}>
+            <span className="em-ni-ico" style={{fontSize:12}}>⚙️</span>
+            <span>Paramètres</span>
+          </button>
           <button className="em-ni" style={{margin:"4px 8px 12px",color:"rgba(255,255,255,.35)",fontSize:12}}
             onClick={async()=>{ await fetch("/api/auth/signout"); window.location.href="/"; }}>
             <span className="em-ni-ico" style={{fontSize:12}}>←</span>
@@ -670,6 +905,22 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
             </div>
 
+            {/* Bannière visiteur non validé */}
+            {role === "visiteur" && !profile?.validated && (
+              <div style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)",border:"1.5px solid #f59e0b",borderRadius:14,padding:"16px 20px",marginBottom:18,display:"flex",gap:14,alignItems:"flex-start"}}>
+                <div style={{fontSize:28,flexShrink:0}}>⏳</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#92400e",marginBottom:4}}>Compte en attente de validation</div>
+                  <div style={{fontSize:13,color:"#78350f",lineHeight:1.5}}>
+                    Ton inscription a bien été reçue. Le Pasteur Pedro Obova va valider ton compte sous <strong>24–48h</strong>. Tu recevras un email de confirmation dès que ton accès sera activé.
+                  </div>
+                  <div style={{fontSize:11,color:"#a16207",marginTop:8}}>
+                    En attendant, tu peux consulter les sermons et les événements.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Stats */}
             <div className="em-g4" style={{marginBottom:18}}>
               {[
@@ -684,6 +935,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 </div>
               ))}
             </div>
+
+            {/* ARC Église AI */}
+            <a href="/espace-membres/ai-biblique" style={{display:"block",textDecoration:"none",marginBottom:18}}>
+              <div style={{background:"linear-gradient(135deg,#1e2464 0%,#2d3a8c 60%,#1a4fa8 100%)",borderRadius:16,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,cursor:"pointer",boxShadow:"0 4px 20px rgba(30,36,100,.25)",border:"1px solid rgba(255,255,255,.1)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>✦</div>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Nouveau</div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>ARC Église AI</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique · Méditation · Plans de lecture</div>
+                  </div>
+                </div>
+                <div style={{fontSize:20,color:"rgba(255,255,255,.4)",flexShrink:0}}>→</div>
+              </div>
+            </a>
 
             {/* Verse + Culte */}
             <div className="em-g2" style={{marginBottom:18}}>
@@ -721,13 +987,20 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%"}} onClick={() => nav("agenda")}>Voir l&apos;agenda complet →</button>
               </div>
               <div className="em-card">
-                <div style={{fontWeight:700,fontSize:14,marginBottom:14,color:"#1e2464"}}>👥 Mes groupes</div>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:14,color:"#1e2464"}}>Mes groupes</div>
                 {(profile?.groups ?? []).length > 0
-                  ? (profile?.groups ?? []).map(g => (
+                  ? (profile?.groups ?? []).map(g => {
+                    const gd = getGroup(g);
+                    const Icon = gd.Icon;
+                    return (
                     <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
-                      <span className="em-gc" style={{background:"#eef1f8",color:"#1e2464"}}>{g}</span>
+                      <span style={{width:26,height:26,borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center",background:gd.hexBg,border:`1px solid ${gd.hex}30`,flexShrink:0}}>
+                        <Icon size={13} strokeWidth={2} color={gd.hex} />
+                      </span>
+                      <span style={{fontSize:12,fontWeight:600,color:gd.hex}}>{g}</span>
                     </div>
-                  ))
+                    );
+                  })
                   : <div style={{color:"#8890aa",fontSize:13}}>Aucun groupe assigné pour l&apos;instant.</div>}
                 <div style={{marginTop:16,fontSize:12,color:"#8890aa"}}>Plan de lecture</div>
                 {PLAN_LECTURE.slice(0,3).map((p,i) => (
@@ -808,8 +1081,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{msgChan[0]}</div>}
                     <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{msgChan}</span>
                     <button className="em-toolbar-btn" title="Rechercher">🔍</button>
+                    <button className="em-toolbar-btn" title="Démarrer une réunion vidéo" onClick={()=>setShowVideoCall(true)}>📹</button>
                     <button className="em-toolbar-btn" title="Membres">👥</button>
-                    {canAdmin && <button className="em-toolbar-btn" title="Paramètres">⚙️</button>}
+                    {canAdmin && <button className="em-toolbar-btn" title="Paramètres" onClick={()=>setShowSettings(true)}>⚙️</button>}
                   </div>
 
                   {/* Pinned banner */}
@@ -1088,8 +1362,16 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
           {/* ── AGENDA ──────────────────────────────────────── */}
           <div className={`em-panel${panel==="agenda"?" active":""}`}>
-            <div className="em-sect-title">Agenda</div>
-            <div className="em-sect-sub">Événements & calendrier de l'église</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:8}}>
+              <div>
+                <div className="em-sect-title">Agenda</div>
+                <div className="em-sect-sub">Événements &amp; calendrier de l&apos;église</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>🏢 Réserver une salle</button>
+                {canAdmin && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowAddEvent(true)}>+ Ajouter un événement</button>}
+              </div>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:20}}>
               <div className="em-card">
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
@@ -1132,7 +1414,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   </div>
                 )}
                 {canAdmin && (
-                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:8}}>+ Ajouter un événement</button>
+                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:8}} onClick={()=>setShowAddEvent(true)}>+ Ajouter un événement</button>
                 )}
               </div>
             </div>
@@ -1167,9 +1449,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 </div>
               ))}
             </div>
-            <a href="/espace-membres/streaming" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#8899cc",textDecoration:"none"}} target="_blank">
-              Voir la page streaming complète →
-            </a>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+              <a href="/espace-membres/streaming" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#8899cc",textDecoration:"none"}}>
+                Voir la page streaming complète →
+              </a>
+              <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowDoleance(true)}>📬 Déposer une doléance</button>
+            </div>
           </div>
 
           {/* ── PRIÈRE & BIBLE ──────────────────────────────── */}
@@ -1255,6 +1540,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <span style={{fontSize:13,color:"#8890aa",alignSelf:"center",fontStyle:"italic"}}>
                     {BOOKS[bBook].n} {bCh}
                   </span>
+                  <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setNoteRef(`${BOOKS[bBook].n} ${bCh}`);setNoteContent("");setShowNote(true);}}>📝 Note</button>
                 </div>
                 <div className="em-card" style={{minHeight:300}}>
                   {bLoading ? (
@@ -1485,8 +1771,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           <div style={{fontSize:10,color:"#8899cc",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.groups[0]}</div>
                         )}
                         <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:10}}>
-                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}}>💬</button>
-                          <button className="em-btn em-btn-outline em-btn-sm">👤</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}} title="Message">💬</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowVideoCall(true)} title="Appel vidéo">📹</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>nav("agenda")} title="RDV">📅</button>
                         </div>
                       </div>
                     );
@@ -1506,7 +1793,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             <div className="em-sect-title">Présences</div>
             <div className="em-sect-sub">Suivi des présences aux cultes et événements</div>
             <div className="em-g4" style={{marginBottom:18}}>
-              {[{num:"124",lbl:"Dimanche dernier"},{num:"87%",lbl:"Taux de présence"},{num:"18",lbl:"Groupes actifs"},{num:"3",lbl:"Événements ce mois"}].map(s=>(
+              {[{num:"—",lbl:"Dimanche dernier"},{num:"—",lbl:"Taux de présence"},{num:"—",lbl:"Groupes actifs"},{num:"—",lbl:"Événements ce mois"}].map(s=>(
                 <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
                   <div className="em-stat-num">{s.num}</div><div className="em-stat-lbl">{s.lbl}</div>
                 </div>
@@ -1518,20 +1805,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <tr><th>Date</th><th>Événement</th><th>Présents</th><th>Groupe</th><th>Taux</th></tr>
                 </thead>
                 <tbody>
-                  {[
-                    {date:"08.06.2026",title:"Culte dominical",nb:124,group:"Tous",pct:"89%"},
-                    {date:"04.06.2026",title:"Étude biblique",nb:34,group:"Membres",pct:"62%"},
-                    {date:"01.06.2026",title:"Culte dominical",nb:118,group:"Tous",pct:"84%"},
-                    {date:"28.05.2026",title:"Réunion Jeunesse",nb:28,group:"Jeunesse",pct:"88%"},
-                  ].map(r => (
-                    <tr key={r.date+r.title}>
-                      <td style={{color:"#8890aa"}}>{r.date}</td>
-                      <td style={{fontWeight:500}}>{r.title}</td>
-                      <td><strong>{r.nb}</strong></td>
-                      <td><span className="em-tag em-tag-marine">{r.group}</span></td>
-                      <td><span className="em-tag em-tag-vert">{r.pct}</span></td>
-                    </tr>
-                  ))}
+                  <tr><td colSpan={5} style={{textAlign:"center",color:"#8890aa",padding:"16px 0"}}>Aucune présence enregistrée — données disponibles via <a href="/espace-membres/presences" style={{color:"#2d3a8c"}}>l&apos;espace présences</a>.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1612,11 +1886,33 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {/* ── ADMINISTRATION ──────────────────────────────── */}
           {canAdmin && (
             <div className={`em-panel${panel==="admin"?" active":""}`}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                <div><div className="em-sect-title">Administration</div><div className="em-sect-sub">Gestion de l&apos;église</div></div>
-                {isAdmin && (
-                  <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowGD(true)}>⚙ Gestion des droits</button>
-                )}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:10}}>
+                <div>
+                  <div className="em-sect-title">Administration</div>
+                  <div className="em-sect-sub">Gestion de l&apos;église · {totalUsers} utilisateurs · {membresValides} membres · 11 groupes</div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {isAdmin && (
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#c53030,#9b2c2c)",color:"white",fontWeight:700,display:"flex",alignItems:"center",gap:6}} onClick={()=>{setShowGD(true);setGdTab("matrix");}}>
+                      ⚡ Gestion des Droits
+                    </button>
+                  )}
+                  {(canAdmin||canMajPlateforme) && (
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMP(true)} title="Gestion des 4 modules vitrine — Groupe Communication">
+                      🖼️ Maj Plateformes
+                    </button>
+                  )}
+                  {canAdmin && (
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#276749,#2f855a)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setAdminTab("crm")}>
+                      🗂️ Gestion CRM
+                    </button>
+                  )}
+                  {canAdmin && (
+                    <button className="em-btn em-btn-primary em-btn-sm" style={{display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMajInfo(true)}>
+                      🌐 Maj site vitrine
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="em-tabs">
                 {([["membres","👥 Membres"],["groupes","🏷 Groupes"],["visiteurs","👁 Visiteurs"],
@@ -1628,9 +1924,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {/* Membres */}
               {adminTab==="membres" && (
                 <div className="em-card">
-                  <div style={{display:"flex",gap:10,marginBottom:14}}>
-                    <input className="em-input" placeholder="Rechercher…" value={mSearch} onChange={e=>setMSearch(e.target.value)} style={{maxWidth:280}} />
+                  <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+                    <input className="em-input" placeholder="Rechercher…" value={mSearch} onChange={e=>setMSearch(e.target.value)} style={{maxWidth:280,flex:1}} />
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={loadMembers}>↺ Actualiser</button>
+                    {isAdmin && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>✉️ Inviter</button>}
                   </div>
                   {mLoading
                     ? <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa"}}>Chargement…</div>
@@ -1670,14 +1967,20 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {/* Groupes */}
               {adminTab==="groupes" && (
                 <div className="em-g3">
-                  {GROUPES.map(g=>(
+                  {GROUPES.map(g=>{
+                    const gDef = getGroup(g.name);
+                    const Icon = gDef.Icon;
+                    return (
                     <div key={g.name} className="em-card-sm em-card-hover" style={{cursor:"pointer"}}>
-                      <div style={{fontSize:24,marginBottom:8}}>{g.icon}</div>
+                      <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,background:g.hexBg,border:`1px solid ${g.hex}30`}}>
+                        <Icon size={20} strokeWidth={2} color={g.hex} />
+                      </div>
                       <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{g.name}</div>
                       <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{g.count} membres</div>
                       <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,width:"100%"}}>Gérer</button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -1804,6 +2107,26 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
         {/* ╔══════ RIGHT PANEL ══════╗ */}
         <aside className="em-rp">
+          {/* Membres en ligne */}
+          <div className="em-rp-sec">
+            <div className="em-rp-title">En ligne — {onlineMembers.length}</div>
+            {onlineMembers.length === 0 ? (
+              <span style={{fontSize:12,color:"#8890aa"}}>Aucun membre actif</span>
+            ) : onlineMembers.slice(0,6).map(m => (
+              <div key={m.userId} style={{display:"flex",alignItems:"center",gap:7,padding:"4px 0"}}>
+                <div style={{position:"relative",flexShrink:0}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"linear-gradient(135deg,#1E2464,#8899CC)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:10,fontWeight:700}}>
+                    {m.initiale}
+                  </div>
+                  <span style={{position:"absolute",bottom:0,right:0,width:6,height:6,borderRadius:"50%",background:"#22c55e",border:"1.5px solid #f8f9ff"}} />
+                </div>
+                <span style={{fontSize:12,color:"#2d3580",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {m.userId === userId ? `${m.name} (vous)` : m.name}
+                </span>
+              </div>
+            ))}
+          </div>
+
           {/* Membres */}
           <div className="em-rp-sec">
             <div className="em-rp-title">Communauté</div>
@@ -1875,20 +2198,20 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
       {/* ╔══════ MOBILE BOTTOM NAV ══════╗ */}
       <nav className="em-mob-nav">
-        {[
-          { id:"accueil",    ico:"⌂",  lbl:"Accueil" },
-          { id:"messagerie", ico:"✉",  lbl:"Messages", badge:5 },
-          { id:"priere",     ico:"✦",  lbl:"Bible" },
-          { id:"streaming",  ico:"▶",  lbl:"Stream" },
-          { id:"__more__",   ico:"⋯",  lbl:"Plus" },
-        ].map(item => (
+        {([
+          { id:"accueil",    Icon:Home,          lbl:"Accueil" },
+          { id:"messagerie", Icon:MessageSquare, lbl:"Messages", badge:5 },
+          { id:"priere",     Icon:BookOpen,      lbl:"Bible" },
+          { id:"streaming",  Icon:PlayCircle,    lbl:"Stream" },
+          { id:"__more__",   Icon:Bell,          lbl:"Plus" },
+        ] as {id:string;Icon:LucideIcon;lbl:string;badge?:number}[]).map(item => (
           <button key={item.id}
             className={`em-mob-ni${(item.id !== "__more__" && panel === item.id) ? " active" : ""}`}
             onClick={() => item.id === "__more__" ? setShowDrawer(true) : nav(item.id as Panel)}
           >
             <div className="em-mob-ni-bg" style={{position:"relative"}}>
-              <div className="em-mob-ni-ico">{item.ico}</div>
-              {"badge" in item && item.badge
+              <div className="em-mob-ni-ico"><item.Icon size={18} strokeWidth={1.75} /></div>
+              {item.badge
                 ? <span style={{position:"absolute",top:-2,right:-6,background:"#e53e3e",color:"#fff",borderRadius:10,fontSize:9,fontWeight:800,padding:"0 4px",minWidth:14,textAlign:"center"}}>{item.badge}</span>
                 : null}
             </div>
@@ -1911,18 +2234,27 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {NAV_ITEMS.map(group => (
             <div key={group.section}>
               <div className="em-sb-section">{group.section}</div>
-              {group.items.map(item => (
+              {group.items.map(item => {
+                const DrawerIcon = item.Icon;
+                return item.href ? (
+                <a key={item.id} href={item.href} className="em-ni"
+                  style={{textDecoration:"none",display:"flex",alignItems:"center"}}
+                  onClick={() => setShowDrawer(false)}>
+                  <span className="em-ni-ico"><DrawerIcon size={16} strokeWidth={1.75} /></span>
+                  <span className="em-ni-lbl">{item.lbl}</span>
+                </a>
+              ) : (
                 <button key={item.id}
                   className={`em-ni${panel === item.id ? " active" : ""}`}
                   onClick={() => { nav(item.id as Panel); setShowDrawer(false); }}>
-                  <span className="em-ni-ico">{item.ico}</span>
+                  <span className="em-ni-ico"><DrawerIcon size={16} strokeWidth={1.75} /></span>
                   <span className="em-ni-lbl">{item.lbl}</span>
                   {item.badge ? <span className="em-badge">{item.badge}</span>
                     : item.live ? <span className="em-live">LIVE</span>
                     : item.count ? <span className="em-badge-soft">{item.count}</span>
                     : null}
                 </button>
-              ))}
+              );})}
             </div>
           ))}
           {canAdmin && <hr className="em-sb-sep" />}
@@ -2036,44 +2368,625 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         </div>
       )}
 
-      {/* Gestion des droits (admin uniquement) */}
+      {/* ── Gestion des droits (Admin uniquement) — Modal plein écran ── */}
       {showGD && isAdmin && (
-        <div className="em-overlay" onClick={()=>setShowGD(false)}>
-          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+        <div style={{position:"fixed",inset:0,background:"rgba(10,13,42,.85)",backdropFilter:"blur(8px)",zIndex:4500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:12,overflowY:"auto"}} onClick={()=>setShowGD(false)}>
+          <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:1200,maxHeight:"calc(100vh - 24px)",display:"flex",flexDirection:"column",boxShadow:"0 32px 80px rgba(0,0,0,.5)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+            {/* Header */}
+            <div style={{background:"linear-gradient(135deg,#c53030,#9b2c2c)",padding:"16px 22px",display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
+              <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>⚡</div>
+              <div>
+                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Gestion des Droits &amp; Accès</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.65)"}}>Super-Admin (Jaise) · Contrôle total sur tous les rôles, droits et accès</div>
+              </div>
+              <div style={{marginLeft:"auto",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"4px 12px",fontSize:10,fontWeight:700,color:"white",letterSpacing:.5}}>⚡ SUPER-ADMIN UNIQUEMENT</div>
+              <button onClick={()=>setShowGD(false)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",color:"white",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+            </div>
+            {/* Tabs */}
+            <div style={{display:"flex",background:"#f7f8fc",borderBottom:"1px solid rgba(30,36,100,.1)",flexShrink:0}}>
+              {([["matrix","🔐 Matrice des droits"],["pasteurs","👑 Gestion Pasteurs"],["membres","👥 Gestion Membres"],["audit","📋 Journal d'audit"]] as ["matrix"|"pasteurs"|"membres"|"audit",string][]).map(([t,l])=>(
+                <button key={t} onClick={()=>setGdTab(t)} style={{padding:"12px 20px",fontSize:13,fontWeight:600,color:gdTab===t?"#c53030":"#8890aa",borderBottom:gdTab===t?"2.5px solid #c53030":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {/* Body */}
+            <div style={{flex:1,overflowY:"auto",padding:24}}>
+              {/* ── Matrice des droits ── */}
+              {gdTab==="matrix" && (
+                <div>
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464"}}>Matrice des droits par groupe</div>
+                    <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>Cliquez sur un interrupteur pour accorder ou révoquer une permission.</div>
+                  </div>
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                      <thead>
+                        <tr>
+                          <th style={{background:"#1e2464",color:"white",padding:"10px 12px",textAlign:"left",fontWeight:700,fontSize:11,minWidth:180,position:"sticky",left:0,zIndex:1}}>Fonctionnalité</th>
+                          {GD_GROUPS.map(g => (
+                            <th key={g} style={{background:"#1e2464",color:"white",padding:"10px 6px",textAlign:"center",fontWeight:700,fontSize:10,whiteSpace:"nowrap"}}>{GD_GROUP_LABELS[g]}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {GD_FEATURES.map((f,fi) => (
+                          <tr key={f.id} style={{background:fi%2===0?"#f7f8fc":"white"}}>
+                            <td style={{padding:"8px 12px",fontWeight:500,fontSize:12,color:"#1e2464",position:"sticky",left:0,background:fi%2===0?"#f7f8fc":"white",borderBottom:"1px solid rgba(30,36,100,.07)"}}>{f.label}</td>
+                            {GD_GROUPS.map(g => {
+                              const on = gdPerms[f.id]?.[g] ?? false;
+                              const disabled = f.id==="pastor_manage" && g!=="admin";
+                              return (
+                                <td key={g} style={{textAlign:"center",padding:6,borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                                  <button
+                                    disabled={disabled}
+                                    onClick={()=>{
+                                      if (disabled) return;
+                                      setGdPerms(p=>({...p,[f.id]:{...p[f.id],[g]:!on}}));
+                                      setToast(`${on?"❌ Révoqué":"✅ Accordé"} : ${f.label} → ${GD_GROUP_LABELS[g]}`);
+                                    }}
+                                    style={{width:36,height:20,borderRadius:10,border:"none",cursor:disabled?"not-allowed":"pointer",background:on?"#2f855a":"#e2e8f0",position:"relative",transition:"background .25s",opacity:disabled?.3:1}}
+                                  >
+                                    <span style={{position:"absolute",top:2,left:on?18:2,width:16,height:16,borderRadius:"50%",background:"white",transition:"left .25s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}} />
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{marginTop:16,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("💾 Modifications sauvegardées !")}>💾 Sauvegarder</button>
+                    <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{const p:Record<string,Record<string,boolean>>={};for(const k in GD_DEFAULTS)p[k]={...GD_DEFAULTS[k]};setGdPerms(p);setToast("↺ Matrice réinitialisée aux défauts");}}>↺ Réinitialiser aux défauts</button>
+                    <span style={{fontSize:11,color:"#8890aa",marginLeft:8}}>Les modifications sont propagées via Supabase RLS en production</span>
+                  </div>
+                </div>
+              )}
+              {/* ── Gestion Pasteurs ── */}
+              {gdTab==="pasteurs" && (
+                <div>
+                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des Pasteurs</div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Seul l&apos;Admin peut modifier les rôles des Pasteurs ou révoquer leur statut pastoral.</div>
+                  <div style={{background:"rgba(229,62,62,.06)",border:"1px solid rgba(229,62,62,.15)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:18}}>⚠️</span>
+                    <div style={{fontSize:12,color:"#c53030"}}>La révocation d&apos;un Pasteur est irréversible sans intervention manuelle. Toute modification est journalisée.</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    {members.filter(m=>m.role==="pasteur").map(m => {
+                      const name = [m.first_name,m.last_name].filter(Boolean).join(" ")||m.email;
+                      const initL = (m.first_name?.[0]??m.email[0]).toUpperCase();
+                      return (
+                        <div key={m.id} style={{background:"#f7f8fc",border:"1px solid rgba(30,36,100,.1)",borderRadius:14,padding:18,display:"flex",alignItems:"center",gap:14}}>
+                          <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#8899cc)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
+                          <div>
+                            <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>{name}</div>
+                            <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Pasteur · {m.email}</div>
+                          </div>
+                          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+                            <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast(`✏️ Modifier ${name}`)}>✏️ Modifier</button>
+                            <button className="em-btn em-btn-sm" style={{background:"rgba(229,62,62,.1)",color:"#c53030",border:"1px solid rgba(229,62,62,.2)"}} onClick={()=>{if(confirm(`⚠️ Révoquer le statut pastoral de ${name} ?`))setToast(`❌ Statut révoqué : ${name}`);}}>❌ Révoquer</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {members.filter(m=>m.role==="pasteur").length===0 && (
+                      <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Aucun pasteur chargé — actualisez la liste dans l&apos;onglet Membres.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* ── Gestion Membres ── */}
+              {gdTab==="membres" && (
+                <div>
+                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des membres &amp; rôles</div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Recherchez un membre pour modifier son rôle, ses droits, ou révoquer son accès.</div>
+                  <input className="em-input" style={{marginBottom:14,width:"100%",maxWidth:360}} placeholder="🔍 Rechercher un membre…" value={mSearch} onChange={e=>setMSearch(e.target.value)} />
+                  <div style={{display:"flex",flexDirection:"column",gap:1}}>
+                    {members.filter(m=>mSearch ? `${m.first_name??""} ${m.last_name??""} ${m.email}`.toLowerCase().includes(mSearch.toLowerCase()) : true).slice(0,20).map(m => {
+                      const name = [m.first_name,m.last_name].filter(Boolean).join(" ")||m.email;
+                      const initL = (m.first_name?.[0]??m.email[0]).toUpperCase();
+                      return (
+                        <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.06)",borderRadius:8}}>
+                          <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#4a54b0)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
+                            <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}</div>
+                          </div>
+                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={e=>setToast(`✅ Rôle de ${name} changé → ${e.target.value}`)}>
+                            <option value="visiteur">Visiteur</option>
+                            <option value="membre">Membre</option>
+                            <option value="pasteur">Pasteur</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={()=>{if(confirm(`❌ Révoquer ${name} ?`))setToast(`❌ Accès révoqué : ${name}`);}}>❌</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {/* ── Journal d'audit ── */}
+              {gdTab==="audit" && (
+                <div>
+                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Journal d&apos;audit système</div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Toutes les actions d&apos;administration sont journalisées. Seul l&apos;Admin y a accès.</div>
+                  <div style={{fontFamily:"Courier New,monospace",fontSize:11,background:"#0a0d1a",color:"#a8e6cf",borderRadius:10,padding:16,maxHeight:400,overflowY:"auto",lineHeight:1.8}}>
+                    <div style={{color:"#8890aa"}}>Aucune entrée — le journal sera alimenté automatiquement par les actions admin.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Footer */}
+            <div style={{padding:"14px 22px",borderTop:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <div style={{fontSize:11,color:"#8890aa"}}>Modifications propagées via Supabase RLS · Journalisées dans l&apos;audit</div>
+              <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowGD(false)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Maj Plateformes ── */}
+      {showMP && (canAdmin||canMajPlateforme) && (
+        <div style={{position:"fixed",inset:0,background:"rgba(10,13,42,.85)",backdropFilter:"blur(8px)",zIndex:4500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:12,overflowY:"auto"}} onClick={()=>setShowMP(false)}>
+          <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:1100,maxHeight:"calc(100vh - 24px)",display:"flex",flexDirection:"column",boxShadow:"0 32px 80px rgba(0,0,0,.5)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+            <div style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",padding:"16px 22px",display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
+              <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🖼️</div>
+              <div>
+                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Maj Plateformes — Modules Vitrine</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.65)"}}>Gestion des 4 cartes &laquo;Des plateformes pour tous&raquo; · arc-eglise.ch</div>
+              </div>
+              <div style={{marginLeft:"auto",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"4px 12px",fontSize:10,fontWeight:700,color:"white"}}>📡 COMMUNICATION UNIQUEMENT</div>
+              <button onClick={()=>setShowMP(false)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",color:"white",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+            </div>
+            <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+              {/* Sidebar */}
+              <div style={{width:220,borderRight:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",padding:16,display:"flex",flexDirection:"column",gap:6,flexShrink:0,overflowY:"auto"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>4 Modules Plateformes</div>
+                {mpCards.map((card,i) => (
+                  <button key={card.id} onClick={()=>setMpCard(i)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"none",background:mpCard===i?"rgba(85,60,154,.12)":"transparent",cursor:"pointer",textAlign:"left",outline:mpCard===i?"2px solid #8b5cf6":"none"}}>
+                    <div style={{width:40,height:28,borderRadius:6,background:card.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{card.icon}</div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>{card.title}</div>
+                      <div style={{fontSize:10,color:"#8890aa"}}>{card.tag}</div>
+                    </div>
+                  </button>
+                ))}
+                <div style={{marginTop:"auto",paddingTop:16,borderTop:"1px solid rgba(30,36,100,.1)"}}>
+                  <button className="em-btn em-btn-primary em-btn-sm" style={{width:"100%",justifyContent:"center"}} onClick={()=>{setToast("🚀 Toutes les cartes publiées sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier toutes les cartes</button>
+                </div>
+              </div>
+              {/* Éditeur */}
+              <div style={{flex:1,overflowY:"auto",padding:24}}>
+                {(() => { const card = mpCards[mpCard]; return (
+                  <div>
+                    {/* Aperçu */}
+                    <div style={{marginBottom:20,textAlign:"center"}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Aperçu en temps réel</div>
+                      <div style={{width:220,height:140,borderRadius:14,overflow:"hidden",margin:"0 auto",position:"relative",display:"inline-flex",flexDirection:"column",justifyContent:"flex-end",padding:12,boxShadow:"0 8px 24px rgba(0,0,0,.2)"}}>
+                        <div style={{position:"absolute",inset:0,background:card.bg,zIndex:0}} />
+                        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)",zIndex:1}} />
+                        <div style={{position:"relative",zIndex:2,textAlign:"left"}}>
+                          <div style={{fontSize:9,color:"rgba(255,255,255,.7)",marginBottom:2,textTransform:"uppercase",letterSpacing:.5}}>{card.tag}</div>
+                          <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:16,fontWeight:700,color:"white",lineHeight:1.2}}>{card.title}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Gradient picker */}
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🎨 Fond de la carte</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {MP_GRADIENTS.map((g,gi) => (
+                          <button key={gi} onClick={()=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,bg:g}:x))} style={{width:36,height:36,borderRadius:8,background:g,border:card.bg===g?"3px solid #553c9a":"2px solid transparent",cursor:"pointer"}} />
+                        ))}
+                      </div>
+                    </div>
+                    {/* Textes */}
+                    <div style={{marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>✏️ Textes</div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Titre principal</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.title} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,title:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Étiquette (tag)</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.tag} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,tag:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Description courte</label>
+                      <textarea className="em-input" style={{minHeight:60,resize:"vertical",width:"100%",marginBottom:8}} value={card.desc} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,desc:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte du bouton CTA</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.cta} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,cta:e.target.value}:x))} />
+                    </div>
+                    {/* Liens */}
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🔗 Liens &amp; Infos</div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Lien CTA</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.link} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,link:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaire du groupe</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.schedule} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,schedule:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Responsable / Contact</label>
+                      <input className="em-input" style={{width:"100%"}} value={card.contact} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,contact:e.target.value}:x))} />
+                    </div>
+                  </div>
+                );})()}
+              </div>
+            </div>
+            <div style={{padding:"14px 22px",borderTop:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,flexWrap:"wrap",gap:8}}>
+              <div style={{fontSize:11,color:"#8890aa"}}>Modifications publiées instantanément sur arc-eglise.ch via API Supabase</div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowMP(false)}>Annuler</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={()=>setToast("💾 Carte sauvegardée !")}>💾 Sauvegarder cette carte</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2f855a,#38a169)",color:"white"}} onClick={()=>{setToast("🚀 Publié sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier sur le site</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Maj site vitrine ── */}
+      {showMajInfo && canAdmin && (
+        <div style={{position:"fixed",inset:0,background:"rgba(10,13,42,.82)",backdropFilter:"blur(6px)",zIndex:4400,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:12,overflowY:"auto"}} onClick={()=>setShowMajInfo(false)}>
+          <div className="em-modal" style={{maxWidth:760,width:"100%"}} onClick={e=>e.stopPropagation()}>
             <div className="em-modal-hdr">
-              <span className="em-modal-title">⚙ Gestion des Droits</span>
-              <button className="em-modal-close" onClick={()=>setShowGD(false)}>✕</button>
+              <span className="em-modal-title">🌐 Mise à jour du site vitrine ARC</span>
+              <button className="em-modal-close" onClick={()=>setShowMajInfo(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <div style={{fontSize:13,color:"#4a5070",marginBottom:16}}>
-                Matrice des droits par groupe. Seul l&apos;Administrateur (Jaise) peut modifier ces paramètres.
+              <div style={{fontSize:11,color:"#8890aa",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
+              <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(30,36,100,.1)",marginBottom:16,overflowX:"auto"}}>
+                {([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"]] as ["sermons"|"events"|"infos"|"verset"|"equipe",string][]).map(([t,l]) => (
+                  <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8890aa",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
+                ))}
               </div>
-              <table className="em-tbl">
-                <thead>
-                  <tr><th>Fonctionnalité</th><th>Admin</th><th>Pasteur</th><th>Membre</th><th>Visiteur</th></tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["Messagerie","✓","✓","✓","✗"],
-                    ["Prière","✓","✓","✓","✗"],
-                    ["Streaming","✓","✓","✓","✓"],
-                    ["Gestion membres","✓","✓","✗","✗"],
-                    ["Gestion droits","✓","✗","✗","✗"],
-                    ["Support technique","✓","✗","✗","✗"],
-                    ["Dons","✓","✓","✓","✗"],
-                  ].map(row=>(
-                    <tr key={row[0]}>
-                      {row.map((cell,i)=>(
-                        <td key={i} style={{color:cell==="✓"?"#276749":cell==="✗"?"#e53e3e":"inherit",fontWeight:i>0?"700":"400"}}>
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
+              {majInfoTab==="sermons" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Sermons sur le site vitrine</div>
+                    <a href="/admin/sermons" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les sermons →</a>
+                  </div>
+                  <p style={{fontSize:12,color:"#8890aa"}}>Gérez vos sermons depuis le panneau d&apos;administration. Les modifications seront publiées automatiquement sur le site vitrine.</p>
+                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Site vitrine mis à jour — Sermons publiés !");}}>📤 Publier les modifications</button>
+                </div>
+              )}
+              {majInfoTab==="events" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Événements publics</div>
+                    <a href="/admin/evenements" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les événements →</a>
+                  </div>
+                  <p style={{fontSize:12,color:"#8890aa"}}>Les événements publiés dans l&apos;agenda apparaissent automatiquement sur le site vitrine.</p>
+                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Événements mis à jour sur le site !");}}>📤 Synchroniser le site</button>
+                </div>
+              )}
+              {majInfoTab==="infos" && (
+                <div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
+                    <div style={{flex:1}}>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Adresse</label>
+                      <input className="em-input" defaultValue="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" />
+                    </div>
+                    <div style={{flex:1}}>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Heure du culte</label>
+                      <input className="em-input" defaultValue="Dimanche 09h30" />
+                    </div>
+                  </div>
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email de contact</label>
+                  <input className="em-input" style={{marginBottom:12}} defaultValue="contact@arc-eglise.ch" />
+                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Informations du site mises à jour !");}}>📤 Publier</button>
+                </div>
+              )}
+              {majInfoTab==="verset" && (
+                <div>
+                  <div style={{display:"flex",gap:10,marginBottom:14}}>
+                    {[["🤖","Automatique","API.Bible"],["📖","Thématique","Par série"],["✍️","Manuel","Pasteur choisit"]].map(([ico,lbl,sub]) => (
+                      <div key={lbl} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid rgba(30,36,100,.12)",background:"#f7f8fc",textAlign:"center",cursor:"pointer"}} onClick={()=>setToast(`Mode verset : ${lbl}`)}>
+                        <div style={{fontSize:24,marginBottom:4}}>{ico}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>{lbl}</div>
+                        <div style={{fontSize:10,color:"#8890aa"}}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Verset actuel</label>
+                  <input className="em-input" style={{marginBottom:12}} defaultValue="Jérémie 29:11 — Car je connais les projets que j'ai formés sur vous…" />
+                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Verset du jour mis à jour sur le site !");}}>📤 Publier le verset</button>
+                </div>
+              )}
+              {majInfoTab==="equipe" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Équipe pastorale visible sur le site</div>
+                    <a href="/admin/equipe" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Gérer l&apos;équipe →</a>
+                  </div>
+                  <p style={{fontSize:12,color:"#8890aa"}}>Gérez les profils de l&apos;équipe pastorale visibles sur la page publique du site vitrine.</p>
+                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Page équipe mise à jour sur le site !");}}>📤 Publier</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Video Call modal ── */}
+      {showVideoCall && (
+        <div className="em-overlay" onClick={()=>setShowVideoCall(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">📹 Démarrer une réunion vidéo</span>
+              <button className="em-modal-close" onClick={()=>setShowVideoCall(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                <div className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}} onClick={()=>{setShowVideoCall(false);setToast("🎥 Réunion Jitsi Meet démarrée ! Lien copié.");}}>
+                  <div style={{fontSize:28,marginBottom:6}}>🎥</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>Jitsi Meet</div>
+                  <div style={{fontSize:11,color:"#8890aa"}}>Gratuit · Sécurisé</div>
+                </div>
+                <div className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}} onClick={()=>{setShowVideoCall(false);setToast("📹 Zoom ouvert — Lien de réunion partagé dans le canal");}}>
+                  <div style={{fontSize:28,marginBottom:6}}>📹</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>Zoom</div>
+                  <div style={{fontSize:11,color:"#8890aa"}}>Partager un lien</div>
+                </div>
+              </div>
+              <div style={{background:"#f7f8fc",borderRadius:10,padding:12,marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{fontSize:11,color:"#4a5070",flex:1}}>Lien de réunion : <strong>meet.arc-eglise.ch/reunion-{Math.random().toString(36).slice(2,6)}</strong></div>
+                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast("📋 Lien copié !")}>Copier</button>
+              </div>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Inviter des participants</label>
+              <select className="em-select" multiple style={{minHeight:80,width:"100%",marginBottom:14}}>
+                {members.filter(m=>m.validated).slice(0,10).map(m => (
+                  <option key={m.id}>{[m.first_name,m.last_name].filter(Boolean).join(" ")||m.email}</option>
+                ))}
+              </select>
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowVideoCall(false);setToast("✅ Invitations envoyées ! Réunion en cours dans 30 secondes…");}}>Démarrer la réunion maintenant</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Doléance modal ── */}
+      {showDoleance && (
+        <div className="em-overlay" onClick={()=>setShowDoleance(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">📬 Déposer une doléance</span>
+              <button className="em-modal-close" onClick={()=>setShowDoleance(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Signaler un problème ou faire une suggestion à l&apos;équipe ARC</div>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Type</label>
+              <select className="em-select" style={{marginBottom:12}} value={doleanceType} onChange={e=>setDoleanceType(e.target.value)}>
+                <option value="bug">🐛 Problème technique</option>
+                <option value="suggestion">💡 Suggestion d&apos;amélioration</option>
+                <option value="pastoral">🤝 Question pastorale</option>
+                <option value="autre">⚠️ Autre</option>
+              </select>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Description</label>
+              <textarea className="em-input" style={{minHeight:100,resize:"vertical",marginBottom:12,width:"100%"}} placeholder="Décrivez votre problème ou suggestion en détail…" value={doleanceText} onChange={e=>setDoleanceText(e.target.value)} />
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#4a5070",cursor:"pointer",marginBottom:16}}>
+                <input type="checkbox" checked={doleanceAnon} onChange={e=>setDoleanceAnon(e.target.checked)} />
+                Signalement anonyme
+              </label>
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Vous recevrez une réponse sous 48h.");}}>Envoyer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Paramètres modal ── */}
+      {showSettings && (
+        <div className="em-overlay" onClick={()=>setShowSettings(false)}>
+          <div className="em-modal" style={{maxWidth:620}} onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">⚙️ Paramètres du compte</span>
+              <button className="em-modal-close" onClick={()=>setShowSettings(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:16}}>
+                <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"]] as ["notifs"|"privacy"|"langue"|"bible",string][]).map(([s,l])=>(
+                    <button key={s} onClick={()=>setSettingsSection(s)} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#eef1f8":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8890aa",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                   ))}
-                </tbody>
-              </table>
-              <div style={{marginTop:14,padding:12,background:"#fffbeb",borderRadius:10,fontSize:12,color:"#92400e"}}>
-                ⚠️ La modification des droits est irréversible et affecte immédiatement tous les utilisateurs concernés.
+                </div>
+                <div>
+                  {settingsSection==="notifs" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔔 Notifications</div>
+                      {([["dm","Messages directs"],["culte","Rappels de culte"],["priere","Intentions de prière"],["verset","Verset du jour"],["events","Nouveaux événements"]] as [keyof typeof settingsNotifs,string][]).map(([k,l])=>(
+                        <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                          <span>{l}</span>
+                          <input type="checkbox" checked={settingsNotifs[k]} onChange={e=>setSettingsNotifs(n=>({...n,[k]:e.target.checked}))} />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {settingsSection==="privacy" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔒 Confidentialité</div>
+                      {[["Afficher mon profil dans les contacts","true"],["Partager mes présences avec le groupe","true"],["Recevoir des messages directs","true"]].map(([l,v])=>(
+                        <label key={l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                          <span>{l}</span>
+                          <input type="checkbox" defaultChecked={v==="true"} />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {settingsSection==="langue" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🌐 Langue &amp; Région</div>
+                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
+                      <select className="em-select" style={{marginBottom:12}} defaultValue="fr">
+                        <option value="fr">🇫🇷 Français</option>
+                        <option value="en">🇬🇧 English</option>
+                        <option value="kg">🇨🇩 Lingala</option>
+                      </select>
+                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Format de date</label>
+                      <select className="em-select" defaultValue="fr-CH">
+                        <option value="fr-CH">DD/MM/YYYY (Suisse)</option>
+                        <option value="fr-FR">DD/MM/YYYY (France)</option>
+                        <option value="en-US">MM/DD/YYYY (USA)</option>
+                      </select>
+                    </div>
+                  )}
+                  {settingsSection==="bible" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>📖 Préférences Bible</div>
+                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Traduction par défaut</label>
+                      <select className="em-select" style={{marginBottom:12}} defaultValue="NBS">
+                        <option value="NBS">NBS — Nouvelle Bible Segond</option>
+                        <option value="BDS">BDS — Bible du Semeur</option>
+                        <option value="LSG">LSG — Louis Segond</option>
+                        <option value="NFC">NFC — Nouvelle Français Courant</option>
+                        <option value="KJV">KJV — King James Version</option>
+                      </select>
+                      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                        <input type="checkbox" defaultChecked />
+                        Afficher les numéros de versets
+                      </label>
+                    </div>
+                  )}
+                  <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={()=>{setShowSettings(false);setToast("✅ Paramètres sauvegardés !");}}>Sauvegarder</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inviter un membre ── */}
+      {showInvite && isAdmin && (
+        <div className="em-overlay" onClick={()=>setShowInvite(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">✉️ Inviter un nouveau membre</span>
+              <button className="em-modal-close" onClick={()=>setShowInvite(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Prénom</label>
+                  <input className="em-input" placeholder="Prénom" value={invitePrenom} onChange={e=>setInvitePrenom(e.target.value)} />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Nom</label>
+                  <input className="em-input" placeholder="Nom de famille" value={inviteNom} onChange={e=>setInviteNom(e.target.value)} />
+                </div>
+              </div>
+              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email</label>
+              <input className="em-input" type="email" placeholder="adresse@email.com" style={{marginBottom:10}} value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} />
+              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Groupe proposé (optionnel)</label>
+              <select className="em-select" style={{marginBottom:10}} value={inviteGroupe} onChange={e=>setInviteGroupe(e.target.value)}>
+                <option value="">Aucun groupe pour l&apos;instant</option>
+                {GROUPES.map(g=><option key={g.name} value={g.name}>{g.name}</option>)}
+              </select>
+              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Message personnalisé</label>
+              <textarea className="em-input" style={{minHeight:80,resize:"vertical",width:"100%",marginBottom:14}} defaultValue={`Bonjour${invitePrenom ? ` ${invitePrenom}` : ""},\n\nJe vous invite à rejoindre l'espace membres de l'Église ARC La Chaux-de-Fonds.\n\nQue Dieu vous bénisse !`} />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!inviteEmail.trim()){setToast("⚠️ L'email est requis");return;}setShowInvite(false);setToast(`✅ Invitation envoyée à ${inviteEmail} ! Le lien expire dans 7 jours.`);}}>Envoyer l&apos;invitation</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Réserver une salle ── */}
+      {showSalle && (
+        <div className="em-overlay" onClick={()=>setShowSalle(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">🏢 Réserver une salle</span>
+              <button className="em-modal-close" onClick={()=>setShowSalle(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Salle</label>
+              <select className="em-select" style={{marginBottom:12}}>
+                <option>📚 Écodim 0–6 ans (Libre)</option>
+                <option>🏢 Bureau Pastoral (Libre)</option>
+                <option disabled>🎵 Salle de musique (Réservée — Chorale sam 15h)</option>
+                <option disabled>🏛 Salle Principale (Culte dimanche)</option>
+              </select>
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
+                  <input type="date" className="em-input" defaultValue={new Date().toISOString().split("T")[0]} />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure début</label>
+                  <input type="time" className="em-input" defaultValue="17:00" />
+                </div>
+              </div>
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure fin</label>
+                  <input type="time" className="em-input" defaultValue="19:00" />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Groupe</label>
+                  <select className="em-select" style={{marginBottom:0}}>
+                    {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Motif</label>
+              <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowSalle(false);setToast("✅ Salle réservée ! Confirmation envoyée par email.");}}>Confirmer la réservation</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Ajouter un événement ── */}
+      {showAddEvent && canAdmin && (
+        <div className="em-overlay" onClick={()=>setShowAddEvent(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">📅 Ajouter un événement</span>
+              <button className="em-modal-close" onClick={()=>setShowAddEvent(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Titre</label>
+              <input className="em-input" style={{marginBottom:10}} placeholder="Nom de l&apos;événement" />
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
+                  <input type="date" className="em-input" />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure</label>
+                  <input type="time" className="em-input" defaultValue="09:30" />
+                </div>
+              </div>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Type</label>
+              <select className="em-select" style={{marginBottom:10}}>
+                <option>⛪ Culte (gratuit)</option>
+                <option>🎵 Concert (ticket gratuit requis)</option>
+                <option>💛 Événement payant</option>
+                <option>🤝 Réunion interne</option>
+              </select>
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Lieu</label>
+              <input className="em-input" style={{marginBottom:14}} defaultValue="Av. Charles-Naine 39, La Chaux-de-Fonds" />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowAddEvent(false);setToast("✅ Événement ajouté à l'agenda et au site vitrine !");}}>Publier l&apos;événement</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Note biblique ── */}
+      {showNote && (
+        <div className="em-overlay" onClick={()=>setShowNote(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">📝 Note biblique</span>
+              <button className="em-modal-close" onClick={()=>setShowNote(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Référence</label>
+              <input className="em-input" style={{marginBottom:12}} placeholder="Ex : Jean 3:16, Psaumes 23…" value={noteRef} onChange={e=>setNoteRef(e.target.value)} />
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Ma note</label>
+              <textarea className="em-input" style={{minHeight:140,resize:"vertical",width:"100%",marginBottom:12}} placeholder="Votre note, méditation, application pratique…" value={noteContent} onChange={e=>setNoteContent(e.target.value)} />
+              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Couleur</label>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {[["#fffbeb","#fef3c7"],["#eff6ff","#bfdbfe"],["#f0fdf4","#bbf7d0"],["#fdf2f8","#fbcfe8"]].map(([bg,border])=>(
+                  <button key={bg} onClick={()=>setToast("🎨 Couleur sélectionnée")} style={{width:28,height:28,borderRadius:"50%",background:bg,border:`2px solid ${border}`,cursor:"pointer"}} />
+                ))}
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="em-btn em-btn-outline" onClick={()=>setShowNote(false)}>Annuler</button>
+                <button className="em-btn em-btn-primary" style={{flex:1}} onClick={()=>{if(!noteContent.trim()){setToast("⚠️ Ajoutez du contenu à votre note");return;}setShowNote(false);setNoteContent("");setToast("✅ Note biblique sauvegardée !");}}>Sauvegarder</button>
               </div>
             </div>
           </div>
