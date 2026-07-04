@@ -1,18 +1,41 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { createClient } from "@/lib/supabase/client"
 import LangSelector from "@/components/bible-ai/LangSelector"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
 import type { AIUserPreferences } from "@/lib/bible-ai"
 
 /* ─── Types ─────────────────────────────────────────────────── */
-type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media"
+type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media" | "groups" | "sermons"
+
+interface StudyGroup {
+  id: string; name: string; description: string | null; church_group: string | null
+  language: string; level: string; max_members: number; facilitator_id: string
+  member_count: number; is_member: boolean; created_at: string
+}
+interface GroupMessage {
+  id: string; content: string; verse_refs: string[]; created_at: string
+  user_id: string; profiles: { first_name: string | null; last_name: string | null } | null
+}
+interface SermonItem {
+  id: string; title: string; pastor: string | null; date: string; has_summary: boolean
+}
+interface SermonSummary {
+  summary: string; key_verses: string[]; themes: string[]; cached?: boolean
+}
 type Msg = { id: string; role: "user" | "assistant"; content: string; streaming?: boolean }
 
 interface ReadingPlan {
   id: string; title: string; level: string; duration_days: number
   language: string; focus: string | null; created_at: string; created_by_ai: boolean
+  is_shared?: boolean; group_id?: string | null
 }
+interface GroupPlan {
+  id: string; title: string; level: string; duration_days: number; focus: string | null
+  created_at: string; my_completed: number; active_members: number
+}
+interface MemberProgress { user_id: string; name: string; completed_days: number; is_me: boolean }
 interface PlanDay {
   id: string; day_number: number; title: string | null; passages: string[]
   reflection: string | null; prayer_guide: string | null; is_completed: boolean
@@ -86,6 +109,7 @@ interface Props {
 }
 
 export default function BibleAIClient({ userId, prefs, role }: Props) {
+  const supabase = createClient()
   const [tab, setTab]         = useState<Tab>("chat")
   const [language, setLang]   = useState(prefs.language)
   const [level, setLevel]     = useState<BibleLevel>(prefs.level)
@@ -320,6 +344,167 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
 
   useEffect(() => { if (tab === "media") loadMedia() }, [tab, loadMedia])
 
+  /* ══ GROUPS ════════════════════════════════════════════════ */
+  const [groups, setGroups]           = useState<StudyGroup[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(false)
+  const [activeGroup, setActiveGroup] = useState<StudyGroup | null>(null)
+  const [groupMsgs, setGroupMsgs]     = useState<GroupMessage[]>([])
+  const [groupMsgsLoading, setGroupMsgsLoading] = useState(false)
+  const [groupDraft, setGroupDraft]   = useState("")
+  const [groupSending, setGroupSending] = useState(false)
+  const [showNewGroup, setShowNewGroup] = useState(false)
+  const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupDesc, setNewGroupDesc] = useState("")
+  const groupBottomRef = useRef<HTMLDivElement>(null)
+  const [groupSubTab, setGroupSubTab] = useState<"chat"|"plans">("chat")
+  const [groupPlans, setGroupPlans]   = useState<GroupPlan[]>([])
+  const [groupPlansLoading, setGroupPlansLoading] = useState(false)
+  const [activePlanId, setActivePlanId] = useState<string|null>(null)
+  const [memberProgress, setMemberProgress] = useState<MemberProgress[]>([])
+  const [syncingDay, setSyncingDay]   = useState<number|null>(null)
+
+  const loadGroups = useCallback(async () => {
+    setGroupsLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) })
+      const data = await res.json()
+      setGroups(data.groups ?? [])
+    } finally { setGroupsLoading(false) }
+  }, [])
+
+  useEffect(() => { if (tab === "groups") loadGroups() }, [tab, loadGroups])
+
+  const loadGroupMessages = async (groupId: string) => {
+    setGroupMsgsLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_messages", group_id: groupId }) })
+      const data = await res.json()
+      setGroupMsgs(data.messages ?? [])
+    } finally { setGroupMsgsLoading(false) }
+  }
+
+  useEffect(() => {
+    if (activeGroup && groupSubTab === "plans") loadGroupPlans(activeGroup.id)
+  }, [groupSubTab, activeGroup]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activePlanId) loadMemberProgress(activePlanId)
+  }, [activePlanId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!activeGroup) return
+    const ch = supabase.channel(`ag:${activeGroup.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_group_messages",
+        filter: `group_id=eq.${activeGroup.id}` }, ({ new: msg }: any) => {
+        setGroupMsgs(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, { ...msg, profiles: null }])
+      }).subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [activeGroup]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setTimeout(() => groupBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30)
+  }, [groupMsgs])
+
+  const sendGroupMessage = async () => {
+    const text = groupDraft.trim()
+    if (!text || !activeGroup || groupSending) return
+    setGroupDraft("")
+    setGroupSending(true)
+    const tempId = `tmp-${Date.now()}`
+    const tempMsg: GroupMessage = { id: tempId, content: text, verse_refs: [], created_at: new Date().toISOString(), user_id: userId, profiles: null }
+    setGroupMsgs(prev => [...prev, tempMsg])
+    try {
+      await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "post_message", group_id: activeGroup.id, content: text }) })
+    } catch {
+      setGroupMsgs(prev => prev.filter(m => m.id !== tempId))
+    } finally { setGroupSending(false) }
+  }
+
+  const joinLeaveGroup = async (group: StudyGroup) => {
+    const action = group.is_member ? "leave" : "join"
+    await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, group_id: group.id }) })
+    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, is_member: !g.is_member, member_count: g.member_count + (g.is_member ? -1 : 1) } : g))
+  }
+
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return
+    const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create", name: newGroupName.trim(), description: newGroupDesc || undefined, language }) })
+    const data = await res.json()
+    if (data.group) { setShowNewGroup(false); setNewGroupName(""); setNewGroupDesc(""); loadGroups() }
+  }
+
+  const loadGroupPlans = async (groupId: string) => {
+    setGroupPlansLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_group_plans", group_id: groupId }) })
+      const data = await res.json()
+      setGroupPlans(data.plans ?? [])
+    } finally { setGroupPlansLoading(false) }
+  }
+
+  const loadMemberProgress = async (planId: string) => {
+    const res = await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_group_progress", plan_id: planId }) })
+    const data = await res.json()
+    setMemberProgress(data.members_progress ?? [])
+  }
+
+  const syncProgress = async (planId: string, dayNum: number, duration: number) => {
+    setSyncingDay(dayNum)
+    await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_progress", plan_id: planId, day_number: dayNum }) })
+    setGroupPlans(prev => prev.map(p => p.id === planId ? { ...p, my_completed: Math.min(p.my_completed + 1, duration) } : p))
+    setSyncingDay(null)
+  }
+
+  // Share plan with group — called from Plans tab
+  const [showShareModal, setShowShareModal] = useState<string|null>(null)
+  const sharePlanWithGroup = async (planId: string, groupId: string) => {
+    await fetch("/api/bible-ai/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "share_plan", plan_id: planId, group_id: groupId }) })
+    setPlans(prev => prev.map(p => p.id === planId ? { ...p, is_shared: true, group_id: groupId } : p))
+    setShowShareModal(null)
+  }
+
+  /* ══ SERMONS ═══════════════════════════════════════════════ */
+  const [dbSermons, setDbSermons]       = useState<SermonItem[]>([])
+  const [sermonsLoading, setSermsLoading] = useState(false)
+  const [activeSermon, setActiveSermon] = useState<SermonItem | null>(null)
+  const [sermonSummary, setSermonSummary] = useState<SermonSummary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+
+  const loadDbSermons = useCallback(async () => {
+    setSermsLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list_sermons" }) })
+      const data = await res.json()
+      setDbSermons(data.sermons ?? [])
+    } finally { setSermsLoading(false) }
+  }, [])
+
+  useEffect(() => { if (tab === "sermons") loadDbSermons() }, [tab, loadDbSermons])
+
+  const openSermon = async (sermon: SermonItem) => {
+    setActiveSermon(sermon)
+    setSermonSummary(null)
+    setSummaryLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_summary", sermon_id: sermon.id }) })
+      const data = await res.json()
+      if (data.summary) setSermonSummary(data)
+    } finally { setSummaryLoading(false) }
+  }
+
+  const generateSermonSummary = async () => {
+    if (!activeSermon) return
+    setSummaryLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "summarize", sermon_id: activeSermon.id, title: activeSermon.title, pastor: activeSermon.pastor, language }) })
+      const data = await res.json()
+      if (data.summary) {
+        setSermonSummary(data)
+        setDbSermons(prev => prev.map(s => s.id === activeSermon.id ? { ...s, has_summary: true } : s))
+      }
+    } finally { setSummaryLoading(false) }
+  }
+
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: "chat",    label: "Étude",       icon: "💬" },
     { id: "search",  label: "Recherche",   icon: "🔍" },
@@ -327,6 +512,8 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     { id: "journal", label: "Journal",     icon: "📓" },
     { id: "events",  label: "Événements",  icon: "🗓" },
     { id: "media",   label: "Médias",      icon: "🎵" },
+    { id: "groups",  label: "Groupes",     icon: "👥" },
+    { id: "sermons", label: "Résumés",     icon: "🎙" },
   ]
 
   /* ══ RENDER ════════════════════════════════════════════════ */
@@ -562,15 +749,36 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
           {!activePlan ? (
             <div className="space-y-3">
               {plans.map(p => (
-                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
-                  onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 hover:border-arc-navy transition">
+                  <div className="flex items-start justify-between cursor-pointer" onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                        {p.is_shared && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">📤 Partagé</span>}
+                      </div>
                       <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
                     </div>
-                    <span className="text-xs text-arc-blue">→</span>
+                    <span className="text-xs text-arc-blue ml-2">→</span>
                   </div>
+                  {!p.is_shared && groups.filter(g => g.is_member).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-arc-border/50">
+                      {showShareModal === p.id ? (
+                        <div className="flex items-center gap-2">
+                          <select className="flex-1 text-xs border border-arc-border rounded-lg px-2 py-1 outline-none" id={`share-sel-${p.id}`}>
+                            {groups.filter(g => g.is_member).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </select>
+                          <button onClick={() => {
+                            const sel = document.getElementById(`share-sel-${p.id}`) as HTMLSelectElement
+                            if (sel?.value) sharePlanWithGroup(p.id, sel.value)
+                          }} className="text-xs px-2 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">Partager</button>
+                          <button onClick={() => setShowShareModal(null)} className="text-xs text-arc-text2 hover:text-arc-navy">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={e => { e.stopPropagation(); loadGroups(); setShowShareModal(p.id) }}
+                          className="text-xs text-arc-text2 hover:text-arc-navy transition">🔗 Partager avec un groupe</button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {!plansLoading && plans.length === 0 && (
@@ -826,6 +1034,322 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
                 <p className="text-4xl mb-3">🎵</p>
                 <p className="font-semibold">Aucune recommandation</p>
                 <p className="text-sm mt-1">Entrez un thème ou cliquez sur Trouver</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── GROUPS ──────────────────────────────────────────── */}
+      {tab === "groups" && !activeGroup && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-serif font-semibold text-arc-navy">Groupes d&apos;étude biblique</p>
+              <p className="text-xs text-arc-text2 mt-0.5">Rejoignez un groupe pour étudier la Bible ensemble</p>
+            </div>
+            <button onClick={() => setShowNewGroup(v => !v)} className="text-xs px-3 py-1.5 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">+ Nouveau</button>
+          </div>
+
+          {showNewGroup && (
+            <div className="bg-arc-blueBg border border-arc-navy/20 rounded-xl p-4 mb-4 space-y-2">
+              <p className="text-sm font-semibold text-arc-navy">Créer un groupe</p>
+              <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
+                placeholder="Nom du groupe *" className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy" />
+              <input value={newGroupDesc} onChange={e => setNewGroupDesc(e.target.value)}
+                placeholder="Description (optionnelle)" className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy" />
+              <div className="flex gap-2">
+                <button onClick={createGroup} disabled={!newGroupName.trim()} className="px-4 py-1.5 rounded-lg bg-arc-navy text-white text-xs font-semibold disabled:opacity-40 hover:bg-arc-blue transition">Créer</button>
+                <button onClick={() => setShowNewGroup(false)} className="px-4 py-1.5 rounded-lg border border-arc-border text-xs text-arc-text2 hover:text-arc-navy transition">Annuler</button>
+              </div>
+            </div>
+          )}
+
+          {groupsLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
+          {!groupsLoading && groups.length === 0 && (
+            <div className="text-center py-12 text-arc-text2">
+              <p className="text-4xl mb-3">👥</p>
+              <p className="font-semibold">Aucun groupe actif</p>
+              <p className="text-sm mt-1">Créez le premier groupe d&apos;étude !</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {groups.map(g => (
+              <div key={g.id} className="bg-white border border-arc-border rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-arc-navy text-sm">{g.name}</span>
+                      {g.is_member && <span className="text-[10px] bg-arc-blue/10 text-arc-blue px-2 py-0.5 rounded-full font-bold">Membre</span>}
+                    </div>
+                    {g.description && <p className="text-xs text-slate-500 mb-1.5 line-clamp-2">{g.description}</p>}
+                    <div className="flex items-center gap-3 text-[10px] text-arc-text2">
+                      <span>👤 {g.member_count}/{g.max_members}</span>
+                      <span>🌐 {g.language.toUpperCase()}</span>
+                      <span>📚 {g.level}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    {g.is_member && (
+                      <button onClick={() => { setActiveGroup(g); loadGroupMessages(g.id) }}
+                        className="text-xs px-3 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">
+                        Ouvrir →
+                      </button>
+                    )}
+                    <button onClick={() => joinLeaveGroup(g)}
+                      className={`text-xs px-3 py-1 rounded-lg border transition ${g.is_member ? "border-red-200 text-red-500 hover:bg-red-50" : "border-arc-navy text-arc-navy hover:bg-arc-blueBg"}`}>
+                      {g.is_member ? "Quitter" : "Rejoindre"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "groups" && activeGroup && (
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="shrink-0 px-4 py-2 border-b border-arc-navy/10 bg-white">
+            <div className="flex items-center gap-3 mb-2">
+              <button onClick={() => { setActiveGroup(null); setGroupMsgs([]); setGroupPlans([]); setActivePlanId(null); setGroupSubTab("chat") }} className="text-arc-text2 hover:text-arc-navy text-lg">←</button>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-arc-navy text-sm truncate">{activeGroup.name}</p>
+                <p className="text-[10px] text-arc-text2">{activeGroup.member_count} membre{activeGroup.member_count !== 1 ? "s" : ""}</p>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              {(["chat","plans"] as const).map(st => (
+                <button key={st} onClick={() => setGroupSubTab(st)}
+                  className={`text-xs px-3 py-1 rounded-full font-semibold transition ${groupSubTab === st ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}>
+                  {st === "chat" ? "💬 Chat" : "📅 Plans partagés"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {groupSubTab === "chat" && (<>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {groupMsgsLoading && <div className="text-center py-6 text-arc-text2 text-sm">Chargement…</div>}
+              {!groupMsgsLoading && groupMsgs.length === 0 && (
+                <div className="text-center py-10 text-arc-text2">
+                  <p className="text-3xl mb-2">👋</p>
+                  <p className="text-sm">Soyez le premier à écrire dans ce groupe !</p>
+                </div>
+              )}
+              {groupMsgs.map(m => {
+                const isMine = m.user_id === userId
+                const name = m.profiles ? `${m.profiles.first_name ?? ""} ${m.profiles.last_name ?? ""}`.trim() || "Membre" : isMine ? "Moi" : "Membre"
+                return (
+                  <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? "bg-arc-navy text-white rounded-br-sm" : "bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm"}`}>
+                      {!isMine && <p className="text-[10px] font-bold text-arc-blue mb-1">{name}</p>}
+                      <p>{m.content}</p>
+                      {m.verse_refs.length > 0 && <p className="text-[10px] mt-1 opacity-70">{m.verse_refs.join(" · ")}</p>}
+                      <p className={`text-[10px] mt-1 ${isMine ? "text-white/60" : "text-slate-400"}`}>{new Date(m.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={groupBottomRef} />
+            </div>
+            <div className="shrink-0 border-t border-arc-navy/10 bg-white px-4 py-3">
+              <div className="flex items-end gap-2">
+                <textarea value={groupDraft} rows={2} onChange={e => setGroupDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGroupMessage() } }}
+                  placeholder="Message au groupe… (Entrée pour envoyer)"
+                  className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-arc-blue focus:bg-white transition" />
+                <button onClick={sendGroupMessage} disabled={!groupDraft.trim() || groupSending}
+                  className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-arc-navy text-white hover:bg-arc-blue disabled:opacity-40 transition">
+                  <SendIcon />
+                </button>
+              </div>
+            </div>
+          </>)}
+
+          {groupSubTab === "plans" && (
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {activePlanId ? (() => {
+                const plan = groupPlans.find(p => p.id === activePlanId)
+                if (!plan) return null
+                const me = memberProgress.find(m => m.is_me)
+                return (
+                  <div>
+                    <button onClick={() => { setActivePlanId(null); setMemberProgress([]) }} className="text-sm text-arc-blue hover:underline mb-3">← Plans du groupe</button>
+                    <p className="font-semibold text-arc-navy mb-1">{plan.title}</p>
+                    <p className="text-xs text-arc-text2 mb-3">{plan.duration_days} jours · Niveau {plan.level}</p>
+
+                    {/* Ma progression */}
+                    <div className="mb-4 bg-arc-blueBg rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-semibold text-arc-navy">Ma progression</p>
+                        <p className="text-xs text-arc-text2">{plan.my_completed}/{plan.duration_days} jours</p>
+                      </div>
+                      <div className="w-full bg-white rounded-full h-2">
+                        <div className="bg-arc-navy h-2 rounded-full transition-all" style={{ width: `${Math.round((plan.my_completed / plan.duration_days) * 100)}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Progressions des membres */}
+                    {memberProgress.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        <p className="text-xs font-semibold text-arc-navy">Progression du groupe</p>
+                        {memberProgress.sort((a, b) => b.completed_days - a.completed_days).map((m, i) => (
+                          <div key={i} className="flex items-center gap-3">
+                            <p className="text-xs text-arc-text2 w-24 truncate">{m.is_me ? "Moi" : m.name}</p>
+                            <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                              <div className="bg-arc-blue h-1.5 rounded-full" style={{ width: `${Math.round((m.completed_days / plan.duration_days) * 100)}%` }} />
+                            </div>
+                            <p className="text-[10px] text-arc-text2 w-10 text-right">{m.completed_days}j</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Jours à compléter */}
+                    <p className="text-xs font-semibold text-arc-navy mb-2">Marquer les jours</p>
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {Array.from({ length: plan.duration_days }, (_, i) => i + 1).map(day => {
+                        const me2 = memberProgress.find(m => m.is_me)
+                        const done = me2 ? me2.completed_days >= day : (plan.my_completed >= day)
+                        return (
+                          <button key={day} disabled={done || syncingDay === day}
+                            onClick={() => syncProgress(plan.id, day, plan.duration_days)}
+                            className={`aspect-square rounded-lg text-xs font-semibold transition ${done ? "bg-green-500 text-white" : "bg-slate-100 text-arc-navy hover:bg-arc-blueBg"} ${syncingDay === day ? "opacity-50" : ""}`}>
+                            {day}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })() : (
+                <>
+                  {groupPlansLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
+                  {!groupPlansLoading && groupPlans.length === 0 && (
+                    <div className="text-center py-10 text-arc-text2">
+                      <p className="text-3xl mb-2">📅</p>
+                      <p className="text-sm font-semibold">Aucun plan partagé</p>
+                      <p className="text-xs mt-1">Partagez un plan depuis l&apos;onglet Plans</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {groupPlans.map(p => (
+                      <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 cursor-pointer hover:border-arc-navy transition"
+                        onClick={() => { setActivePlanId(p.id); loadMemberProgress(p.id) }}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                            <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
+                          </div>
+                          <span className="text-xs text-arc-blue">→</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                            <div className="bg-arc-navy h-1.5 rounded-full" style={{ width: `${Math.round((p.my_completed / p.duration_days) * 100)}%` }} />
+                          </div>
+                          <p className="text-[10px] text-arc-text2 shrink-0">{p.my_completed}/{p.duration_days}j</p>
+                          <p className="text-[10px] text-arc-text2 shrink-0">👥 {p.active_members}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SERMONS ─────────────────────────────────────────── */}
+      {tab === "sermons" && (
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+          <div className="mb-4">
+            <p className="font-serif font-semibold text-arc-navy">Résumés IA de sermons</p>
+            <p className="text-xs text-arc-text2 mt-0.5">Générez un résumé structuré et les versets clés pour chaque sermon</p>
+          </div>
+
+          {sermonsLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement des sermons…</div>}
+          {!sermonsLoading && dbSermons.length === 0 && (
+            <div className="text-center py-12 text-arc-text2">
+              <p className="text-4xl mb-3">🎙</p>
+              <p className="font-semibold">Aucun sermon publié</p>
+              <p className="text-sm mt-1">Publiez des sermons depuis l&apos;espace admin</p>
+            </div>
+          )}
+
+          <div className={`${activeSermon ? "grid md:grid-cols-2 gap-4" : "space-y-2"}`}>
+            <div className={activeSermon ? "space-y-2" : "space-y-2"}>
+              {dbSermons.map(s => (
+                <button key={s.id} onClick={() => openSermon(s)}
+                  className={`w-full text-left rounded-xl border px-4 py-3 transition ${activeSermon?.id === s.id ? "border-arc-navy bg-arc-blueBg" : "border-arc-border bg-white hover:border-arc-navy/40"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-arc-navy text-sm truncate">{s.title}</p>
+                      <p className="text-xs text-arc-text2 mt-0.5">{s.pastor ?? ""} · {new Date(s.date).toLocaleDateString("fr-CH")}</p>
+                    </div>
+                    {s.has_summary && <span className="shrink-0 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">✓ Résumé</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {activeSermon && (
+              <div className="bg-white border border-arc-border rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-semibold text-arc-navy text-sm">{activeSermon.title}</p>
+                  <button onClick={() => { setActiveSermon(null); setSermonSummary(null) }} className="text-arc-text2 hover:text-arc-navy text-lg leading-none">✕</button>
+                </div>
+
+                {summaryLoading && (
+                  <div className="text-center py-8 text-arc-text2 text-sm">
+                    <Spinner /> <span className="ml-2">Génération en cours…</span>
+                  </div>
+                )}
+
+                {!summaryLoading && !sermonSummary && (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-arc-text2 mb-4">Aucun résumé disponible pour ce sermon.</p>
+                    <button onClick={generateSermonSummary} className="px-4 py-2 rounded-lg bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue transition">
+                      ✦ Générer avec l&apos;IA
+                    </button>
+                  </div>
+                )}
+
+                {!summaryLoading && sermonSummary && (
+                  <div className="space-y-4">
+                    {sermonSummary.cached && <p className="text-[10px] text-arc-text2 italic">Résumé en cache</p>}
+                    <div>
+                      <p className="text-xs font-bold text-arc-navy uppercase tracking-wide mb-2">Résumé</p>
+                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{sermonSummary.summary}</p>
+                    </div>
+                    {sermonSummary.key_verses.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-arc-navy uppercase tracking-wide mb-2">Versets clés</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sermonSummary.key_verses.map((v, i) => (
+                            <button key={i} onClick={() => { setTab("chat"); sendChat(`Explique-moi ${v} dans son contexte`) }}
+                              className="text-xs bg-arc-gold/10 text-arc-navy border border-arc-gold/30 px-2.5 py-1 rounded-full hover:bg-arc-gold/20 transition">
+                              📖 {v}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {sermonSummary.themes.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-arc-navy uppercase tracking-wide mb-2">Thèmes</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sermonSummary.themes.map((t, i) => (
+                            <span key={i} className="text-xs bg-arc-blueBg text-arc-navy px-2.5 py-1 rounded-full">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={generateSermonSummary} className="text-xs text-arc-text2 hover:text-arc-navy underline">↺ Régénérer</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

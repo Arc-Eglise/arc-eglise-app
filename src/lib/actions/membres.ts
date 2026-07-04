@@ -306,6 +306,145 @@ export async function deleteMemberNote(noteId: string, memberId: string) {
   return { success: true };
 }
 
+export async function createEvent(data: {
+  title: string; date: string; time_start: string;
+  location: string; type: string; description?: string;
+}) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("events").insert({
+    title: data.title.trim(),
+    date: data.date,
+    time_start: data.time_start || null,
+    location: data.location.trim() || null,
+    description: data.description?.trim() || null,
+    is_published: true,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function generateInviteLink(email: string, firstName: string, lastName: string) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email: email.trim(),
+    options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
+  });
+
+  if (error) return { error: error.message };
+  return { link: (data.properties as { action_link?: string } | null)?.action_link ?? null };
+}
+
+export async function createRoomBooking(data: {
+  room: string; date: string; time_start: string;
+  time_end: string; groupe: string; motif: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { error } = await supabase.from("room_bookings").insert({
+    user_id: user.id,
+    room: data.room,
+    date: data.date,
+    time_start: data.time_start,
+    time_end: data.time_end,
+    groupe: data.groupe || null,
+    motif: data.motif.trim(),
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function updateSiteSettings(settings: Record<string, string>) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  for (const [key, value] of Object.entries(settings)) {
+    await supabase
+      .from("site_settings")
+      .update({ value, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("key", key);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function updateMemberRole(memberId: string, newRole: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (me?.role !== "admin") return { error: "Non autorisé — Admin uniquement" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", memberId);
+  if (error) return { error: error.message };
+
+  // Log dans activity_feed (best-effort, table may not exist yet)
+  try {
+    await admin.from("activity_feed").insert({
+      icon: "👤", text: `Rôle modifié → ${newRole}`,
+      user_id: user.id, target_user_id: memberId,
+    });
+  } catch { /* table pas encore créée */ }
+
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function savePermissionsMatrix(perms: Record<string, Record<string, boolean>>) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  await admin.from("site_settings").upsert(
+    { key: "role_permissions_matrix", value: JSON.stringify(perms), updated_by: user.id, updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
+
+  return { success: true };
+}
+
+export async function savePlatformCards(cards: object[]) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) return { error: "Non authentifié" };
+    const { data: p } = await supabase.from("profiles").select("role,groups").eq("id", u.id).single();
+    if (!["admin","pasteur"].includes(p?.role ?? "") && !(p?.groups ?? []).includes("Communication")) {
+      return { error: "Non autorisé" };
+    }
+  }
+
+  const admin = createAdminClient();
+  await admin.from("site_settings").upsert(
+    { key: "mp_cards", value: JSON.stringify(cards), updated_by: user?.id ?? null, updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
+
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function updateCrmTags(memberId: string, tags: string[]) {
   const supabase = createClient();
   const user = await assertAdmin(supabase);

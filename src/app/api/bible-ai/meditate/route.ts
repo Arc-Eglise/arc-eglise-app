@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const message = `Guide-moi dans une méditation de ${duration} sur ${verse_ref} (style : ${style}).`
 
   if (stream) {
-    try { return await streamFromLunziko(message, [], system, undefined, { reasoning: 'high' }) }
+    try { return await streamFromLunziko(message, [], system) }
     catch (err) {
       console.error("[bible-ai/meditate]", err)
       const enc = new TextEncoder()
