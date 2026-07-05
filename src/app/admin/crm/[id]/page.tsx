@@ -5,10 +5,7 @@ import Image from "next/image";
 import { updateMemberGroups, addMemberNote, deleteMemberNote } from "@/lib/actions/crm";
 import { validateMember, rejectMember } from "@/lib/actions/cms";
 
-const GROUPS = [
-  "media", "communication", "louange", "accueil",
-  "coordination", "pastorale", "finances", "jeunesse", "intercession",
-];
+const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 
 const NOTE_TYPES = [
   { value: "general",   label: "Général" },

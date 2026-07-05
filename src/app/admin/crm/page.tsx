@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 const ROLES = ["admin", "pasteur", "membre", "visiteur"];
-const GROUPS = ["media", "communication", "louange", "accueil", "coordination", "pastorale", "finances", "jeunesse", "intercession"];
+const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 
 export default async function CrmPage({
   searchParams,
