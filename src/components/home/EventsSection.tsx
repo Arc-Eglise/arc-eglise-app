@@ -1,23 +1,43 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ArcEvent } from "@/lib/supabase/types";
 
-const CULTES = [
-  { icon: "⛪", day: "Dimanche · 09h30", name: "Culte principal", time: "09h30" },
-  { icon: "🌙", day: "Dimanche · 17h00", name: "Culte du soir",  time: "17h00" },
-  { icon: "🙏", day: "Mercredi · 19h00", name: "Prière & Parole", time: "19h00" },
+const CULTE_DEFAULTS = [
+  { icon: "⛪", label: "Dimanche 09h30 — Culte principal" },
+  { icon: "🌙", label: "Dimanche 17h00 — Culte du soir" },
+  { icon: "🙏", label: "Mercredi 19h00 — Prière & Parole" },
 ];
 
 export default async function EventsSection() {
   const supabase = createClient();
 
-  const { data: events } = await supabase
-    .from("events")
-    .select(`*, registrations_count:event_registrations(count)`)
-    .eq("is_published", true)
-    .eq("is_public", true)
-    .gte("date", new Date().toISOString().split("T")[0])
-    .order("date", { ascending: true })
-    .limit(3);
+  const [{ data: events }, { data: settingsRows }] = await Promise.all([
+    supabase
+      .from("events")
+      .select(`*, registrations_count:event_registrations(count)`)
+      .eq("is_published", true)
+      .eq("is_public", true)
+      .gte("date", new Date().toISOString().split("T")[0])
+      .order("date", { ascending: true })
+      .limit(3),
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["culte_1_label", "culte_2_label", "culte_3_label"]),
+  ]);
+
+  const s: Record<string, string> = {};
+  for (const row of settingsRows ?? []) s[row.key] = row.value;
+
+  const CULTES = CULTE_DEFAULTS.map((c, i) => {
+    const raw = s[`culte_${i + 1}_label`] ?? c.label;
+    const [dayPart, namePart] = raw.split(" — ");
+    return {
+      icon: c.icon,
+      day:  dayPart?.trim() ?? raw,
+      name: namePart?.trim() ?? "",
+      time: dayPart?.match(/\d{2}h\d{2}/)?.[0] ?? "",
+    };
+  });
 
   type EventWithCount = ArcEvent & { registrations_count: { count: number }[] };
   const featured  = events?.[0] as EventWithCount | undefined;

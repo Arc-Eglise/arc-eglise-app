@@ -1,3 +1,4 @@
+import { createClient }       from "@/lib/supabase/server";
 import AnnouncementBar        from "@/components/home/AnnouncementBar";
 import Header                 from "@/components/layout/Header";
 import Footer                 from "@/components/layout/Footer";
@@ -12,13 +13,21 @@ import DonSection             from "@/components/home/DonSection";
 import CopilotAssistant       from "@/components/home/CopilotAssistant";
 import ContactSection         from "@/components/home/ContactSection";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .eq("key", "hero_subtitle")
+    .single();
+  const heroSubtitle = data?.value;
+
   return (
     <>
       <AnnouncementBar />
       <Header />
       <main>
-        <HeroSection />
+        <HeroSection subtitle={heroSubtitle} />
         <FeaturesStrip />
         <AboutSection />
         <SermonsSection />

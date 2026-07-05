@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-export default function HeroSection() {
+export default function HeroSection({ subtitle }: { subtitle?: string }) {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -60,7 +60,7 @@ export default function HeroSection() {
         </h1>
 
         <p className="mb-10" style={{ fontSize: 18, lineHeight: 1.7, color: "#6b6f86", maxWidth: 480 }}>
-          Une communauté évangélique vivante, fondée sur la Parole de Dieu, ouverte à toutes les nations. Venez tels que vous êtes.
+          {subtitle ?? "Une communauté évangélique vivante, fondée sur la Parole de Dieu, ouverte à toutes les nations. Venez tels que vous êtes."}
         </p>
 
         <div className="flex flex-wrap gap-3.5 mb-14">
