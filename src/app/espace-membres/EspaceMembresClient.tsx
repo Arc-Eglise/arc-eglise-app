@@ -216,25 +216,27 @@ const GD_FEATURES = [
   { id:"user_revoke",   label:"❌ Révoquer / bloquer un compte" },
   { id:"pastor_manage", label:"👑 Gérer les Pasteurs (Admin only)" },
 ];
-const GD_GROUPS = ["admin","pasteur","media","chorale","jeunesse","femmes","social","sanitaire","ecodim","suivi","communication","support"] as const;
-const GD_GROUP_LABELS: Record<string,string> = {admin:"Admin",pasteur:"Pasteur",media:"Média",chorale:"Chorale",jeunesse:"Jeunesse",femmes:"Femmes",social:"Social",sanitaire:"Sanit.",ecodim:"Écodim",suivi:"Suivi",communication:"Comm.",support:"Support"};
+// Colonnes de la matrice de droits : rôles (admin|pasteur|support) + fonctions (media|chorale|...|finance)
+// Distinction officielle — RÔLE (valeur unique sur profiles.role) vs FONCTION (valeurs multiples sur profiles.groups[])
+const GD_GROUPS = ["admin","pasteur","media","chorale","jeunesse","femmes","social","sanitaire","finance","ecodim","suivi","communication","support"] as const;
+const GD_GROUP_LABELS: Record<string,string> = {admin:"Admin",pasteur:"Pasteur",media:"Média",chorale:"Chorale",jeunesse:"Jeunesse",femmes:"Femmes",social:"Social",sanitaire:"Sanit.",finance:"Finance",ecodim:"Écodim",suivi:"Suivi",communication:"Comm.",support:"Support"};
 const GD_DEFAULTS: Record<string,Record<string,boolean>> = {
-  live:         {admin:true,pasteur:true,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:true},
-  replays:      {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  stream:       {admin:true,pasteur:false,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
-  plateformes:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:false},
-  crm:          {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:true,support:true},
-  analytics:    {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
-  rdv:          {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  contacts_all: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
-  contacts_grp: {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  dons_recur:   {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  events_rsvp:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  chat_invite:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,ecodim:true,suivi:true,communication:true,support:true},
-  support_rd:   {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:true},
-  user_promote: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
-  user_revoke:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
-  pastor_manage:{admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,ecodim:false,suivi:false,communication:false,support:false},
+  live:         {admin:true,pasteur:true,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true,support:true},
+  replays:      {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  stream:       {admin:true,pasteur:false,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  plateformes:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true,support:false},
+  crm:          {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true,ecodim:false,suivi:false,communication:true,support:true},
+  analytics:    {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true,ecodim:false,suivi:false,communication:false,support:true},
+  rdv:          {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  contacts_all: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
+  contacts_grp: {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  dons_recur:   {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  events_rsvp:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  chat_invite:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
+  support_rd:   {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
+  user_promote: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  user_revoke:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  pastor_manage:{admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
 };
 
 /* ─── Maj Plateformes ─────────────────────────────────────────────── */
