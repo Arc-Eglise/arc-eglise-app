@@ -82,22 +82,37 @@ export default async function ContactSection() {
             </div>
           ))}
 
-          {/* Map */}
-          <a
-            href={s.contact_map_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ textDecoration: "none", display: "block", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(30,36,100,.12)" }}
-          >
-            <div style={{ height: 150, background: "linear-gradient(150deg,#2b327f,#141738)", position: "relative" }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 1px,transparent 1px 16px),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0 1px,transparent 1px 16px)" }} />
-              <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", textAlign: "center", color: "#fff" }}>
-                <div style={{ fontSize: 26 }}>📍</div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 4 }}>🗺️ Voir sur Google Maps →</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)" }}>{s.contact_address.split("\n")[0]}</div>
-              </div>
-            </div>
-          </a>
+          {/* Map — embed iframe (no API key needed) */}
+          <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(30,36,100,.12)", position: "relative" }}>
+            <iframe
+              title="Localisation ARC"
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(s.contact_address.replace(/\n/g, ", "))}&output=embed&hl=fr`}
+              width="100%"
+              height="180"
+              style={{ border: 0, display: "block" }}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <a
+              href={s.contact_map_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                position: "absolute",
+                bottom: 8,
+                right: 8,
+                background: "#1e2464",
+                color: "#fff",
+                fontSize: 11.5,
+                fontWeight: 700,
+                padding: "5px 11px",
+                borderRadius: 8,
+                textDecoration: "none",
+              }}
+            >
+              🗺️ Ouvrir dans Maps
+            </a>
+          </div>
 
           {/* Socials */}
           {SOCIALS.length > 0 && (

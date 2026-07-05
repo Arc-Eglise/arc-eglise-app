@@ -45,6 +45,9 @@ export const metadata: Metadata = {
     title: "ARC — Ambassade du Royaume de Christ",
     description: "Église évangélique à La Chaux-de-Fonds, Suisse",
   },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
   other: {
     "msapplication-TileColor": "#1e2464",
     "msapplication-config": "/browserconfig.xml",

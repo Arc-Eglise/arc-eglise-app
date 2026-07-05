@@ -1,9 +1,12 @@
 import { createClient }       from "@/lib/supabase/server";
 import { updateSiteSettings } from "@/lib/actions/cms";
+import { redirect }           from "next/navigation";
 
 async function handleUpdate(formData: FormData): Promise<void> {
   "use server";
-  await updateSiteSettings(formData);
+  const result = await updateSiteSettings(formData);
+  if (result?.error) redirect(`/admin/site?error=${encodeURIComponent(result.error)}`);
+  else redirect("/admin/site?saved=1");
 }
 
 const KEYS = [
@@ -13,7 +16,11 @@ const KEYS = [
   "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
 ] as const;
 
-export default async function AdminSitePage() {
+export default async function AdminSitePage({
+  searchParams,
+}: {
+  searchParams?: { saved?: string; error?: string };
+}) {
   const supabase = createClient();
   const { data: rows } = await supabase
     .from("site_settings")
@@ -31,6 +38,17 @@ export default async function AdminSitePage() {
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Site vitrine</h1>
         <p className="text-sm text-arc-text2 mt-0.5">Modifiez les textes et coordonnées affichés sur le site public.</p>
       </div>
+
+      {searchParams?.saved && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-semibold">
+          ✅ Modifications enregistrées. Le site est mis à jour.
+        </div>
+      )}
+      {searchParams?.error && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+          ⚠️ Erreur : {decodeURIComponent(searchParams.error)}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6">
 
