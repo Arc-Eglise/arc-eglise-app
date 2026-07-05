@@ -1,34 +1,19 @@
 -- ═══════════════════════════════════════════════════════════════
---  Migration : Suppression du RÔLE 'support' de l'enum user_role
+--  Migration : Suppression du rôle 'support' des profils
 --  CDC v3.5 — Juillet 2026
---  'support' reste une FONCTION (profiles.groups[]), pas un rôle.
+--  'support' est une FONCTION (profiles.groups[]), pas un rôle.
 --
---  ⚠ AVANT D'APPLIQUER : vérifier qu'aucun compte a role='support'
---    SELECT id, email, role FROM profiles WHERE role = 'support';
---  Si des comptes existent → migrer vers 'membre' ou 'visiteur' selon
---  le cas, puis relancer cette migration.
+--  NB : profiles.role est TEXT en production (pas d'ENUM user_role).
+--  Cette migration migre simplement les comptes role='support' vers
+--  role='membre' (ou 'visiteur' selon le cas).
 -- ═══════════════════════════════════════════════════════════════
 
-BEGIN;
+-- Étape 1 : vérifier les comptes concernés
+SELECT id, email, role FROM profiles WHERE role = 'support';
 
--- 1. Migrer les comptes restants (sécurité — normalement 0)
-UPDATE profiles
-SET role = 'membre'::text::user_role
-WHERE role = 'support'::text::user_role;
+-- Étape 2 : si l'étape 1 renvoie des lignes, exécuter ceci :
+-- UPDATE profiles SET role = 'membre' WHERE role = 'support';
 
--- 2. Créer le nouveau type sans 'support'
-CREATE TYPE user_role_new AS ENUM ('admin', 'pasteur', 'membre', 'visiteur');
-
--- 3. Basculer la colonne vers le nouveau type
-ALTER TABLE profiles
-  ALTER COLUMN role TYPE user_role_new
-  USING role::text::user_role_new;
-
--- 4. Supprimer l'ancien type et renommer
-DROP TYPE user_role;
-ALTER TYPE user_role_new RENAME TO user_role;
-
--- 5. Mettre à jour la valeur par défaut
-ALTER TABLE profiles ALTER COLUMN role SET DEFAULT 'visiteur';
-
-COMMIT;
+-- Étape 3 : vérifier qu'il ne reste aucun compte support
+-- SELECT COUNT(*) FROM profiles WHERE role = 'support';
+-- Doit retourner 0.
