@@ -147,30 +147,25 @@ const ONLINE_MEMBERS = [
 ];
 const ACTIVITIES: {icon:string;text:string;time:string}[] = [];
 const DONS_RECENTS: {name:string;amount:string;method:string;date:string}[] = [];
+// Compteurs réels chargés depuis Supabase (profiles.groups[], role='membre')
 const GROUPES = [
-  {name:"Pasteur",              count:0, hex:"#92400e", hexBg:"#fffbeb"},
-  {name:"Équipe Média",         count:0, hex:"#1d4ed8", hexBg:"#eff6ff"},
-  {name:"Chorale",              count:0, hex:"#be185d", hexBg:"#fdf2f8"},
-  {name:"La Jeunesse",          count:0, hex:"#c2410c", hexBg:"#fff7ed"},
-  {name:"Groupe des Femmes",    count:0, hex:"#be123c", hexBg:"#fff1f2"},
-  {name:"Social & Hospitalité", count:0, hex:"#047857", hexBg:"#ecfdf5"},
-  {name:"Sanitaire & Propreté", count:0, hex:"#0f766e", hexBg:"#f0fdfa"},
-  {name:"Écodim",               count:0, hex:"#4d7c0f", hexBg:"#f7fee7"},
-  {name:"Suivi d'âmes",         count:0, hex:"#0369a1", hexBg:"#f0f9ff"},
-  {name:"Communication",        count:0, hex:"#6d28d9", hexBg:"#f5f3ff"},
-  {name:"Support",              count:0, hex:"#334155", hexBg:"#f1f5f9"},
+  {name:"Pasteur",              slug:"pasteur",       count:0, hex:"#92400e", hexBg:"#fffbeb"},
+  {name:"Équipe Média",         slug:"media",         count:0, hex:"#1d4ed8", hexBg:"#eff6ff"},
+  {name:"Chorale",              slug:"chorale",       count:0, hex:"#be185d", hexBg:"#fdf2f8"},
+  {name:"La Jeunesse",          slug:"jeunesse",      count:0, hex:"#c2410c", hexBg:"#fff7ed"},
+  {name:"Groupe des Femmes",    slug:"femmes",        count:0, hex:"#be123c", hexBg:"#fff1f2"},
+  {name:"Social & Hospitalité", slug:"social",        count:0, hex:"#047857", hexBg:"#ecfdf5"},
+  {name:"Sanitaire & Propreté", slug:"sanitaire",     count:0, hex:"#0f766e", hexBg:"#f0fdfa"},
+  {name:"Écodim",               slug:"ecodim",        count:0, hex:"#4d7c0f", hexBg:"#f7fee7"},
+  {name:"Suivi d'âmes",         slug:"suivi",         count:0, hex:"#0369a1", hexBg:"#f0f9ff"},
+  {name:"Communication",        slug:"communication", count:0, hex:"#6d28d9", hexBg:"#f5f3ff"},
+  {name:"Support",              slug:"support",       count:0, hex:"#334155", hexBg:"#f1f5f9"},
+  {name:"Finance",              slug:"finance",       count:0, hex:"#b45309", hexBg:"#fef3c7"},
 ];
 const MSG_FILES: {name:string;size:string;from:string;time:string;icon:string}[] = [];
-const MSG_TASKS = [
-  {id:"mt1",title:"Préparer le programme du culte",done:false,assignee:"Pedro Obova",due:"15.06"},
-  {id:"mt2",title:"Mettre à jour le site web",done:true,assignee:"Jaise Buka",due:"10.06"},
-  {id:"mt3",title:"Répétition chorale vendredi",done:false,assignee:"Marie Kalinda",due:"20.06"},
-  {id:"mt4",title:"Envoyer les invitations conférence",done:false,assignee:"Samuel Nkosi",due:"22.06"},
-];
-const USER_STATUSES: Record<string,"online"|"away"|"busy"|"offline"> = {
-  "Pedro Obova":"online","Marie Kalinda":"online",
-  "Samuel Nkosi":"away","Grace Mbeki":"busy","David Lumbala":"offline",
-};
+// Tâches et statuts chargés depuis Supabase (pas de données fictives)
+const MSG_TASKS: {id:string;title:string;done:boolean;assignee:string;due:string}[] = [];
+const USER_STATUSES: Record<string,"online"|"away"|"busy"|"offline"> = {};
 const QUICK_EMOJIS = ["🙏","❤️","🙌","😊","🔥","✅"];
 const EMOJI_LIST = [
   "😊","😂","🥰","😍","🤩","😇","😭","😅","🤔","😴",
@@ -178,11 +173,12 @@ const EMOJI_LIST = [
   "✨","🌟","🎵","📖","⛪","🕊️","🌈","💐","🌿","👑",
   "🤝","💬","📅","🎶","🌍","💡","🏆","🕐","📢","🫶",
 ];
+// Pipeline CRM — colonnes fixes, cartes chargées depuis crm_contacts (Supabase)
 const CRM_COLS = [
-  {title:"Visiteurs",color:"#8890aa",cards:[{name:"Thomas Kanza",note:"Venu 3x ce mois"},{name:"Isabelle Moyo",note:"Contact téléphonique"}]},
-  {title:"En suivi",color:"#c05621",cards:[{name:"Pierre Nsamba",note:"Prière accompagnement"},{name:"Anne Diallo",note:"Rencontre prévue"}]},
-  {title:"En intégration",color:"#1e40af",cards:[{name:"Ruth Kasongo",note:"Groupe jeunesse"},{name:"Marc Benga",note:"Baptême planifié"}]},
-  {title:"Membres actifs",color:"#065f46",cards:[{name:"Élie Mwamba",note:"Groupe médias"},{name:"Sarah Bula",note:"École du dimanche"}]},
+  {title:"Visiteurs",     color:"#8890aa", cards:[] as {name:string;note:string}[]},
+  {title:"En suivi",      color:"#c05621", cards:[] as {name:string;note:string}[]},
+  {title:"En intégration",color:"#1e40af", cards:[] as {name:string;note:string}[]},
+  {title:"Membres actifs",color:"#065f46", cards:[] as {name:string;note:string}[]},
 ];
 const ETUDE_DB: Record<string,{ref:string;contexte:string;theologie:string;application:string}> = {
   "Jean 3:16":{ref:"Jean 3:16",
@@ -216,27 +212,45 @@ const GD_FEATURES = [
   { id:"user_revoke",   label:"❌ Révoquer / bloquer un compte" },
   { id:"pastor_manage", label:"👑 Gérer les Pasteurs (Admin only)" },
 ];
-// Colonnes de la matrice de droits : rôles (admin|pasteur|support) + fonctions (media|chorale|...|finance)
-// Distinction officielle — RÔLE (valeur unique sur profiles.role) vs FONCTION (valeurs multiples sur profiles.groups[])
+// Matrice de droits — source de vérité : CDC v3.5 sections 2, 3, 4
+// RÔLES (profiles.role, valeur unique) : admin | pasteur | membre | visiteur
+// FONCTIONS (profiles.groups[], valeurs multiples) : pasteur | media | chorale | jeunesse | femmes | social | sanitaire | finance | ecodim | suivi | communication | support
+// Rôle Pasteur : accès lecture seule sur stream/gestion ; Fonction Média : seule à gérer les paramètres stream
+// Finance (ajoutée post-CDC v3.4) : CRM + analytics accès complet
 const GD_GROUPS = ["admin","pasteur","media","chorale","jeunesse","femmes","social","sanitaire","finance","ecodim","suivi","communication","support"] as const;
 const GD_GROUP_LABELS: Record<string,string> = {admin:"Admin",pasteur:"Pasteur",media:"Média",chorale:"Chorale",jeunesse:"Jeunesse",femmes:"Femmes",social:"Social",sanitaire:"Sanit.",finance:"Finance",ecodim:"Écodim",suivi:"Suivi",communication:"Comm.",support:"Support"};
 const GD_DEFAULTS: Record<string,Record<string,boolean>> = {
-  live:         {admin:true,pasteur:true,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true,support:true},
-  replays:      {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  stream:       {admin:true,pasteur:false,media:true,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
-  plateformes:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true,support:false},
-  crm:          {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true,ecodim:false,suivi:false,communication:true,support:true},
-  analytics:    {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true,ecodim:false,suivi:false,communication:false,support:true},
-  rdv:          {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  contacts_all: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
-  contacts_grp: {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  dons_recur:   {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  events_rsvp:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  chat_invite:  {admin:true,pasteur:true,media:true,chorale:true,jeunesse:true,femmes:true,social:true,sanitaire:true,finance:true,ecodim:true,suivi:true,communication:true,support:true},
-  support_rd:   {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
-  user_promote: {admin:true,pasteur:true,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
-  user_revoke:  {admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
-  pastor_manage:{admin:true,pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  // Streaming / Live vitrine (CDC §4) — Pasteur✓, Média✓, Comm✓ ; Support✗
+  live:         {admin:true, pasteur:true, media:true, chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true, support:false},
+  replays:      {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // Gestion stream (paramètres YouTube/Zoom) : Pasteur = lecture seule, Média = gestion complète (CDC §4)
+  stream:       {admin:true, pasteur:true, media:true, chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  // CMS vitrine (CDC §4) — Pasteur✓, Média✓, Comm✓
+  plateformes:  {admin:true, pasteur:true, media:true, chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:true, support:false},
+  // CRM (CDC §5.1) — Comm✓, Pasteur✓, Support=lecture ; Finance (post-CDC) = accès complet
+  crm:          {admin:true, pasteur:true, media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true, ecodim:false,suivi:false,communication:true, support:true},
+  // Analytics pastoraux (CDC §12.8) — Admin+Pasteur ; Finance (post-CDC) = accès complet
+  analytics:    {admin:true, pasteur:true, media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:true, ecodim:false,suivi:false,communication:false,support:false},
+  // Rendez-vous pastoral (CDC §12.12) — tous
+  rdv:          {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // Contacts : tous les membres (CDC §5.1) — Pasteur✓, Support=lecture
+  contacts_all: {admin:true, pasteur:true, media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
+  // Contacts : groupe uniquement — tous les groupes
+  contacts_grp: {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // Dons récurrents (CDC §12.1) — tous
+  dons_recur:   {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // RSVP événements — tous
+  events_rsvp:  {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // Invitation canal chat — tous
+  chat_invite:  {admin:true, pasteur:true, media:true, chorale:true, jeunesse:true, femmes:true, social:true, sanitaire:true, finance:true, ecodim:true, suivi:true, communication:true, support:true},
+  // Prise en main à distance RustDesk (CDC §8) — Fonction Support EXCLUSIF
+  support_rd:   {admin:true, pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:true},
+  // Promotion Visiteur → Membre (CDC §4) — Admin + Rôle Pasteur
+  user_promote: {admin:true, pasteur:true, media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  // Révoquer / bloquer un compte (CDC §4 CRUD membres) — Admin + Rôle Pasteur
+  user_revoke:  {admin:true, pasteur:true, media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
+  // Gérer les Pasteurs — Admin uniquement (CDC §2.1)
+  pastor_manage:{admin:true, pasteur:false,media:false,chorale:false,jeunesse:false,femmes:false,social:false,sanitaire:false,finance:false,ecodim:false,suivi:false,communication:false,support:false},
 };
 
 /* ─── Maj Plateformes ─────────────────────────────────────────────── */

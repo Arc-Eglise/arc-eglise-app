@@ -5,11 +5,11 @@
 -- ═══════════════════════════════════════════════════════════════
 
 -- ── 1. ENUM rôle ────────────────────────────────────────────────
--- En base : CREATE TYPE role_type AS ENUM ('admin','pasteur','membre','visiteur','support')
--- Rôles (1 seul par membre) : visiteur | membre | support | pasteur | admin
+-- Rôles (1 seul par membre, 4 niveaux) : visiteur | membre | pasteur | admin
 -- Fonctions (rôle membre uniquement, multiples, dans groups[]) : pasteur | chorale | media | social | sanitaire | finance | support | jeunesse | femmes | ecodim | suivi | communication
--- NB : 'support' est à la fois un rôle (lecture seule) et une fonction (désigné par l'admin)
-CREATE TYPE user_role AS ENUM ('admin', 'pasteur', 'membre', 'visiteur', 'support');
+-- NB : 'support' est une FONCTION (dans groups[]), pas un rôle. Géré exclusivement par Admin.
+CREATE TYPE user_role AS ENUM ('admin', 'pasteur', 'membre', 'visiteur');
+-- ⚠ Migration requise si des comptes ont encore role='support' : voir supabase/migrations/remove-support-role.sql
 
 -- ── 2. TABLE profiles ───────────────────────────────────────────
 -- Étend auth.users de Supabase (1 profil par utilisateur)
