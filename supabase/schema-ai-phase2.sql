@@ -59,6 +59,6 @@ ON public.sermon_ai_summaries FOR ALL TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role IN ('admin','pasteur','ancien','diacre','membre')
+    WHERE id = auth.uid() AND role IN ('admin','pasteur','membre','support')
   )
 );

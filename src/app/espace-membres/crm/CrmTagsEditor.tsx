@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateCrmTags } from "@/lib/actions/membres";
 
-const PRESET_TAGS = ["Nouveau", "Visiteur", "Leadership", "Diacre", "Suivi pastoral", "Jeunesse", "Famille", "Musicien", "Bénévole", "Donateur"];
+const PRESET_TAGS = ["Nouveau", "Visiteur", "Leadership", "Suivi pastoral", "Jeunesse", "Famille", "Musicien", "Bénévole", "Donateur", "Intercesseur"];
 
 const TAG_COLORS = [
   "bg-orange-100 text-orange-700 border-orange-200",

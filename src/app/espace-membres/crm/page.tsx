@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 
 const ROLE_STYLE: Record<string, string> = {
-  admin:   "text-red-700 bg-red-50 border-red-200",
-  pasteur: "text-purple-700 bg-purple-50 border-purple-200",
-  ancien:  "text-blue-700 bg-blue-50 border-blue-200",
-  membre:  "text-green-700 bg-green-50 border-green-200",
+  admin:    "text-red-700 bg-red-50 border-red-200",
+  pasteur:  "text-purple-700 bg-purple-50 border-purple-200",
+  support:  "text-blue-700 bg-blue-50 border-blue-200",
+  membre:   "text-green-700 bg-green-50 border-green-200",
+  visiteur: "text-gray-700 bg-gray-50 border-gray-200",
 };
 
 const TAG_COLORS = [
