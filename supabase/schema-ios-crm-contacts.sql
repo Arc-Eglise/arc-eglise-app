@@ -22,7 +22,7 @@ ON public.crm_contacts FOR ALL TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role IN ('admin','pasteur','ancien','diacre')
+    WHERE id = auth.uid() AND role IN ('admin','pasteur','support')
   )
 );
 
