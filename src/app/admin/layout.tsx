@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/equipe",       icon: "👥", label: "Équipe pastorale" },
   { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
   { href: "/admin/membres",      icon: "✅", label: "Validation membres" },
+  { href: "/admin/site",         icon: "⚙️", label: "Site vitrine" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

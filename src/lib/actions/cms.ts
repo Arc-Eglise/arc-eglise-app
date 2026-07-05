@@ -249,6 +249,34 @@ export async function toggleTestimonialPublished(id: string, published: boolean)
   return { success: true };
 }
 
+// ── SITE SETTINGS ──────────────────────────────────────────────
+
+const ALLOWED_SETTINGS = [
+  "verset_du_jour", "verset_reference", "hero_subtitle",
+  "culte_1_label", "culte_2_label", "culte_3_label",
+  "contact_address", "contact_email", "contact_horaires", "contact_map_url",
+  "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
+] as const;
+
+export async function updateSiteSettings(formData: FormData) {
+  const { supabase } = await getCmsUser();
+
+  const upserts = ALLOWED_SETTINGS
+    .filter((key) => formData.has(key))
+    .map((key) => ({ key, value: (formData.get(key) as string) ?? "" }));
+
+  if (!upserts.length) return { error: "Aucun champ" };
+
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert(upserts, { onConflict: "key" });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/site");
+  return { success: true };
+}
+
 // ── AVATAR MEMBRE ───────────────────────────────────────────────
 
 export async function uploadMemberAvatar(formData: FormData) {

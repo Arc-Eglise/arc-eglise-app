@@ -128,6 +128,7 @@ export default async function AdminDashboard() {
           { href: "/admin/membres",      icon: "👤", label: "Gérer les membres" },
           { href: "/admin/equipe",       icon: "✏️", label: "Modifier l'équipe" },
           { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
+          { href: "/admin/site",         icon: "⚙️", label: "Site vitrine" },
         ].map((l) => (
           <Link
             key={l.label}
