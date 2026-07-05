@@ -123,10 +123,11 @@ export default async function AdminDashboard() {
       {/* Quick links */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { href: "/admin/sermons",    icon: "➕", label: "Ajouter un sermon" },
-          { href: "/admin/evenements", icon: "➕", label: "Ajouter un événement" },
-          { href: "/admin/membres",    icon: "👤", label: "Gérer les membres" },
-          { href: "/admin/equipe",     icon: "✏️", label: "Modifier l'équipe" },
+          { href: "/admin/sermons",      icon: "➕", label: "Ajouter un sermon" },
+          { href: "/admin/evenements",   icon: "➕", label: "Ajouter un événement" },
+          { href: "/admin/membres",      icon: "👤", label: "Gérer les membres" },
+          { href: "/admin/equipe",       icon: "✏️", label: "Modifier l'équipe" },
+          { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
         ].map((l) => (
           <Link
             key={l.label}

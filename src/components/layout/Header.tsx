@@ -6,13 +6,14 @@ import Image from "next/image";
 import { useUser } from "@/hooks/useUser";
 
 const NAV_LINKS = [
-  { label: "Accueil",    href: "#accueil" },
-  { label: "À propos",  href: "#apropos" },
-  { label: "Sermons",   href: "#sermons" },
-  { label: "Événements", href: "#evenements" },
-  { label: "Équipe",    href: "#equipe" },
-  { label: "Donner",    href: "#dons" },
-  { label: "Contact",   href: "#contact" },
+  { label: "Accueil",       href: "#accueil" },
+  { label: "À propos",      href: "#apropos" },
+  { label: "Sermons",       href: "#sermons" },
+  { label: "Événements",    href: "#evenements" },
+  { label: "Équipe",        href: "#equipe" },
+  { label: "Témoignages",   href: "#temoignages" },
+  { label: "Donner",        href: "#dons" },
+  { label: "Contact",       href: "#contact" },
 ];
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {

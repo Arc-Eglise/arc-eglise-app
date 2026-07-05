@@ -203,6 +203,52 @@ export async function rejectMember(memberId: string) {
   return { success: true };
 }
 
+// ── TÉMOIGNAGES ────────────────────────────────────────────────
+
+export async function createTestimonial(formData: FormData) {
+  const { supabase, userId } = await getCmsUser();
+
+  let avatar_url: string | null = null;
+  const photo = formData.get("photo") as File | null;
+  if (photo && photo.size > 0) {
+    const ext = photo.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    avatar_url = await uploadToStorage("media", `testimonials/${Date.now()}.${ext}`, photo);
+  }
+
+  const { error } = await supabase.from("testimonials").insert({
+    author_name:  formData.get("author_name")  as string,
+    author_role:  formData.get("author_role")  as string || null,
+    content:      formData.get("content")      as string,
+    sort_order:   Number(formData.get("sort_order") ?? 0),
+    is_published: formData.get("is_published") !== "off",
+    avatar_url,
+    created_by: userId,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/temoignages");
+  return { success: true };
+}
+
+export async function deleteTestimonial(id: string) {
+  const { supabase } = await getCmsUser();
+  const { error } = await supabase.from("testimonials").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/temoignages");
+  return { success: true };
+}
+
+export async function toggleTestimonialPublished(id: string, published: boolean) {
+  const { supabase } = await getCmsUser();
+  const { error } = await supabase.from("testimonials").update({ is_published: published }).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/temoignages");
+  return { success: true };
+}
+
 // ── AVATAR MEMBRE ───────────────────────────────────────────────
 
 export async function uploadMemberAvatar(formData: FormData) {

@@ -3,12 +3,13 @@ import { redirect }     from "next/navigation";
 import Link             from "next/link";
 
 const NAV = [
-  { href: "/admin",            icon: "📊", label: "Tableau de bord" },
-  { href: "/admin/crm",        icon: "🗂️", label: "CRM — Membres" },
-  { href: "/admin/sermons",    icon: "📺", label: "Sermons" },
-  { href: "/admin/evenements", icon: "📅", label: "Événements" },
-  { href: "/admin/equipe",     icon: "👥", label: "Équipe pastorale" },
-  { href: "/admin/membres",    icon: "✅", label: "Validation membres" },
+  { href: "/admin",              icon: "📊", label: "Tableau de bord" },
+  { href: "/admin/crm",          icon: "🗂️", label: "CRM — Membres" },
+  { href: "/admin/sermons",      icon: "📺", label: "Sermons" },
+  { href: "/admin/evenements",   icon: "📅", label: "Événements" },
+  { href: "/admin/equipe",       icon: "👥", label: "Équipe pastorale" },
+  { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
+  { href: "/admin/membres",      icon: "✅", label: "Validation membres" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
