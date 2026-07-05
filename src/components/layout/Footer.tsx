@@ -1,11 +1,5 @@
-import Image from "next/image";
-
-const SOCIALS = [
-  { icon: "📘", label: "Facebook",  href: "https://www.facebook.com/ARCEgliseCDF" },
-  { icon: "📸", label: "Instagram", href: "https://www.instagram.com/arc.eglise" },
-  { icon: "▶️", label: "YouTube",   href: "https://www.youtube.com/@ARCEglise" },
-  { icon: "📱", label: "WhatsApp",  href: "https://wa.me/41000000000" },
-];
+import Image          from "next/image";
+import { createClient } from "@/lib/supabase/server";
 
 const NAV = [
   { label: "Accueil",     href: "#accueil" },
@@ -25,8 +19,41 @@ const COMMUNITY = [
   { label: "Événements privés", href: "/espace-membres" },
 ];
 
-export default function Footer() {
+const SOCIAL_DEFS = [
+  { key: "social_facebook",  icon: "📘", label: "Facebook",  fallback: "https://www.facebook.com/ARCEgliseCDF" },
+  { key: "social_instagram", icon: "📸", label: "Instagram", fallback: "https://www.instagram.com/arc.eglise" },
+  { key: "social_youtube",   icon: "▶️", label: "YouTube",   fallback: "https://www.youtube.com/@ARCEglise" },
+  { key: "social_whatsapp",  icon: "📱", label: "WhatsApp",  fallback: "https://wa.me/41000000000" },
+];
+
+export default async function Footer() {
+  const supabase = createClient();
   const year = new Date().getFullYear();
+
+  const s: Record<string, string> = {};
+  try {
+    const { data } = await supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", [
+        "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
+        "contact_address", "contact_email", "contact_horaires",
+      ]);
+    for (const row of data ?? []) s[row.key] = row.value;
+  } catch {
+    // fallback to hardcoded values below
+  }
+
+  const SOCIALS = SOCIAL_DEFS
+    .map((d) => ({ icon: d.icon, label: d.label, href: s[d.key] ?? d.fallback }))
+    .filter((soc) => soc.href.trim() !== "");
+
+  const address  = s.contact_address  ?? "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds";
+  const email    = s.contact_email    ?? "contact@arc-eglise.ch";
+  const horaires = s.contact_horaires ?? "Dimanche 09h30 & 17h00\nMercredi 19h00 — Prière";
+
+  const [line1, line2]   = address.split("\n");
+  const horaireLines     = horaires.split("\n");
 
   return (
     <footer style={{ background: "#141738", color: "#fff", padding: "72px 32px 36px" }}>
@@ -59,13 +86,13 @@ export default function Footer() {
               Une communauté évangélique vivante à La Chaux-de-Fonds, Suisse.
             </p>
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              {SOCIALS.map((s) => (
+              {SOCIALS.map((soc) => (
                 <a
-                  key={s.label}
-                  href={s.href}
+                  key={soc.label}
+                  href={soc.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={s.label}
+                  aria-label={soc.label}
                   className="arc-footer-social"
                   style={{
                     textDecoration: "none",
@@ -75,7 +102,7 @@ export default function Footer() {
                     fontSize: 16,
                   }}
                 >
-                  {s.icon}
+                  {soc.icon}
                 </a>
               ))}
             </div>
@@ -125,10 +152,11 @@ export default function Footer() {
               Contact
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 11, color: "rgba(255,255,255,.7)", fontSize: 14, lineHeight: 1.5 }}>
-              <span>📍 Av. Charles-Naine 39<br />2300 La Chaux-de-Fonds</span>
-              <span>📧 contact@arc-eglise.ch</span>
-              <span>🗓 Dim 09h30 & 17h00</span>
-              <span>🗓 Mer 19h00 — Prière</span>
+              <span>📍 {line1}{line2 ? <><br />{line2}</> : null}</span>
+              <span>📧 {email}</span>
+              {horaireLines.map((h, i) => (
+                <span key={i}>🗓 {h}</span>
+              ))}
             </div>
           </div>
         </div>

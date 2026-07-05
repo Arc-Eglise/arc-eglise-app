@@ -8,6 +8,7 @@ import AboutSection           from "@/components/home/AboutSection";
 import SermonsSection         from "@/components/home/SermonsSection";
 import EventsSection          from "@/components/home/EventsSection";
 import TeamSection            from "@/components/home/TeamSection";
+import VersetStrip            from "@/components/home/VersetStrip";
 import TestimonialsSection    from "@/components/home/TestimonialsSection";
 import DonSection             from "@/components/home/DonSection";
 import CopilotAssistant       from "@/components/home/CopilotAssistant";
@@ -33,6 +34,7 @@ export default async function HomePage() {
         <SermonsSection />
         <EventsSection />
         <TeamSection />
+        <VersetStrip />
         <TestimonialsSection />
         <DonSection />
         <CopilotAssistant />
