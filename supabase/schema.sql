@@ -7,7 +7,7 @@
 -- ── 1. ENUM rôle ────────────────────────────────────────────────
 -- En base : CREATE TYPE role_type AS ENUM ('admin','pasteur','membre','visiteur','support')
 -- Rôles (1 seul par membre) : visiteur | membre | support | pasteur | admin
--- Fonctions (multiples, dans groups[]) : pasteur | chorale | media | social | sanitaire | finance | support | jeunesse | femmes | ecodim | suivi | communication
+-- Fonctions (rôle membre uniquement, multiples, dans groups[]) : pasteur | chorale | media | social | sanitaire | finance | support | jeunesse | femmes | ecodim | suivi | communication
 -- NB : 'support' est à la fois un rôle (lecture seule) et une fonction (désigné par l'admin)
 CREATE TYPE user_role AS ENUM ('admin', 'pasteur', 'membre', 'visiteur', 'support');
 
@@ -19,7 +19,7 @@ CREATE TABLE profiles (
   first_name     TEXT,
   last_name      TEXT,
   role           user_role NOT NULL DEFAULT 'visiteur',
-  groups         TEXT[]    NOT NULL DEFAULT '{}',  -- fonctions du membre (multiples) : pasteur | chorale | media | social | sanitaire | finance | support | jeunesse | femmes | ecodim | suivi | communication
+  groups         TEXT[]    NOT NULL DEFAULT '{}',  -- fonctions (rôle membre uniquement) : pasteur | chorale | media | social | sanitaire | finance | support | jeunesse | femmes | ecodim | suivi | communication
   validated      BOOLEAN   NOT NULL DEFAULT false,
   validated_by   UUID REFERENCES profiles(id),
   validated_at   TIMESTAMPTZ,
