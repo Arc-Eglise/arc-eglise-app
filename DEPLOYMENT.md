@@ -7,16 +7,23 @@
 
 ---
 
-## 1. Connecter le repo GitHub à Vercel
+## 1. Connecter le repo GitHub Arc-Eglise à Vercel
 
-1. Connecte-toi sur https://vercel.com avec le compte de la team `arc-eglise-projects`
-2. Clique **Add New Project**
-3. Sélectionne **Import Git Repository**
-4. Connecte l'organisation GitHub **Arc-Eglise** (autoriser l'accès à l'org si demandé)
-5. Sélectionne le repo `arc-eglise-app`
-6. **Framework Preset :** Next.js (détecté automatiquement)
-7. **Root Directory :** `.` (racine)
-8. Ne déploie pas encore — configure d'abord les variables d'environnement (section 2)
+> **Contexte :** Le projet Vercel `arc-eglise-6e2y` existe déjà mais est encore connecté
+> à l'ancien repo GitHub `jaisebukadilu/arc-eglise`. Il faut reconnecter au nouveau repo
+> `Arc-Eglise/arc-eglise-app`.
+
+### Reconnecter le repo GitHub (à faire AVANT le prochain déploiement)
+
+1. Va sur https://vercel.com → projet `arc-eglise-6e2y` → **Settings → Git**
+2. Clique **Disconnect** pour déconnecter l'ancien repo `jaisebukadilu/arc-eglise`
+3. Clique **Connect Git Repository**
+4. Sélectionne **GitHub** → autorise l'accès à l'organisation **Arc-Eglise** si demandé
+5. Sélectionne le repo **`Arc-Eglise/arc-eglise-app`**
+6. Confirme — Vercel déclenchera un déploiement automatique depuis la branche `master`
+
+> Après cette opération, chaque `git push` sur `master` déclenchera un déploiement
+> production, et chaque push sur `feature/*` créera un déploiement preview.
 
 ---
 
@@ -89,31 +96,56 @@ feature/ma-fonctionnalite → Pull Request → review → merge main → deploy 
 
 ---
 
-## 4. Connecter le domaine arc-eglise.ch (quand réservé chez Infomaniak)
+## 4. Connecter le domaine arc-eglise.ch
 
-### Étape A — Ajouter le domaine dans Vercel
-1. Dans Vercel → ton projet → **Settings → Domains**
-2. Clique **Add Domain**
-3. Entre `arc-eglise.ch`
-4. Vercel affiche les enregistrements DNS à créer
+> **Prérequis :** Effectuer cette étape uniquement APRÈS un premier déploiement réussi
+> sur l'URL Vercel temporaire (`arc-eglise-6e2y.vercel.app`).
+>
+> **Domaine cible :** `arc-eglise.ch` (principal) + `www.arc-eglise.ch` (redirection 301 → racine)
 
-### Étape B — Configurer le DNS chez Infomaniak
-Se connecter sur https://manager.infomaniak.com → Domaines → arc-eglise.ch → DNS
+### Étape A — Configurer le DNS chez Infomaniak
 
-**Enregistrements à créer :**
+1. Connecte-toi sur https://manager.infomaniak.com
+2. Va dans **Domaines → arc-eglise.ch → DNS**
+3. Ajoute les deux enregistrements suivants :
 
 | Type | Nom | Valeur | TTL |
 |---|---|---|---|
-| `A` | `@` (racine) | `76.76.21.21` (IP Vercel) | 3600 |
-| `CNAME` | `www` | `cname.vercel-dns.com` | 3600 |
+| `A` | `@` *(ou laisser vide — représente la racine)* | `76.76.21.21` | Par défaut |
+| `CNAME` | `www` | `cname.vercel-dns.com` | Par défaut |
 
-> Note : Vercel peut aussi demander un enregistrement `TXT` pour vérification de domaine — suivre les instructions affichées dans l'interface Vercel au moment de l'ajout.
+4. Sauvegarde et patiente **10 minutes à 24h** pour la propagation DNS.
+
+> **Vérifier la propagation** : https://dnschecker.org/#A/arc-eglise.ch
+
+### Étape B — Ajouter les domaines dans Vercel
+
+1. Va sur https://vercel.com → ton projet `arc-eglise-6e2y` → **Settings → Domains**
+2. Clique **Add Domain**, entre `arc-eglise.ch` → **Add**
+   - Vercel le définit automatiquement comme domaine principal (Primary)
+3. Clique **Add Domain** à nouveau, entre `www.arc-eglise.ch` → **Add**
+   - Vercel propose automatiquement une **redirection 301 vers `arc-eglise.ch`** → **Accepter**
+4. Vercel provisionne les certificats **SSL Let's Encrypt** automatiquement
+   (quelques minutes après la propagation DNS)
 
 ### Étape C — Mettre à jour NEXT_PUBLIC_SITE_URL dans Vercel
-Changer `NEXT_PUBLIC_SITE_URL` (scope Production) de l'URL Vercel temporaire vers `https://arc-eglise.ch`
 
-### Étape D — Google Search Console
-Activer la variable `GOOGLE_SITE_VERIFICATION` dans Vercel (scope Production uniquement) avec la valeur fournie par Google Search Console.
+Dans **Settings → Environment Variables**, mettre à jour la variable `NEXT_PUBLIC_SITE_URL` :
+- Scope **Production** : changer de l'URL Vercel temporaire → `https://arc-eglise.ch`
+- Scope **Preview** : laisser vide (Vercel injecte `VERCEL_URL` automatiquement)
+
+Redéployer après ce changement pour que la nouvelle URL soit prise en compte.
+
+### Étape D — Vérifications post-configuration
+
+- [ ] Ouvrir `https://arc-eglise.ch` → le site doit se charger
+- [ ] Ouvrir `https://www.arc-eglise.ch` → doit rediriger vers `https://arc-eglise.ch` (301)
+- [ ] Vérifier le certificat SSL dans le navigateur (cadenas vert dans la barre d'adresse)
+- [ ] Vérifier que les liens internes du site utilisent bien `arc-eglise.ch`
+
+### Étape E — Google Search Console (après domaine actif)
+Activer la variable `GOOGLE_SITE_VERIFICATION` dans Vercel (scope Production uniquement)
+avec la valeur fournie par Google Search Console → **Verify**.
 
 ---
 
