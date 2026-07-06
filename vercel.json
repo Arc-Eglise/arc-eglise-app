@@ -1,0 +1,27 @@
+{
+  "regions": ["fra1"],
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "functions": {
+    "src/app/api/**": {
+      "maxDuration": 30
+    },
+    "src/app/api/bible-ai/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/lunziko/**": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
+  ]
+}
