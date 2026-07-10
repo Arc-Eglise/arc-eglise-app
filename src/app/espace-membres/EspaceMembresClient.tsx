@@ -316,7 +316,15 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
   const [mpCard, setMpCard]   = useState(0);
   const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
-  const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible"|"affichage">("notifs");
+  const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite">("notifs");
+  const [pwdCurrent, setPwdCurrent]       = useState("");
+  const [pwdNew, setPwdNew]               = useState("");
+  const [pwdNewConfirm, setPwdNewConfirm] = useState("");
+  const [pwdLoading, setPwdLoading]       = useState(false);
+  const [pwdError, setPwdError]           = useState<string|null>(null);
+  const [pwdSuccess, setPwdSuccess]       = useState(false);
+  const [pwdShowCurrent, setPwdShowCurrent] = useState(false);
+  const [pwdShowNew, setPwdShowNew]         = useState(false);
   const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
   const [noteRef, setNoteRef]     = useState("Jean 3:16");
   const [noteContent, setNoteContent] = useState("");
@@ -691,6 +699,33 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     const next = Math.min((rpProgress[planId] ?? 0) + 1, totalDays);
     const { error } = await supabase.from("reading_plan_progress").update({ current_day: next, updated_at: new Date().toISOString() }).eq("plan_id", planId).eq("user_id", userId);
     if (!error) setRpProgress(p => ({ ...p, [planId]: next }));
+  }
+
+  async function handleChangePassword() {
+    setPwdError(null);
+    if (!pwdCurrent || !pwdNew || !pwdNewConfirm) {
+      setPwdError("Tous les champs sont requis."); return;
+    }
+    if (pwdNew !== pwdNewConfirm) {
+      setPwdError("Les nouveaux mots de passe ne correspondent pas."); return;
+    }
+    setPwdLoading(true);
+    try {
+      const res  = await fetch("/api/auth/change-password", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: pwdCurrent, newPassword: pwdNew }),
+      });
+      const json = await res.json() as { success?: true; error?: string };
+      if (!res.ok || json.error) {
+        setPwdError(json.error ?? "Une erreur est survenue."); return;
+      }
+      setPwdSuccess(true);
+      setPwdCurrent(""); setPwdNew(""); setPwdNewConfirm("");
+    } catch {
+      setPwdError("Impossible de contacter le serveur.");
+    } finally {
+      setPwdLoading(false);
+    }
   }
 
   function insertEmoji(emoji: string) {
@@ -3114,8 +3149,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             <div className="em-modal-body">
               <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:16}}>
                 <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"],["affichage","🔤 Affichage"]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage",string][]).map(([s,l])=>(
-                    <button key={s} onClick={()=>setSettingsSection(s)} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#eef1f8":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8890aa",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
+                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"],["affichage","🔤 Affichage"],["securite","🔑 Sécurité"]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite",string][]).map(([s,l])=>(
+                    <button key={s} onClick={()=>{setSettingsSection(s);setPwdError(null);setPwdSuccess(false);}} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#eef1f8":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8890aa",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                   ))}
                 </div>
                 <div>
@@ -3202,7 +3237,55 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       </label>
                     </div>
                   )}
-                  <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={()=>{setShowSettings(false);setToast("✅ Paramètres sauvegardés !");}}>Sauvegarder</button>
+                  {settingsSection==="securite" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:16}}>🔑 Modifier le mot de passe</div>
+                      {pwdSuccess ? (
+                        <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"14px 16px",fontSize:13,color:"#166534"}}>
+                          ✅ Mot de passe modifié avec succès. Un email de confirmation t&apos;a été envoyé.
+                          <button onClick={()=>setPwdSuccess(false)} style={{display:"block",marginTop:8,fontSize:12,color:"#1e2464",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600,fontFamily:"Outfit,sans-serif"}}>Modifier à nouveau</button>
+                        </div>
+                      ) : (
+                        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                          {pwdError && <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991b1b"}}>⚠️ {pwdError}</div>}
+                          <div>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Mot de passe actuel</label>
+                            <div style={{position:"relative"}}>
+                              <input type={pwdShowCurrent?"text":"password"} value={pwdCurrent} onChange={e=>setPwdCurrent(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
+                              <button type="button" onClick={()=>setPwdShowCurrent(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8890aa",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowCurrent?"Masquer":"Voir"}</button>
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Nouveau mot de passe</label>
+                            <div style={{position:"relative"}}>
+                              <input type={pwdShowNew?"text":"password"} value={pwdNew} onChange={e=>setPwdNew(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
+                              <button type="button" onClick={()=>setPwdShowNew(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8890aa",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowNew?"Masquer":"Voir"}</button>
+                            </div>
+                            {pwdNew.length>0 && (
+                              <ul style={{marginTop:6,padding:0,listStyle:"none",fontSize:11,display:"flex",flexDirection:"column",gap:2}}>
+                                <li style={{color:pwdNew.length>=8?"#166534":"#8890aa"}}>{pwdNew.length>=8?"✓":"○"} 8 caractères minimum</li>
+                                <li style={{color:/[A-Z]/.test(pwdNew)?"#166534":"#8890aa"}}>{/[A-Z]/.test(pwdNew)?"✓":"○"} 1 lettre majuscule</li>
+                                <li style={{color:/\d/.test(pwdNew)?"#166534":"#8890aa"}}>{/\d/.test(pwdNew)?"✓":"○"} 1 chiffre</li>
+                              </ul>
+                            )}
+                          </div>
+                          <div>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Confirmer le nouveau mot de passe</label>
+                            <input type={pwdShowNew?"text":"password"} value={pwdNewConfirm} onChange={e=>setPwdNewConfirm(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${pwdNewConfirm&&pwdNewConfirm!==pwdNew?"#f87171":pwdNewConfirm&&pwdNewConfirm===pwdNew?"#4ade80":"rgba(30,36,100,.2)"}`,fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
+                          </div>
+                          <button
+                            onClick={handleChangePassword}
+                            disabled={pwdLoading||!pwdCurrent||!pwdNew||!pwdNewConfirm||pwdNew!==pwdNewConfirm||pwdNew.length<8||!/[A-Z]/.test(pwdNew)||!/\d/.test(pwdNew)}
+                            className="em-btn em-btn-primary em-btn-sm"
+                            style={{marginTop:4}}
+                          >
+                            {pwdLoading?"Enregistrement…":"Modifier le mot de passe"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {settingsSection!=="securite" && <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={()=>{setShowSettings(false);setToast("✅ Paramètres sauvegardés !");}}>Sauvegarder</button>}
                 </div>
               </div>
             </div>

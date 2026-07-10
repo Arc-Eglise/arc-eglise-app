@@ -293,6 +293,32 @@ const T = {
 <p style="margin:0 0 6px;color:#374151;font-size:14px;">Que Dieu vous bénisse,</p>
 <p style="margin:0;color:#2B3475;font-size:14px;font-weight:bold;">L'équipe ARC</p>`,
 
+  // 06 · Confirmation de modification de mot de passe
+  // Variables : prenom, date_heure
+  password_changed: `
+<h2 style="margin:0 0 20px;color:#2B3475;font-size:22px;font-weight:bold;">
+  Ton mot de passe a été modifié 🔐
+</h2>
+<p style="margin:0 0 12px;color:#374151;font-size:15px;line-height:1.7;">
+  Bonjour <strong>{{prenom}}</strong>,
+</p>
+<p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.7;">
+  Le mot de passe de ton compte ARC Église a été modifié avec succès le <strong>{{date_heure}}</strong>.
+</p>
+<div style="background-color:#fff8e1;border-left:4px solid #C9A227;
+            border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 28px;">
+  <p style="margin:0 0 8px;color:#374151;font-size:14px;font-weight:bold;">
+    ⚠️ Tu n'es pas à l'origine de ce changement ?
+  </p>
+  <p style="margin:0;color:#6B7280;font-size:13px;line-height:1.6;">
+    Si tu n'as pas effectué cette modification, contacte-nous immédiatement à
+    <a href="mailto:contact@arc-eglise.ch" style="color:#2B3475;text-decoration:none;font-weight:bold;">contact@arc-eglise.ch</a>
+    afin que nous sécurisions ton compte.
+  </p>
+</div>
+<p style="margin:0 0 6px;color:#374151;font-size:14px;">Que Dieu vous bénisse,</p>
+<p style="margin:0;color:#2B3475;font-size:14px;font-weight:bold;">L'équipe ARC</p>`,
+
 } as const;
 
 // ── Generic send helper ────────────────────────────────────────────────────
@@ -397,6 +423,21 @@ export async function sendPasswordResetEmail(
     to,
     subject: "Réinitialisation de ton mot de passe ARC Église",
     html:    render("reset", { prenom, lien_reset: lienReset, duree_validite: dureeValidite }),
+  });
+}
+
+// 06 · Confirmation de modification de mot de passe
+export async function sendPasswordChangedEmail(to: string, prenom: string) {
+  const dateHeure = new Date().toLocaleString("fr-CH", {
+    day: "2-digit", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich",
+  });
+  await sendEmail({
+    from:    FROM_NOREPLY,
+    replyTo: REPLY_TO,
+    to,
+    subject: "Ton mot de passe ARC Église a été modifié",
+    html:    render("password_changed", { prenom, date_heure: dateHeure }),
   });
 }
 

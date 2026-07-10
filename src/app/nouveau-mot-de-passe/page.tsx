@@ -142,9 +142,9 @@ export default function NouveauMotDePassePage() {
           <Image src="/images/logo-arc.jpeg" alt="ARC — Ambassade du Royaume de Christ" width={130} height={80} style={{ objectFit: "contain" }} />
         </Link>
 
-        <h1 className="font-serif text-[32px] font-bold text-arc-navy mb-1">Nouveau mot de passe</h1>
+        <h1 className="font-serif text-[32px] font-bold text-arc-navy mb-1">Réinitialiser votre mot de passe</h1>
         <p className="text-sm text-arc-text2 mb-8">
-          Choisis un mot de passe sécurisé pour ton compte ARC.
+          Choisis un nouveau mot de passe sécurisé pour ton compte ARC.
         </p>
 
         {error && (

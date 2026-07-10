@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPasswordChangedEmail } from "@/lib/email";
 
 const BCRYPT_COST    = 12;
 const HISTORY_MONTHS = 3;
@@ -87,6 +88,18 @@ export async function POST(request: NextRequest) {
     await admin
       .from("password_history")
       .insert({ user_id: user.id, password_hash: newHash });
+
+    // ── 6. Email de confirmation (best-effort) ─────────────────────────
+    try {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("prenom")
+        .eq("id", user.id)
+        .single();
+      await sendPasswordChangedEmail(user.email!, profile?.prenom ?? "");
+    } catch (emailErr) {
+      console.error("[reset-password] email confirmation:", emailErr);
+    }
 
     return NextResponse.json({ success: true });
 
