@@ -4,8 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { sendPasswordResetEmail } from "@/lib/email";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://arc-eglise.ch";
+import { SITE_BASE as SITE_URL } from "@/lib/url";
 
 async function requireAdminOrPasteur() {
   const supabase = createClient();
