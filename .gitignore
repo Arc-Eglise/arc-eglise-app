@@ -43,3 +43,5 @@ next-env.d.ts
 4-migrer-storage.js
 ancien-*.dump
 node_modules/
+
+.vercel
