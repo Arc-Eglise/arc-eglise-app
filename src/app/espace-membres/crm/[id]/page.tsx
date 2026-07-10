@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { addMemberNote, deleteMemberNote, updateMemberValidation } from "@/lib/actions/membres";
+import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import CrmTagsEditor from "../CrmTagsEditor";
 
 const ROLE_STYLE: Record<string, string> = {
@@ -29,6 +31,10 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (!["admin", "pasteur"].includes(me?.role ?? "")) redirect("/espace-membres");
 
+  const callerIsAdmin = me?.role === "admin";
+
+  const admin = createAdminClient();
+
   const { data: member } = await supabase
     .from("profiles")
     .select("id, first_name, last_name, role, validated, groups, avatar_url, country, crm_tags, created_at, email")
@@ -37,8 +43,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
   if (!member) notFound();
 
-  // Fetch notes, attendance, prayer stats in parallel
-  const [notesRes, attendRes, prayerRes, rsvpRes] = await Promise.all([
+  // Fetch notes, attendance, prayer stats + ban status in parallel
+  const [notesRes, attendRes, prayerRes, rsvpRes, authData] = await Promise.all([
     supabase.from("member_notes")
       .select("id, content, type, created_at, profiles!member_notes_author_id_fkey(first_name, last_name)")
       .eq("member_id", params.id)
@@ -56,7 +62,12 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     supabase.from("event_rsvp")
       .select("event_id, status")
       .eq("user_id", params.id),
+    admin.auth.admin.getUserById(params.id),
   ]);
+
+  const isBanned = authData?.data?.user?.banned_until
+    ? new Date(authData.data.user.banned_until) > new Date()
+    : false;
 
   const notes    = notesRes.data ?? [];
   const attends  = attendRes.data ?? [];
@@ -112,6 +123,11 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${member.validated ? "text-green-700 bg-green-50 border-green-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
                     {member.validated ? "Validé" : "En attente"}
                   </span>
+                  {isBanned && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-gray-100 text-gray-500 border-gray-200">
+                      🚫 Bloqué
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -120,7 +136,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               {member.country && <div><span className="text-arc-text3 text-xs">Pays</span><div className="font-medium text-arc-navy">{member.country}</div></div>}
               <div><span className="text-arc-text3 text-xs">Inscrit le</span><div className="font-medium text-arc-navy">{new Date(member.created_at).toLocaleDateString("fr-CH")}</div></div>
               <div><span className="text-arc-text3 text-xs">Présences</span><div className="font-medium text-arc-navy">{attends.length}</div></div>
-              <div><span className="text-arc-text3 text-xs">RSVP "J&apos;y vais"</span><div className="font-medium text-arc-navy">{rsvpGoing}</div></div>
+              <div><span className="text-arc-text3 text-xs">RSVP &quot;J&apos;y vais&quot;</span><div className="font-medium text-arc-navy">{rsvpGoing}</div></div>
             </div>
 
             {/* Actions validation */}
@@ -142,6 +158,15 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               )}
             </div>
           </div>
+
+          {/* Actions administratives (reset mdp, blocage, suppression) */}
+          <DangerActionsPanel
+            memberId={params.id}
+            memberName={fullName}
+            isBanned={isBanned}
+            isAdmin={callerIsAdmin}
+            backHref="/espace-membres/crm"
+          />
 
           {/* Tags CRM */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
