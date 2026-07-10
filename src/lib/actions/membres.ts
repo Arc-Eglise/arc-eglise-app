@@ -545,9 +545,13 @@ export async function updateMemberValidation(memberId: string, validated: boolea
     .eq("id", memberId)
     .single();
 
-  const { error } = await admin.from("profiles")
-    .update({ validated, validated_by: user.id, validated_at: validated ? new Date().toISOString() : null })
-    .eq("id", memberId);
+  const updatePayload: Record<string, unknown> = {
+    validated,
+    validated_by: user.id,
+    validated_at: validated ? new Date().toISOString() : null,
+  };
+  if (validated) updatePayload.role = "membre";
+  const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
   // Email de bienvenue quand on passe de non-validé → validé

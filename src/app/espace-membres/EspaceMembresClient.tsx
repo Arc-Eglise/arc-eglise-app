@@ -6,7 +6,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
@@ -362,6 +362,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [mSearch, setMSearch]     = useState("");
   const [mLoading, setMLoading]   = useState(false);
   const [adminTab, setAdminTab]   = useState<ATab>("membres");
+  const [expandedMember, setExpandedMember] = useState<string|null>(null);
 
   /* Messagerie */
   const [msgChan, setMsgChan]     = useState("général");
@@ -2196,7 +2197,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     ? <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa"}}>Chargement…</div>
                     : (
                       <table className="em-tbl">
-                        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Groupes</th><th>Statut</th><th>Date</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Groupes</th><th>Statut</th><th>Date</th><th></th></tr></thead>
                         <tbody>
                           {members.filter(m=>mSearch
                             ? `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(mSearch.toLowerCase())
@@ -2213,10 +2214,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                                   : <span className="em-tag em-tag-orange">En attente</span>}
                               </td>
                               <td style={{color:"#8890aa",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
+                              <td><a href={`/admin/crm/${m.id}`} className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",fontSize:11,whiteSpace:"nowrap"}}>Gérer →</a></td>
                             </tr>
                           ))}
                           {members.length===0 && !mLoading && (
-                            <tr><td colSpan={6} style={{textAlign:"center",padding:"20px",color:"#8890aa"}}>
+                            <tr><td colSpan={7} style={{textAlign:"center",padding:"20px",color:"#8890aa"}}>
                               Clique sur Actualiser pour charger les membres
                             </td></tr>
                           )}
@@ -2760,36 +2762,65 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               {gdTab==="membres" && (
                 <div>
                   <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des membres &amp; rôles</div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Recherchez un membre pour modifier son rôle, ses droits, ou révoquer son accès.</div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Rôle, fonctions et accès — cliquez sur 📋 pour modifier les fonctions d&apos;un membre.</div>
                   <input className="em-input" style={{marginBottom:14,width:"100%",maxWidth:360}} placeholder="🔍 Rechercher un membre…" value={mSearch} onChange={e=>setMSearch(e.target.value)} />
                   <div style={{display:"flex",flexDirection:"column",gap:1}}>
                     {members.filter(m=>mSearch ? `${m.first_name??""} ${m.last_name??""} ${m.email}`.toLowerCase().includes(mSearch.toLowerCase()) : true).slice(0,20).map(m => {
                       const name = [m.first_name,m.last_name].filter(Boolean).join(" ")||m.email;
                       const initL = (m.first_name?.[0]??m.email[0]).toUpperCase();
+                      const isExpanded = expandedMember === m.id;
+                      const FUNC_GROUPS = ["pasteur","media","chorale","jeunesse","femmes","social","sanitaire","finance","ecodim","suivi","communication","support"];
                       return (
-                        <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.06)",borderRadius:8}}>
-                          <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#4a54b0)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
-                            <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}</div>
+                        <div key={m.id} style={{borderBottom:"1px solid rgba(30,36,100,.06)",borderRadius:8,overflow:"hidden"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px"}}>
+                            <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#4a54b0)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
+                              <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}{(m.groups??[]).length>0?` · ${(m.groups??[]).join(", ")}`:""}</div>
+                            </div>
+                            <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:110}} defaultValue={m.role} onChange={async e=>{
+                              const newRole = e.target.value;
+                              const res = await setMemberRoleAction(m.id, newRole);
+                              if (res?.error) { setToast(`❌ ${res.error}`); }
+                              else { setToast(`✅ Rôle de ${name} → ${newRole}`); await loadMembers(); }
+                            }}>
+                              <option value="visiteur">Visiteur</option>
+                              <option value="membre">Membre</option>
+                              <option value="pasteur">Pasteur</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button className="em-btn em-btn-sm em-btn-outline" style={{fontSize:11,padding:"4px 8px"}} title="Gérer les fonctions" onClick={()=>setExpandedMember(isExpanded?null:m.id)}>
+                              {isExpanded?"▲":"📋"}
+                            </button>
+                            <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={async()=>{
+                              if(!confirm(`⚠️ Bloquer l'accès de ${name} ?`)) return;
+                              const res = await blockMember(m.id);
+                              if (res?.error) { setToast(`❌ ${res.error}`); }
+                              else { setToast(`🚫 ${name} bloqué.`); await loadMembers(); }
+                            }}>🚫</button>
                           </div>
-                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={async e=>{
-                            const newRole = e.target.value;
-                            const res = await setMemberRoleAction(m.id, newRole);
-                            if (res?.error) { setToast(`❌ ${res.error}`); }
-                            else { setToast(`✅ Rôle de ${name} → ${newRole}`); await loadMembers(); }
-                          }}>
-                            <option value="visiteur">Visiteur</option>
-                            <option value="membre">Membre</option>
-                            <option value="pasteur">Pasteur</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={async()=>{
-                            if(!confirm(`⚠️ Bloquer l'accès de ${name} ?`)) return;
-                            const res = await blockMember(m.id);
-                            if (res?.error) { setToast(`❌ ${res.error}`); }
-                            else { setToast(`🚫 ${name} bloqué.`); await loadMembers(); }
-                          }}>🚫</button>
+                          {isExpanded && (
+                            <div style={{padding:"8px 58px 14px",background:"rgba(30,36,100,.03)",borderTop:"1px solid rgba(30,36,100,.06)"}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Fonctions attribuées</div>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                                {FUNC_GROUPS.map(g=>{
+                                  const checked = (m.groups??[]).includes(g);
+                                  return (
+                                    <label key={g} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,cursor:"pointer",padding:"4px 8px",borderRadius:6,background:checked?"rgba(30,36,100,.08)":"transparent",border:"1px solid",borderColor:checked?"rgba(30,36,100,.2)":"rgba(30,36,100,.08)",transition:"all .15s"}}>
+                                      <input type="checkbox" checked={checked} style={{accentColor:"#1e2464"}} onChange={async()=>{
+                                        const cur = m.groups??[];
+                                        const next = checked ? cur.filter(x=>x!==g) : [...cur, g];
+                                        const res = await updateMemberGroups(m.id, next);
+                                        if (res?.error) setToast(`❌ ${res.error}`);
+                                        else { setToast(`✅ Fonctions de ${name} mises à jour`); await loadMembers(); }
+                                      }} />
+                                      <span style={{color:checked?"#1e2464":"#8890aa",fontWeight:checked?600:400,textTransform:"capitalize"}}>{g}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
