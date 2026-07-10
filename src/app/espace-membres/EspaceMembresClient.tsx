@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
+import { submitDoleance } from "@/lib/actions/doleances";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -310,13 +311,15 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
   const [mpCard, setMpCard]   = useState(0);
   const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
-  const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible">("notifs");
+  const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible"|"affichage">("notifs");
   const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
+  const [textSz, setTextSz] = useState(1.0);
   const [noteRef, setNoteRef]     = useState("Jean 3:16");
   const [noteContent, setNoteContent] = useState("");
   const [doleanceType, setDoleanceType] = useState("bug");
   const [doleanceText, setDoleanceText] = useState("");
   const [doleanceAnon, setDoleanceAnon] = useState(false);
+  const [doleanceSending, setDoleanceSending] = useState(false);
   const [invitePrenom, setInvitePrenom] = useState("");
   const [inviteNom, setInviteNom]       = useState("");
   const [inviteEmail, setInviteEmail]   = useState("");
@@ -1169,6 +1172,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Conv header */}
                   <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                    <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8890aa",padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>← Retour</button>
                     <button className="mob-only" style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
                     {MSG_CHANNELS.flatMap(s=>s.items).some(i=>i.id===msgChan)
                       ? <span style={{fontWeight:700,fontSize:15,color:"#8890aa"}}>#</span>
@@ -1196,7 +1200,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
-                    <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
+                    <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)} style={textSz !== 1 ? {zoom: textSz} : undefined}>
                       {messages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
@@ -1591,7 +1595,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {/* ── PRIÈRE & BIBLE ──────────────────────────────── */}
           <div className={`em-panel${panel==="priere"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div><div className="em-sect-title">Prière & Bible</div><div className="em-sect-sub">Lecture, étude, prières communautaires</div></div>
+              <div>
+                <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8890aa",padding:"0 0 6px",display:"block"}}>← Retour</button>
+                <div className="em-sect-title">Prière & Bible</div>
+                <div className="em-sect-sub">Lecture, étude, prières communautaires</div>
+              </div>
             </div>
             <div className="em-tabs">
               {([
@@ -1602,6 +1610,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <button key={t} className={`em-tab${bTab===t?" active":""}`} onClick={() => setBTab(t)}>{l}</button>
               ))}
             </div>
+
+            {/* Contenu — zoom contrôlé par le paramètre Affichage */}
+            <div style={textSz !== 1 ? {zoom: textSz} : undefined}>
 
             {/* Verset du jour */}
             {bTab==="verset" && (
@@ -1914,6 +1925,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 })}
               </div>
             )}
+
+            </div>{/* fin zoom prière */}
           </div>
 
           {/* ── CONTACTS ────────────────────────────────────── */}
@@ -2986,7 +2999,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <input type="checkbox" checked={doleanceAnon} onChange={e=>setDoleanceAnon(e.target.checked)} />
                 Signalement anonyme
               </label>
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Un responsable vous répondra prochainement.");}}>Envoyer</button>
+              <button
+                className="em-btn em-btn-primary"
+                style={{width:"100%",opacity:doleanceSending?.5:1}}
+                disabled={doleanceSending}
+                onClick={async()=>{
+                  if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}
+                  setDoleanceSending(true);
+                  const result = await submitDoleance(doleanceType,doleanceText,doleanceAnon);
+                  setDoleanceSending(false);
+                  if(result.error){setToast(`❌ Erreur: ${result.error}`);return;}
+                  setDoleanceText("");
+                  setShowDoleance(false);
+                  setToast("✅ Doléance transmise — Un responsable vous répondra prochainement.");
+                }}
+              >{doleanceSending?"Envoi en cours…":"Envoyer"}</button>
             </div>
           </div>
         </div>
@@ -3003,7 +3030,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             <div className="em-modal-body">
               <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:16}}>
                 <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"]] as ["notifs"|"privacy"|"langue"|"bible",string][]).map(([s,l])=>(
+                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"],["affichage","🔤 Affichage"]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage",string][]).map(([s,l])=>(
                     <button key={s} onClick={()=>setSettingsSection(s)} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#eef1f8":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8890aa",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                   ))}
                 </div>
@@ -3045,6 +3072,33 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                         <option value="fr-FR">DD/MM/YYYY (France)</option>
                         <option value="en-US">MM/DD/YYYY (USA)</option>
                       </select>
+                    </div>
+                  )}
+                  {settingsSection==="affichage" && (
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔤 Taille du texte</div>
+                      <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>S&apos;applique à Prière &amp; Bible et Messagerie</div>
+                      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+                        <span style={{fontSize:11,color:"#8890aa"}}>A</span>
+                        <input
+                          type="range" min={0.8} max={1.4} step={0.1}
+                          value={textSz}
+                          onChange={e=>setTextSz(parseFloat(e.target.value))}
+                          style={{flex:1,accentColor:"#1e2464"}}
+                        />
+                        <span style={{fontSize:15,color:"#8890aa"}}>A</span>
+                      </div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {([0.85,1.0,1.1,1.2,1.4] as number[]).map(v=>(
+                          <button key={v} onClick={()=>setTextSz(v)}
+                            style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${textSz===v?"#1e2464":"rgba(30,36,100,.15)"}`,background:textSz===v?"#1e2464":"transparent",color:textSz===v?"#fff":"#1e2464",fontSize:12,cursor:"pointer",fontFamily:"Outfit,sans-serif",fontWeight:600}}>
+                            {v===0.85?"Petit":v===1.0?"Normal":v===1.1?"Moyen":v===1.2?"Grand":"Très grand"}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,fontSize:textSz*13,lineHeight:1.6,color:"#4a5070"}}>
+                        Aperçu — &ldquo;Car Dieu a tant aimé le monde qu&apos;il a donné son Fils unique.&rdquo; Jean 3:16
+                      </div>
                     </div>
                   )}
                   {settingsSection==="bible" && (
