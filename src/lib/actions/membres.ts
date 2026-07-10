@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import {
+  sendWelcomeMemberEmail,
+  sendRoleUpdateEmail,
+  sendGroupUpdateEmail,
+  sendInvitationEmail,
+} from "@/lib/email";
 
 export async function updateProfile(formData: FormData) {
   const supabase = createClient();
@@ -410,14 +416,28 @@ export async function updateMemberRole(memberId: string, newRole: string) {
     me?.role === "pasteur" ||
     (me?.groups as string[] | null)?.includes("support");
   if (!callerIsPrivileged) return { error: "Non autorisé" };
-  // Seul l'admin peut promouvoir au rôle admin
   if (newRole === "admin" && !callerIsAdmin) return { error: "Seul l'admin peut attribuer le rôle admin" };
 
   const admin = createAdminClient();
+
+  // Récupérer le profil cible pour l'email
+  const { data: target } = await admin
+    .from("profiles")
+    .select("email, first_name")
+    .eq("id", memberId)
+    .single();
+
   const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", memberId);
   if (error) return { error: error.message };
 
-  // Log dans activity_feed (best-effort, table may not exist yet)
+  // Notification email (best-effort)
+  if (target?.email) {
+    try {
+      await sendRoleUpdateEmail(target.email, target.first_name ?? "", newRole);
+    } catch { /* ne pas bloquer si l'envoi échoue */ }
+  }
+
+  // Log dans activity_feed (best-effort)
   try {
     await admin.from("activity_feed").insert({
       icon: "👤", text: `Rôle modifié → ${newRole}`,
@@ -482,9 +502,80 @@ export async function updateMemberValidation(memberId: string, validated: boolea
   const user = await assertAdmin(supabase);
   if (!user) return { error: "Non autorisé" };
 
-  const { error } = await admin.from("profiles").update({ validated }).eq("id", memberId);
+  // Récupérer le profil avant modification (pour l'email)
+  const { data: target } = await admin
+    .from("profiles")
+    .select("email, first_name, validated")
+    .eq("id", memberId)
+    .single();
+
+  const { error } = await admin.from("profiles")
+    .update({ validated, validated_by: user.id, validated_at: validated ? new Date().toISOString() : null })
+    .eq("id", memberId);
   if (error) return { error: error.message };
+
+  // Email de bienvenue quand on passe de non-validé → validé
+  if (validated && !target?.validated && target?.email) {
+    try {
+      await sendWelcomeMemberEmail(target.email, target.first_name ?? "");
+    } catch { /* ne pas bloquer si l'envoi échoue */ }
+  }
+
   revalidatePath("/espace-membres/crm");
   revalidatePath(`/espace-membres/crm/${memberId}`);
+  revalidatePath("/admin/membres");
+  return { success: true };
+}
+
+export async function updateMemberGroups(memberId: string, groups: string[]) {
+  const admin = createAdminClient();
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("email, first_name")
+    .eq("id", memberId)
+    .single();
+
+  const { error } = await admin.from("profiles").update({ groups }).eq("id", memberId);
+  if (error) return { error: error.message };
+
+  // Notification email (best-effort)
+  if (target?.email) {
+    try {
+      await sendGroupUpdateEmail(target.email, target.first_name ?? "", groups);
+    } catch { /* ne pas bloquer si l'envoi échoue */ }
+  }
+
+  revalidatePath("/espace-membres/crm");
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  return { success: true };
+}
+
+export async function inviteMember(email: string, firstName: string, lastName: string) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email: email.trim(),
+    options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
+  });
+
+  if (error) return { error: error.message };
+
+  const inviteLink = (data.properties as { action_link?: string } | null)?.action_link;
+  if (!inviteLink) return { error: "Lien d'invitation non généré" };
+
+  try {
+    await sendInvitationEmail(email.trim(), firstName.trim(), inviteLink);
+  } catch (e) {
+    return { error: `Lien généré mais email non envoyé : ${(e as Error).message}` };
+  }
+
   return { success: true };
 }

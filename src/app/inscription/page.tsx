@@ -20,9 +20,11 @@ export default function InscriptionPage() {
     password:   "",
     confirm:    "",
   });
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [showPwd, setShowPwd] = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [showPwd,       setShowPwd]       = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendDone,    setResendDone]    = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -193,6 +195,23 @@ export default function InscriptionPage() {
               >
                 Se connecter →
               </Link>
+              <button
+                onClick={async () => {
+                  setResendLoading(true);
+                  setResendDone(false);
+                  const { error: resendErr } = await supabase.auth.resend({
+                    type: "signup",
+                    email: form.email,
+                    options: { emailRedirectTo: `${location.origin}/auth/callback` },
+                  });
+                  setResendLoading(false);
+                  if (!resendErr) setResendDone(true);
+                }}
+                disabled={resendLoading || resendDone}
+                className="w-full py-3.5 rounded-xl border-[1.5px] border-arc-border text-arc-text2 text-sm font-bold hover:bg-arc-bg transition-colors disabled:opacity-60"
+              >
+                {resendDone ? "✅ Email renvoyé !" : resendLoading ? "Envoi…" : "Renvoyer l'email de confirmation"}
+              </button>
               <Link
                 href="/"
                 className="w-full py-3.5 rounded-xl border-[1.5px] border-arc-border text-arc-text2 text-sm font-bold hover:bg-arc-bg transition-colors text-center"
