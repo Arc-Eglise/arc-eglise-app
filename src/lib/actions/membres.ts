@@ -5,10 +5,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import {
   sendWelcomeMemberEmail,
-  sendRoleUpdateEmail,
-  sendGroupUpdateEmail,
+  sendProfileUpdateEmail,
   sendInvitationEmail,
 } from "@/lib/email";
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Administrateur",
+  pasteur: "Pasteur",
+  membre: "Membre",
+  visiteur: "Visiteur",
+};
+
+const GROUP_LABELS: Record<string, string> = {
+  pasteur:       "Pasteur",
+  media:         "Équipe Média",
+  chorale:       "Chorale",
+  jeunesse:      "La Jeunesse",
+  femmes:        "Groupe des Femmes",
+  social:        "Social & Hospitalité",
+  sanitaire:     "Sanitaire & Propreté",
+  ecodim:        "Écodim",
+  suivi:         "Suivi d'âmes",
+  communication: "Communication",
+  support:       "Support",
+  finance:       "Finance",
+};
 
 export async function updateProfile(formData: FormData) {
   const supabase = createClient();
@@ -432,8 +453,10 @@ export async function updateMemberRole(memberId: string, newRole: string) {
 
   // Notification email (best-effort)
   if (target?.email) {
+    const roleLabel = ROLE_LABELS[newRole] ?? newRole;
+    const message = `Ton rôle dans la communauté ARC a été mis à jour. Tu es maintenant : <strong>${roleLabel}</strong>.`;
     try {
-      await sendRoleUpdateEmail(target.email, target.first_name ?? "", newRole);
+      await sendProfileUpdateEmail(target.email, target.first_name ?? "", message);
     } catch { /* ne pas bloquer si l'envoi échoue */ }
   }
 
@@ -544,8 +567,14 @@ export async function updateMemberGroups(memberId: string, groups: string[]) {
 
   // Notification email (best-effort)
   if (target?.email) {
+    const groupNames = groups
+      .map((g) => GROUP_LABELS[g] ?? g)
+      .join(", ");
+    const message = groups.length > 0
+      ? `Tes fonctions dans la communauté ARC ont été mises à jour : <strong>${groupNames}</strong>.`
+      : "Tes fonctions dans la communauté ARC ont été mises à jour. Aucune fonction n'est attribuée pour le moment.";
     try {
-      await sendGroupUpdateEmail(target.email, target.first_name ?? "", groups);
+      await sendProfileUpdateEmail(target.email, target.first_name ?? "", message);
     } catch { /* ne pas bloquer si l'envoi échoue */ }
   }
 

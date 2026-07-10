@@ -3,29 +3,30 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
 
 export default function MotDePasseOubliePage() {
-  const supabase = createClient();
   const [email,   setEmail]   = useState("");
   const [loading, setLoading] = useState(false);
   const [sent,    setSent]    = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${location.origin}/auth/callback?next=/nouveau-mot-de-passe`,
-    });
-
-    if (error) {
-      setError("Une erreur est survenue. Vérifie l'adresse email.");
-    } else {
-      setSent(true);
+    try {
+      // Appel à notre API custom qui envoie via Resend (template brandé ARC)
+      await fetch("/api/auth/forgot-password", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email }),
+      });
+    } catch {
+      // Absorber l'erreur réseau — on affiche toujours le message de succès
+      // pour ne pas révéler si l'adresse existe (anti-énumération)
     }
+
+    // Toujours afficher le message envoyé, quelle que soit l'issue
+    setSent(true);
     setLoading(false);
   };
 
@@ -34,16 +35,25 @@ export default function MotDePasseOubliePage() {
       <div className="w-full max-w-[420px]">
 
         <Link href="/" className="flex mb-10">
-          <Image src="/images/logo-arc.jpeg" alt="ARC — Ambassade du Royaume de Christ" width={130} height={80} style={{ objectFit: "contain" }} />
+          <Image
+            src="/images/logo-arc.jpeg"
+            alt="ARC — Ambassade du Royaume de Christ"
+            width={130}
+            height={80}
+            style={{ objectFit: "contain" }}
+          />
         </Link>
 
         {sent ? (
           <div className="text-center">
             <div className="text-5xl mb-4">📧</div>
-            <h1 className="font-serif text-3xl font-bold text-arc-navy mb-3">Email envoyé !</h1>
+            <h1 className="font-serif text-3xl font-bold text-arc-navy mb-3">
+              Email envoyé !
+            </h1>
             <p className="text-sm text-arc-text2 mb-6">
-              Un lien de réinitialisation a été envoyé à <strong>{email}</strong>.
-              Le lien est valable 15 minutes.
+              Si un compte est associé à <strong>{email}</strong>, un lien de
+              réinitialisation vient d'être envoyé. Le lien est valable{" "}
+              <strong>1 heure</strong> et ne peut être utilisé qu'une seule fois.
             </p>
             <Link
               href="/connexion"
@@ -54,16 +64,12 @@ export default function MotDePasseOubliePage() {
           </div>
         ) : (
           <>
-            <h1 className="font-serif text-[32px] font-bold text-arc-navy mb-1">Mot de passe oublié ?</h1>
+            <h1 className="font-serif text-[32px] font-bold text-arc-navy mb-1">
+              Mot de passe oublié ?
+            </h1>
             <p className="text-sm text-arc-text2 mb-8">
               Saisis ton email et nous t'enverrons un lien de réinitialisation.
             </p>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 text-sm text-arc-red">
-                ⚠️ {error}
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
@@ -90,7 +96,10 @@ export default function MotDePasseOubliePage() {
             </form>
 
             <p className="text-center text-sm text-arc-text2 mt-6">
-              <Link href="/connexion" className="text-arc-navy font-bold hover:text-arc-blue transition-colors">
+              <Link
+                href="/connexion"
+                className="text-arc-navy font-bold hover:text-arc-blue transition-colors"
+              >
                 ← Retour à la connexion
               </Link>
             </p>
