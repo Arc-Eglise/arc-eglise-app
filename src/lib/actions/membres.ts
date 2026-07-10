@@ -262,6 +262,19 @@ export async function createGrievance(formData: FormData) {
   });
 
   if (error) return { error: error.message };
+
+  // Notifier contact@arc-eglise.ch via Graph API (silencieux si non configuré)
+  if (process.env.GRAPH_TENANT_ID && process.env.GRAPH_CLIENT_ID && process.env.GRAPH_CLIENT_SECRET) {
+    import("@/lib/mail/graph-client").then(({ sendMail }) =>
+      sendMail({
+        from: "contact@arc-eglise.ch",
+        to:   "contact@arc-eglise.ch",
+        subject: `[Doléance] ${title}`,
+        body:    `Catégorie : ${category}\n\n${description}\n\n— ${is_anonymous ? "Anonyme" : `Membre (ID: ${user.id})`}`,
+      })
+    ).catch(() => {});
+  }
+
   revalidatePath("/espace-membres/doleances");
   return { success: true };
 }

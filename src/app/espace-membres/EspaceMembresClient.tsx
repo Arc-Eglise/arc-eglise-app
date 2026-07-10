@@ -12,12 +12,14 @@ import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
-  UserCheck, Settings, BarChart3,
+  UserCheck, Settings, BarChart3, Mail,
   type LucideIcon,
 } from "lucide-react";
+import MailPanel from "@/components/mail/MailPanel";
+import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin";
+type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
 type BTab   = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
 type ATab   = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
 type MsgTab = "msgs"|"files"|"pins"|"tasks";
@@ -270,7 +272,7 @@ const MP_GRADIENTS = [
 ];
 
 /* ─── Component ──────────────────────────────────────────────────── */
-const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin"];
+const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin","mail"];
 
 export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events }: EMClientProps) {
   const supabase = createClient();
@@ -810,6 +812,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings },
       ] : []),
     ]},
+    ...((canAdmin || (profile?.groups ?? []).length > 0) ? [{
+      section:"Messagerie",
+      items:[{ id:"mail", lbl:"Boîtes Mail", ico:"📬", Icon:Mail }],
+    }] : []),
   ];
 
   /* ════════════════════════════════════════════════════════════════
@@ -2358,6 +2364,15 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── MESSAGERIE INTERNE (boîtes M365) ────────────────── */}
+          {(canAdmin || (profile?.groups ?? []).length > 0) && (
+            <div className={`em-panel${panel==="mail"?" active":""}`}>
+              <MailPanel
+                authorizedMailboxes={getAuthorizedMailboxes(role, profile?.groups ?? [])}
+              />
             </div>
           )}
 
