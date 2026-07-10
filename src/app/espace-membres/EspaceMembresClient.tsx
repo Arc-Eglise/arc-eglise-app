@@ -137,11 +137,7 @@ const THEO_CATS = [
      content:"Le XIXe siècle voit un réveil missionnaire sans précédent. William Carey (1761-1834), père de la mission moderne, part en Inde en 1793 et traduit la Bible en bengali et 34 autres langues. Hudson Taylor (1832-1905) fonde la China Inland Mission (1865) et impose l'inculturation missionnaire comme principe clé. David Livingstone (1813-1873) explore l'Afrique et combat l'esclavage. Des missionnaires européens et américains implantent des Églises en Afrique, en Asie et en Amérique Latine. Aujourd'hui, les Églises du Sud global — notamment en Afrique subsaharienne et en Amérique Latine — sont les plus dynamiques et les plus nombreuses au monde, héritières directes de cet élan missionnaire."},
   ]},
 ];
-const ONLINE_MEMBERS = [
-  {name:"Jaise Buka",role:"admin",color:"#1e2464"},{name:"Pedro Obova",role:"pasteur",color:"#276749"},
-  {name:"Marie Kalinda",role:"membre",color:"#9d174d"},{name:"Samuel Nkosi",role:"membre",color:"#1e40af"},
-  {name:"Grace Mbeki",role:"membre",color:"#3730a3"},{name:"David Lumbala",role:"membre",color:"#065f46"},
-];
+const ONLINE_MEMBERS: {name:string;role:string;color:string}[] = [];
 const ACTIVITIES: {icon:string;text:string;time:string}[] = [];
 const DONS_RECENTS: {name:string;amount:string;method:string;date:string}[] = [];
 // Compteurs réels chargés depuis Supabase (profiles.groups[], role='membre')
@@ -1000,13 +996,13 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             </div>
 
             {/* Bannière visiteur non validé */}
-            {role === "visiteur" && !profile?.validated && (
+            {profile !== null && role === "visiteur" && !profile?.validated && (
               <div style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)",border:"1.5px solid #f59e0b",borderRadius:14,padding:"16px 20px",marginBottom:18,display:"flex",gap:14,alignItems:"flex-start"}}>
                 <div style={{fontSize:28,flexShrink:0}}>⏳</div>
                 <div>
                   <div style={{fontWeight:700,fontSize:14,color:"#92400e",marginBottom:4}}>Compte en attente de validation</div>
                   <div style={{fontSize:13,color:"#78350f",lineHeight:1.5}}>
-                    Ton inscription a bien été reçue. Le Pasteur Pedro Obova va valider ton compte sous <strong>24–48h</strong>. Tu recevras un email de confirmation dès que ton accès sera activé.
+                    Ton inscription a bien été reçue. Un responsable validera ton compte prochainement. Tu recevras un email de confirmation dès que ton accès sera activé.
                   </div>
                   <div style={{fontSize:11,color:"#a16207",marginTop:8}}>
                     En attendant, tu peux consulter les sermons et les événements.
@@ -2990,7 +2986,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <input type="checkbox" checked={doleanceAnon} onChange={e=>setDoleanceAnon(e.target.checked)} />
                 Signalement anonyme
               </label>
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Vous recevrez une réponse sous 48h.");}}>Envoyer</button>
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!doleanceText.trim()){setToast("⚠️ Veuillez décrire votre doléance");return;}setDoleanceText("");setShowDoleance(false);setToast("✅ Doléance transmise — Un responsable vous répondra prochainement.");}}>Envoyer</button>
             </div>
           </div>
         </div>

@@ -161,7 +161,7 @@ export default function InscriptionPage() {
                 { icon: "1️⃣", text: "Ouvre l'email envoyé par ARC" },
                 { icon: "2️⃣", text: "Clique sur « Confirmer mon adresse »" },
                 { icon: "3️⃣", text: "Tu seras redirigé vers ton espace membres" },
-                { icon: "4️⃣", text: "Le Pasteur validera ton compte sous 24–48h" },
+                { icon: "4️⃣", text: "Un responsable validera ton compte dès que possible." },
               ].map((s, i) => (
                 <div key={i} className="flex items-start gap-2.5 mb-2 last:mb-0">
                   <span className="text-sm">{s.icon}</span>
@@ -329,7 +329,7 @@ export default function InscriptionPage() {
                 {form.country && <div>🌍 {form.country}</div>}
                 <div>✉️ {form.email}</div>
                 <div className="mt-2 text-[11px] text-arc-text3">
-                  Ton compte sera créé en tant que <strong>Visiteur</strong>. Le Pasteur Pedro Obova devra valider ton accès à l&apos;espace membres.
+                  Ton compte sera créé en tant que <strong>Visiteur</strong>. Un responsable devra valider ton accès à l&apos;espace membres.
                 </div>
               </div>
 
