@@ -1230,7 +1230,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
-                    <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)} style={textSz !== 1 ? {zoom: textSz} : undefined}>
+                    <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
                       {messages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
@@ -1641,8 +1641,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               ))}
             </div>
 
-            {/* Contenu — zoom contrôlé par le paramètre Affichage */}
-            <div style={textSz !== 1 ? {zoom: textSz} : undefined}>
+            {/* Contenu — taille contrôlée via --rp-size (ReadingPrefsContext) */}
+            <div className="em-reading-zone">
 
             {/* Verset du jour */}
             {bTab==="verset" && (
@@ -1870,7 +1870,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <div key={p.id} className="em-prayer">
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:8}}>
                           <div>
-                            <div style={{fontWeight:600,fontSize:13.5,color:"#1a1d3a"}}>{p.title}</div>
+                            <div className="em-reading-text" style={{fontWeight:600,color:"#1a1d3a"}}>{p.title}</div>
                             <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{author} · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
                           </div>
                           <div style={{display:"flex",gap:6,flexShrink:0}}>
@@ -1882,7 +1882,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             )}
                           </div>
                         </div>
-                        {p.description && <p style={{fontSize:13,color:"#4a5070",lineHeight:1.6}}>{p.description}</p>}
+                        {p.description && <p className="em-reading-text" style={{color:"#4a5070",marginBottom:0}}>{p.description}</p>}
                       </div>
                     );
                   })
@@ -1892,7 +1892,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",color:"#2f855a",letterSpacing:".08em",marginBottom:10}}>✅ Prières exaucées ({prayers.filter(p=>p.is_answered).length})</div>
                     {prayers.filter(p=>p.is_answered).map(p => (
                       <div key={p.id} style={{background:"#f0fff4",border:"1px solid #9ae6b4",borderRadius:10,padding:"10px 14px",marginBottom:8,opacity:.8}}>
-                        <div style={{fontSize:13,fontWeight:600,color:"#276749"}}>{p.title}</div>
+                        <div className="em-reading-text" style={{fontWeight:600,color:"#276749"}}>{p.title}</div>
                         <div style={{fontSize:11,color:"#68d391"}}>{p.prayer_count} personne(s) ont prié</div>
                       </div>
                     ))}

@@ -347,15 +347,15 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               </div>
 
               {/* Corps */}
-              <div style={{flex:1,overflowY:"auto",padding:"18px"}}>
+              <div className="em-reading-zone" style={{flex:1,overflowY:"auto",padding:"18px"}}>
                 {detLoading && <div style={{color:blue,fontSize:13}}>Chargement du message…</div>}
                 {!detLoading && detail?.body && (
                   detail.body.contentType === "HTML"
-                    ? <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.body.content) }} style={{fontSize:13,lineHeight:1.65,color:"#2d3748",maxWidth:680}} />
-                    : <pre style={{fontFamily:"inherit",fontSize:13,whiteSpace:"pre-wrap",color:"#2d3748",lineHeight:1.65}}>{detail.body.content}</pre>
+                    ? <div className="em-reading-text" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.body.content) }} style={{lineHeight:1.65,color:"#2d3748",maxWidth:680}} />
+                    : <pre className="em-reading-text" style={{fontFamily:"inherit",whiteSpace:"pre-wrap",color:"#2d3748"}}>{detail.body.content}</pre>
                 )}
                 {!detLoading && !detail && (
-                  <div style={{color:"#aaa",fontSize:13}}>{selected.bodyPreview}</div>
+                  <div className="em-reading-text" style={{color:"#aaa"}}>{selected.bodyPreview}</div>
                 )}
               </div>
 

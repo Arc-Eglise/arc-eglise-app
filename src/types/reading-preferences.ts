@@ -33,8 +33,10 @@ const FONT_MAP: Record<FontFamily, string> = {
 
 export function buildReadingCSS(p: ReadingPreferences): string {
   const font = FONT_MAP[p.font_family]
+  // Sélecteur html .em-reading-zone (spécificité 0-1-1) > .em-reading-zone de globals.css (0-1-0)
+  // garantit que les vars CSS injectées gagnent sur les valeurs statiques
   const lines: string[] = [
-    `.em-reading-zone {`,
+    `html .em-reading-zone {`,
     `  --rp-size: ${p.font_size_px}px;`,
     `  --rp-lh: ${p.line_height};`,
     `  --rp-font: ${font};`,
@@ -42,15 +44,15 @@ export function buildReadingCSS(p: ReadingPreferences): string {
   ]
   if (p.high_contrast) {
     lines.push(
-      `.em-reading-zone { background: #fff !important; }`,
-      `.em-reading-zone, .em-reading-zone * { color: #000 !important; }`,
-      `.em-reading-zone a { text-decoration: underline !important; }`,
+      `html .em-reading-zone { background: #fff !important; }`,
+      `html .em-reading-zone, html .em-reading-zone * { color: #000 !important; }`,
+      `html .em-reading-zone a { text-decoration: underline !important; }`,
     )
   }
   if (p.low_vision) {
     lines.push(
-      `.em-reading-zone { letter-spacing: 0.025em; word-spacing: 0.06em; }`,
-      `.em-reading-zone a { text-decoration: underline !important; }`,
+      `html .em-reading-zone { letter-spacing: 0.025em; word-spacing: 0.06em; }`,
+      `html .em-reading-zone a { text-decoration: underline !important; }`,
     )
   }
   return lines.join("\n")
