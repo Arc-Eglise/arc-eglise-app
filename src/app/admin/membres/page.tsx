@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient }      from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { redirect }          from "next/navigation";
+import Link                  from "next/link";
 import { validateMember, rejectMember } from "@/lib/actions/cms";
 
 async function handleValidate(formData: FormData): Promise<void> {
@@ -12,31 +15,55 @@ async function handleReject(formData: FormData): Promise<void> {
 }
 
 export default async function AdminMembres() {
+  // Vérifier autorisation : admin | pasteur | fonction support
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/connexion");
 
-  const { data: profiles } = await supabase
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("role, groups")
+    .eq("id", user.id)
+    .single();
+
+  const canAccess =
+    myProfile?.role === "admin" ||
+    myProfile?.role === "pasteur" ||
+    (myProfile?.groups as string[] | null)?.includes("support");
+
+  if (!canAccess) redirect("/espace-membres");
+
+  // Charger tous les profils avec adminClient (bypass RLS)
+  const admin = createAdminClient();
+  const { data: profiles } = await admin
     .from("profiles")
     .select("id, email, first_name, last_name, role, groups, validated, country, created_at")
     .order("created_at", { ascending: false });
 
-  const pending   = profiles?.filter((p) => !p.validated && p.role === "visiteur") ?? [];
-  const membres   = profiles?.filter((p) => p.validated) ?? [];
+  const pending  = profiles?.filter((p) => !p.validated && p.role === "visiteur") ?? [];
+  const membres  = profiles?.filter((p) => p.validated) ?? [];
+  const total    = profiles?.length ?? 0;
 
   type ProfileItem = NonNullable<typeof profiles>[number];
+
   const ProfileRow = ({ p, actions }: { p: ProfileItem; actions?: boolean }) => (
     <div className="px-5 py-4 flex items-center gap-4">
-      <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+      <Link
+        href={`/admin/crm/${p.id}`}
+        className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center text-xs font-bold text-white flex-shrink-0 hover:opacity-80 transition-opacity"
+        title="Voir dans le CRM"
+      >
         {(p.first_name?.[0] ?? p.email[0]).toUpperCase()}
-      </div>
+      </Link>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-arc-navy">
+        <Link href={`/admin/crm/${p.id}`} className="text-sm font-semibold text-arc-navy hover:text-arc-blue transition-colors">
           {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email}
-        </div>
-        <div className="text-[11px] text-arc-text3">{p.email} {p.country ? `· ${p.country}` : ""}</div>
-        {p.groups?.length > 0 && (
+        </Link>
+        <div className="text-[11px] text-arc-text3">{p.email}{p.country ? ` · ${p.country}` : ""}</div>
+        {(p.groups as string[])?.length > 0 && (
           <div className="flex gap-1 mt-1 flex-wrap">
-            {p.groups.map((g: string) => (
-              <span key={g} className="text-[9px] bg-arc-blueBg text-arc-navy px-1.5 py-0.5 rounded font-bold">{g}</span>
+            {(p.groups as string[]).map((g) => (
+              <span key={g} className="text-[9px] bg-arc-blueBg text-arc-navy px-1.5 py-0.5 rounded font-bold capitalize">{g}</span>
             ))}
           </div>
         )}
@@ -59,10 +86,10 @@ export default async function AdminMembres() {
       )}
       {!actions && (
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-          p.role === "admin"    ? "bg-red-100 text-red-700" :
-          p.role === "pasteur" ? "bg-purple-100 text-purple-700" :
-          p.validated           ? "bg-green-100 text-green-700" :
-                                  "bg-amber-100 text-amber-700"
+          p.role === "admin"    ? "bg-red-100 text-red-700"
+          : p.role === "pasteur" ? "bg-purple-100 text-purple-700"
+          : p.validated          ? "bg-green-100 text-green-700"
+          :                        "bg-amber-100 text-amber-700"
         }`}>
           {p.role === "admin" ? "👑 Admin" : p.role === "pasteur" ? "✝️ Pasteur" : p.validated ? "✅ Membre" : "⏳ Visiteur"}
         </span>
@@ -72,9 +99,19 @@ export default async function AdminMembres() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">Gestion des membres</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">{membres.length} membres validés · {pending.length} en attente</p>
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-serif text-3xl font-bold text-arc-navy">Gestion des membres</h1>
+          <p className="text-sm text-arc-text2 mt-0.5">
+            {total} comptes · {membres.length} validés · {pending.length} en attente
+          </p>
+        </div>
+        <Link
+          href="/admin/crm"
+          className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
+        >
+          🗂️ CRM complet →
+        </Link>
       </div>
 
       {/* En attente de validation */}
@@ -97,10 +134,11 @@ export default async function AdminMembres() {
         </div>
       )}
 
-      {/* Tous les membres */}
+      {/* Tous les comptes */}
       <div className="bg-white rounded-2xl border border-arc-border overflow-hidden">
-        <div className="px-5 py-3 border-b border-arc-border">
-          <h2 className="font-bold text-arc-navy">Tous les comptes ({profiles?.length ?? 0})</h2>
+        <div className="px-5 py-3 border-b border-arc-border flex items-center justify-between">
+          <h2 className="font-bold text-arc-navy">Tous les comptes ({total})</h2>
+          <span className="text-[11px] text-arc-text3">Cliquer sur un membre pour gérer son rôle et ses fonctions</span>
         </div>
         <div className="divide-y divide-arc-border">
           {(profiles ?? []).map((p) => <ProfileRow key={p.id} p={p} />)}

@@ -125,8 +125,9 @@ export async function checkInEvent(eventId: string, targetUserId?: string) {
 
   // Si admin checke quelqu'un d'autre, vérifier le rôle
   if (targetUserId && targetUserId !== user.id) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (!["admin", "pasteur"].includes(profile?.role ?? "")) return { error: "Non autorisé" };
+    const { data: profile } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+    const ok = ["admin", "pasteur"].includes(profile?.role ?? "") || (profile?.groups as string[] | null)?.includes("support");
+    if (!ok) return { error: "Non autorisé" };
   }
 
   const { error } = await supabase.from("event_attendance").upsert(
@@ -147,8 +148,9 @@ export async function cancelCheckIn(eventId: string, targetUserId?: string) {
   const userId = targetUserId ?? user.id;
 
   if (targetUserId) {
-    const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (!["admin", "pasteur"].includes(p?.role ?? "")) return { error: "Non autorisé" };
+    const { data: p } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+    const ok = ["admin", "pasteur"].includes(p?.role ?? "") || (p?.groups as string[] | null)?.includes("support");
+    if (!ok) return { error: "Non autorisé" };
   }
 
   await supabase.from("event_attendance").delete().eq("event_id", eventId).eq("user_id", userId);
@@ -271,8 +273,11 @@ export async function deleteGrievance(id: string) {
 async function assertAdmin(supabase: ReturnType<typeof createClient>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!["admin", "pasteur"].includes(data?.role ?? "")) return null;
+  const { data } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const allowed =
+    ["admin", "pasteur"].includes(data?.role ?? "") ||
+    (data?.groups as string[] | null)?.includes("support");
+  if (!allowed) return null;
   return user;
 }
 
@@ -390,8 +395,15 @@ export async function updateMemberRole(memberId: string, newRole: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (me?.role !== "admin") return { error: "Non autorisé — Admin uniquement" };
+  const { data: me } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const callerIsAdmin = me?.role === "admin";
+  const callerIsPrivileged =
+    callerIsAdmin ||
+    me?.role === "pasteur" ||
+    (me?.groups as string[] | null)?.includes("support");
+  if (!callerIsPrivileged) return { error: "Non autorisé" };
+  // Seul l'admin peut promouvoir au rôle admin
+  if (newRole === "admin" && !callerIsAdmin) return { error: "Seul l'admin peut attribuer le rôle admin" };
 
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", memberId);

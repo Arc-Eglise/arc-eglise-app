@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const canAccess =
     profile?.role === "admin" ||
     profile?.role === "pasteur" ||
+    profile?.groups?.includes("support") ||
     profile?.groups?.includes("media") ||
     profile?.groups?.includes("communication");
 

@@ -1,8 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
+import { createClient }      from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import Link  from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
-const ROLES = ["admin", "pasteur", "membre", "visiteur"];
+const ROLES  = ["admin", "pasteur", "membre", "visiteur"];
 const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 
 export default async function CrmPage({
@@ -10,10 +12,29 @@ export default async function CrmPage({
 }: {
   searchParams: { q?: string; role?: string; group?: string; validated?: string };
 }) {
+  // Vérifier que l'appelant est autorisé (admin | pasteur | fonction support)
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/connexion");
+
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("role, groups")
+    .eq("id", user.id)
+    .single();
+
+  const canAccess =
+    myProfile?.role === "admin" ||
+    myProfile?.role === "pasteur" ||
+    (myProfile?.groups as string[] | null)?.includes("support");
+
+  if (!canAccess) redirect("/espace-membres");
+
+  // Récupérer tous les profils sans restriction RLS
+  const admin = createAdminClient();
   const { q, role, group, validated } = searchParams;
 
-  let query = supabase
+  let query = admin
     .from("profiles")
     .select("id, first_name, last_name, email, role, groups, validated, country, created_at, avatar_url")
     .order("created_at", { ascending: false });

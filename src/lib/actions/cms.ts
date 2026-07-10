@@ -31,6 +31,7 @@ async function getCmsUser() {
   const canCms =
     profile.role === "admin" ||
     profile.role === "pasteur" ||
+    profile.groups?.includes("support") ||
     profile.groups?.includes("media") ||
     profile.groups?.includes("communication");
 
@@ -85,7 +86,10 @@ export async function updateSermon(id: string, formData: FormData) {
 
 export async function deleteSermon(id: string) {
   const { supabase, profile } = await getCmsUser();
-  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+  const canDelete =
+    ["admin", "pasteur"].includes(profile.role as string) ||
+    (profile.groups as string[] | null)?.includes("support");
+  if (!canDelete) return { error: "Non autorisé" };
 
   const { error } = await supabase.from("sermons").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -173,7 +177,10 @@ export async function deleteTeamMember(id: string) {
 
 export async function validateMember(memberId: string) {
   const { supabase, profile, userId } = await getCmsUser();
-  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+  const canManage =
+    ["admin", "pasteur"].includes(profile.role as string) ||
+    (profile.groups as string[] | null)?.includes("support");
+  if (!canManage) return { error: "Non autorisé" };
 
   const { error } = await supabase.from("profiles").update({
     validated:    true,
@@ -189,7 +196,10 @@ export async function validateMember(memberId: string) {
 
 export async function rejectMember(memberId: string) {
   const { supabase, profile } = await getCmsUser();
-  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+  const canManage =
+    ["admin", "pasteur"].includes(profile.role as string) ||
+    (profile.groups as string[] | null)?.includes("support");
+  if (!canManage) return { error: "Non autorisé" };
 
   const { error } = await supabase.from("profiles").update({
     validated: false,

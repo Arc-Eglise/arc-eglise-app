@@ -1,11 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
-import Link from "next/link";
+import { createClient }      from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notFound, redirect } from "next/navigation";
+import Link  from "next/link";
 import Image from "next/image";
-import { updateMemberGroups, addMemberNote, deleteMemberNote } from "@/lib/actions/crm";
+import { updateMemberGroups, addMemberNote, deleteMemberNote, setMemberRole } from "@/lib/actions/crm";
 import { validateMember, rejectMember } from "@/lib/actions/cms";
 
 const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const ROLES  = ["admin", "pasteur", "membre", "visiteur"] as const;
 
 const NOTE_TYPES = [
   { value: "general",   label: "Général" },
@@ -15,21 +17,41 @@ const NOTE_TYPES = [
 ];
 
 const roleStyle: Record<string, string> = {
-  admin:   "bg-red-100 text-red-700",
-  pasteur: "bg-purple-100 text-purple-700",
-  membre:  "bg-green-100 text-green-700",
-  visiteur:"bg-amber-100 text-amber-700",
+  admin:    "bg-red-100 text-red-700",
+  pasteur:  "bg-purple-100 text-purple-700",
+  membre:   "bg-green-100 text-green-700",
+  visiteur: "bg-amber-100 text-amber-700",
 };
 
 export default async function CrmMemberPage({ params }: { params: { id: string } }) {
+  // Vérifier que l'appelant est autorisé
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/connexion");
+
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("role, groups")
+    .eq("id", user.id)
+    .single();
+
+  const callerIsAdmin = myProfile?.role === "admin";
+  const canAccess =
+    callerIsAdmin ||
+    myProfile?.role === "pasteur" ||
+    (myProfile?.groups as string[] | null)?.includes("support");
+
+  if (!canAccess) redirect("/espace-membres");
+
+  // Charger le profil cible + notes avec adminClient
+  const admin = createAdminClient();
 
   const [{ data: member }, { data: notes }] = await Promise.all([
-    supabase.from("profiles")
+    admin.from("profiles")
       .select("id, first_name, last_name, email, role, groups, validated, country, phone, avatar_url, created_at")
       .eq("id", params.id)
       .single(),
-    supabase.from("member_notes")
+    admin.from("member_notes")
       .select("*, profiles!author_id(first_name, last_name)")
       .eq("member_id", params.id)
       .order("created_at", { ascending: false }),
@@ -40,10 +62,20 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ") || member.email;
   const initiale = (member.first_name?.[0] ?? member.email[0]).toUpperCase();
 
+  // Rôles autorisés selon le niveau du caller
+  const allowedRoles = callerIsAdmin
+    ? ROLES
+    : (["membre", "visiteur"] as const);
+
   async function handleUpdateGroups(formData: FormData): Promise<void> {
     "use server";
     const selected = GROUPS.filter((g) => formData.get(g) === "on");
     await updateMemberGroups(params.id, selected);
+  }
+
+  async function handleSetRole(formData: FormData): Promise<void> {
+    "use server";
+    await setMemberRole(params.id, formData.get("role") as string);
   }
 
   async function handleAddNote(formData: FormData): Promise<void> {
@@ -83,7 +115,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
 
-        {/* Left: profile card */}
+        {/* Left : carte profil */}
         <div className="space-y-4">
           <div className="bg-white border border-arc-border rounded-2xl p-5 flex flex-col items-center gap-3 text-center">
             <div className="w-16 h-16 rounded-2xl bg-arc-navy flex items-center justify-center overflow-hidden">
@@ -106,7 +138,32 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
             </div>
           </div>
 
-          {/* Validation */}
+          {/* Changement de rôle */}
+          <div className="bg-white border border-arc-border rounded-2xl p-4">
+            <h3 className="font-bold text-arc-navy text-sm mb-3">Changer le rôle</h3>
+            <form action={handleSetRole} className="flex gap-2">
+              <select
+                name="role"
+                defaultValue={member.role}
+                className="flex-1 px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white"
+              >
+                {allowedRoles.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="px-3 py-2 rounded-lg bg-arc-navy text-white text-xs font-bold hover:bg-arc-navy2 transition-colors flex-shrink-0"
+              >
+                OK
+              </button>
+            </form>
+            {!callerIsAdmin && (
+              <p className="text-[10px] text-arc-text3 mt-1.5">Seul l&apos;admin peut attribuer pasteur/admin.</p>
+            )}
+          </div>
+
+          {/* Validation rapide */}
           {!member.validated && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
               <div className="text-xs font-bold text-amber-800 mb-3">⏳ En attente de validation</div>
@@ -114,7 +171,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 <form action={handleValidate} className="flex-1">
                   <input type="hidden" name="id" value={member.id} />
                   <button className="w-full py-2 rounded-lg bg-green-100 text-green-700 text-xs font-bold border border-green-200 hover:bg-green-200 transition-colors">
-                    ✅ Valider
+                    ✅ Valider → Membre
                   </button>
                 </form>
                 <form action={handleReject} className="flex-1">
@@ -128,12 +185,12 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           )}
         </div>
 
-        {/* Right: groups + notes */}
+        {/* Right : groupes + notes */}
         <div className="space-y-4">
 
-          {/* Groups editor */}
+          {/* Groupes de fonction */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-4">Groupes de fonction</h2>
+            <h2 className="font-bold text-arc-navy mb-4">Fonctions attribuées</h2>
             <form action={handleUpdateGroups} className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {GROUPS.map((g) => (
@@ -149,16 +206,15 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 ))}
               </div>
               <button type="submit" className="px-5 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
-                Enregistrer les groupes
+                Enregistrer les fonctions
               </button>
             </form>
           </div>
 
-          {/* Notes */}
+          {/* Notes pastorales */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-4">Notes pastorales</h2>
 
-            {/* Add note form */}
             <form action={handleAddNote} className="flex flex-col gap-3 mb-5 pb-5 border-b border-arc-border">
               <input type="hidden" name="member_id" value={member.id} />
               <div className="flex gap-2">
@@ -181,7 +237,6 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               </button>
             </form>
 
-            {/* Notes list */}
             {notes && notes.length > 0 ? (
               <div className="space-y-3">
                 {notes.map((note) => {
