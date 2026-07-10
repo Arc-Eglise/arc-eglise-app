@@ -1,6 +1,11 @@
 import { Resend } from "resend";
 
-const resend     = new Resend(process.env.RESEND_API_KEY);
+// Init lazy pour éviter un crash au build si RESEND_API_KEY n'est pas présente
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 const FROM_NOREPLY = "ARC Église <noreply@arc-eglise.ch>";
 const FROM_CONTACT = "ARC Église <contact@arc-eglise.ch>";
 const REPLY_TO   = "contact@arc-eglise.ch";
@@ -329,7 +334,7 @@ async function sendEmail(opts: {
   subject: string;
   html: string;
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: opts.from,
     replyTo: opts.replyTo,
     to: [opts.to],
