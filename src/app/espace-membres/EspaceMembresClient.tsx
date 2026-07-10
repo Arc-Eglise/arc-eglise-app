@@ -6,6 +6,9 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
+import { updateMemberValidation, savePermissionsMatrix } from "@/lib/actions/membres";
+import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
+import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -313,7 +316,6 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
   const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible"|"affichage">("notifs");
   const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
-  const [textSz, setTextSz] = useState(1.0);
   const [noteRef, setNoteRef]     = useState("Jean 3:16");
   const [noteContent, setNoteContent] = useState("");
   const [doleanceType, setDoleanceType] = useState("bug");
@@ -417,6 +419,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef                = useRef<HTMLDivElement>(null);
   const unreadCount             = notifs.filter(n => !n.read_at).length;
+
+  /* Préférences de lecture (partagées avec le bouton flottant) */
+  const { prefs: readingPrefs, update: updateReadingPrefs } = useReadingPrefs();
+  const textSz = readingPrefs.font_size_px / 16;
 
   /* Computed */
   const role        = profile?.role ?? "visiteur";
@@ -537,6 +543,23 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  /* ── Chargement des droits sauvegardés (GD modal) ──────────── */
+  useEffect(() => {
+    if (!showGD) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("site_settings").select("value").eq("key", "role_permissions_matrix").single();
+        if (data?.value) {
+          const saved = JSON.parse(data.value as string) as Record<string, Record<string, boolean>>;
+          const merged: Record<string, Record<string, boolean>> = {};
+          for (const k in GD_DEFAULTS) merged[k] = { ...GD_DEFAULTS[k], ...(saved[k] ?? {}) };
+          setGdPerms(merged);
+        }
+      } catch { /* silencieux — on garde les valeurs par défaut */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGD]);
 
   /* ── Bible loader — bolls.life API ─────────────────────────── */
   const loadChapter = useCallback(async (bookIdx: number, ch: number, trans: string) => {
@@ -1721,7 +1744,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadChapter(bBook,bCh,bTrans)}>↺ Réessayer</button>
                     </div>
                   ) : bVerses.length > 0 ? (
-                    <div>
+                    <div className="em-reading-zone">
                       <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"#1e2464",marginBottom:16}}>
                         {BOOKS[bBook].n} {bCh}
                       </div>
@@ -2232,7 +2255,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           <td style={{color:"#8890aa",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
                           <td>
                             <button className="em-btn em-btn-success em-btn-sm" onClick={async()=>{
-                              await supabase.from("profiles").update({validated:true,role:"membre"}).eq("id",m.id);
+                              const res = await updateMemberValidation(m.id, true);
+                              if (res?.error) { setToast(`❌ Erreur : ${res.error}`); return; }
                               await loadMembers();
                               setToast("Compte validé ✅");
                             }}>Valider</button>
@@ -2674,7 +2698,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     </table>
                   </div>
                   <div style={{marginTop:16,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("💾 Modifications sauvegardées !")}>💾 Sauvegarder</button>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={async()=>{
+                      const res = await savePermissionsMatrix(gdPerms);
+                      if (res?.error) { setToast(`❌ Erreur : ${res.error}`); }
+                      else { setToast("💾 Matrice sauvegardée ✅"); }
+                    }}>💾 Sauvegarder</button>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{const p:Record<string,Record<string,boolean>>={};for(const k in GD_DEFAULTS)p[k]={...GD_DEFAULTS[k]};setGdPerms(p);setToast("↺ Matrice réinitialisée aux défauts");}}>↺ Réinitialiser aux défauts</button>
                     <span style={{fontSize:11,color:"#8890aa",marginLeft:8}}>Les modifications sont propagées via Supabase RLS en production</span>
                   </div>
@@ -2730,13 +2758,23 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                             <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
                             <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}</div>
                           </div>
-                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={e=>setToast(`✅ Rôle de ${name} changé → ${e.target.value}`)}>
+                          <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:120}} defaultValue={m.role} onChange={async e=>{
+                            const newRole = e.target.value;
+                            const res = await setMemberRoleAction(m.id, newRole);
+                            if (res?.error) { setToast(`❌ ${res.error}`); }
+                            else { setToast(`✅ Rôle de ${name} → ${newRole}`); await loadMembers(); }
+                          }}>
                             <option value="visiteur">Visiteur</option>
                             <option value="membre">Membre</option>
                             <option value="pasteur">Pasteur</option>
                             <option value="admin">Admin</option>
                           </select>
-                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={()=>{if(confirm(`❌ Révoquer ${name} ?`))setToast(`❌ Accès révoqué : ${name}`);}}>❌</button>
+                          <button className="em-btn em-btn-sm" style={{fontSize:11,background:"rgba(229,62,62,.08)",color:"#c53030",border:"1px solid rgba(229,62,62,.15)"}} onClick={async()=>{
+                            if(!confirm(`⚠️ Bloquer l'accès de ${name} ?`)) return;
+                            const res = await blockMember(m.id);
+                            if (res?.error) { setToast(`❌ ${res.error}`); }
+                            else { setToast(`🚫 ${name} bloqué.`); await loadMembers(); }
+                          }}>🚫</button>
                         </div>
                       );
                     })}
@@ -3081,23 +3119,23 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
                         <span style={{fontSize:11,color:"#8890aa"}}>A</span>
                         <input
-                          type="range" min={0.8} max={1.4} step={0.1}
-                          value={textSz}
-                          onChange={e=>setTextSz(parseFloat(e.target.value))}
+                          type="range" min={13} max={26} step={1}
+                          value={readingPrefs.font_size_px}
+                          onChange={e=>updateReadingPrefs({ font_size_px: Number(e.target.value) })}
                           style={{flex:1,accentColor:"#1e2464"}}
                         />
                         <span style={{fontSize:15,color:"#8890aa"}}>A</span>
                       </div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {([0.85,1.0,1.1,1.2,1.4] as number[]).map(v=>(
-                          <button key={v} onClick={()=>setTextSz(v)}
-                            style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${textSz===v?"#1e2464":"rgba(30,36,100,.15)"}`,background:textSz===v?"#1e2464":"transparent",color:textSz===v?"#fff":"#1e2464",fontSize:12,cursor:"pointer",fontFamily:"Outfit,sans-serif",fontWeight:600}}>
-                            {v===0.85?"Petit":v===1.0?"Normal":v===1.1?"Moyen":v===1.2?"Grand":"Très grand"}
+                        {([{px:14,lbl:"Petit"},{px:16,lbl:"Normal"},{px:18,lbl:"Moyen"},{px:20,lbl:"Grand"},{px:22,lbl:"Très grand"}]).map(({px,lbl})=>(
+                          <button key={px} onClick={()=>updateReadingPrefs({ font_size_px: px })}
+                            style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${readingPrefs.font_size_px===px?"#1e2464":"rgba(30,36,100,.15)"}`,background:readingPrefs.font_size_px===px?"#1e2464":"transparent",color:readingPrefs.font_size_px===px?"#fff":"#1e2464",fontSize:12,cursor:"pointer",fontFamily:"Outfit,sans-serif",fontWeight:600}}>
+                            {lbl}
                           </button>
                         ))}
                       </div>
-                      <div style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,fontSize:textSz*13,lineHeight:1.6,color:"#4a5070"}}>
-                        Aperçu — &ldquo;Car Dieu a tant aimé le monde qu&apos;il a donné son Fils unique.&rdquo; Jean 3:16
+                      <div className="em-reading-zone" style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,lineHeight:1.6,color:"#4a5070"}}>
+                        <span className="em-reading-text">Aperçu — &ldquo;Car Dieu a tant aimé le monde qu&apos;il a donné son Fils unique.&rdquo; Jean 3:16</span>
                       </div>
                     </div>
                   )}
