@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
@@ -98,10 +99,6 @@ const DAILY_VERSES = [
 const _dow = new Date();
 const _doy = Math.floor((_dow.getTime() - new Date(_dow.getFullYear(),0,0).getTime())/86400000);
 const VERSET = DAILY_VERSES[_doy % DAILY_VERSES.length];
-const PLAN_LECTURE = [
-  {ref:"Genèse 1-2",done:true},{ref:"Genèse 3-4",done:true},{ref:"Psaume 1-5",done:true},
-  {ref:"Matthieu 1-4",done:false},{ref:"Jean 1-3",done:false},{ref:"Romains 1-3",done:false},
-];
 const THEO_CATS = [
   { id:"conf", title:"Confessions de Foi", icon:"📜", items:[
     {id:"westminster",title:"Confession de Westminster (1646)",sub:"Document fondateur du calvinisme presbytérien",
@@ -273,11 +270,17 @@ const MP_GRADIENTS = [
 ];
 
 /* ─── Component ──────────────────────────────────────────────────── */
+const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin"];
+
 export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events }: EMClientProps) {
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   /* Nav */
-  const [panel, setPanel]     = useState<Panel>("accueil");
+  const [panel, setPanel]     = useState<Panel>(() => {
+    const p = searchParams.get("panel") as Panel | null;
+    return p && VALID_PANELS.includes(p) ? p : "accueil";
+  });
   const [toast, setToast]     = useState<string|null>(null);
 
   /* Mobile */
@@ -335,7 +338,13 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [theoCat, setTheoCat]   = useState("conf");
   const [theoItem, setTheoItem] = useState<string|null>(null);
   const [etudeRef, setEtudeRef] = useState("Jean 3:16");
-  const [planDone, setPlanDone] = useState<number[]>([0,1,2]);
+  const [planDone, setPlanDone] = useState<number[]>([]);
+
+  /* Reading plans */
+  type RpPlan = { id:string; titre:string; description:string|null; total_days:number };
+  const [rpPlans, setRpPlans]     = useState<RpPlan[]>([]);
+  const [rpProgress, setRpProgress] = useState<Record<string,number>>({}); // plan_id -> current_day
+  const [rpLoading, setRpLoading] = useState(false);
 
   /* Prayers */
   const [prayers, setPrayers]     = useState<Prayer[]>([]);
@@ -355,33 +364,41 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [msgChan, setMsgChan]     = useState("général");
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
-  const [messages, setMessages]   = useState([
-    {id:"1",from:"Pedro Obova",text:"Bonjour à tous ! Le culte de dimanche sera à 9h30.",mine:false,time:"9:15"},
-    {id:"2",from:"Marie Kalinda",text:"Merci Pasteur ! Je confirme ma présence 🙏",mine:false,time:"9:18"},
-    {id:"3",from:"Moi",text:"Bonjour ! Est-ce que la chorale est prévue ce dimanche ?",mine:true,time:"9:22"},
-    {id:"4",from:"Samuel Nkosi",text:"Oui, la chorale sera présente ! Répétition à 8h45.",mine:false,time:"9:24"},
-  ]);
+  const [messages, setMessages]   = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([]);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
-  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({"1":{"🙏":4,"❤️":2},"4":{"🙌":1}});
+  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({});
   const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
-  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>(["1"]);
+  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>([]);
   const [openThread, setOpenThread]         = useState<string|null>(null);
-  const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({"4":[{id:"t1",from:"Marie Kalinda",text:"C'est une super nouvelle, merci Samuel ! 🙌",time:"9:26",mine:false}]});
+  const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({});
   const [threadInput, setThreadInput]       = useState("");
   const [huddleActive, setHuddleActive]     = useState(false);
   const [msgHover, setMsgHover]             = useState<string|null>(null);
   const [showMention, setShowMention]       = useState(false);
   const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
-  const [taskDone, setTaskDone]             = useState<string[]>(["mt2"]);
+  const [taskDone, setTaskDone]             = useState<string[]>([]);
 
   /* Agenda */
-  const [calMonth, setCalMonth]   = useState(5); // June (0-indexed)
-  const [calYear, setCalYear]     = useState(2026);
+  const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
+  const [calYear, setCalYear]           = useState(() => new Date().getFullYear());
+  const [calSelectedDate, setCalSelectedDate] = useState<number|null>(null);
+  const [calNoteInput, setCalNoteInput]       = useState("");
+  const [calNotes, setCalNotes]               = useState<Record<string,string>>({});
 
   /* Contacts */
   const [cSearch, setCSearch]     = useState("");
+
+  /* Activités */
+  type ActivityRow = { id:string; icon:string; text:string; time:string };
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [actLoading, setActLoading] = useState(false);
+
+  /* Présences (panneau) */
+  type PresRow = { id:string; event_id:string; events:{ title:string; date:string }|null; created_at:string };
+  const [myPresences, setMyPresences] = useState<PresRow[]>([]);
+  const [presLoading, setPresLoading] = useState(false);
 
   /* Dons */
   const [donAmt, setDonAmt]       = useState(100);
@@ -412,7 +429,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     : "Membre";
   const initiale    = (profile?.first_name?.[0] ?? profile?.email?.[0] ?? "?").toUpperCase();
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
-  const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("Communication");
+  const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("communication");
 
   /* ── Effects ─────────────────────────────────────────────────── */
   useEffect(() => {
@@ -499,7 +516,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   }
 
   useEffect(() => {
-    if (panel === "priere") loadPrayers();
+    if (panel === "priere") { loadPrayers(); if (rpPlans.length === 0) loadReadingPlans(); }
   }, [panel]);
 
   useEffect(() => {
@@ -508,6 +525,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
   useEffect(() => {
     if (panel === "contacts" && members.length === 0) loadMembers();
+  }, [panel]);
+
+  useEffect(() => {
+    if (panel === "activites" && activities.length === 0 && !actLoading) loadActivities();
+  }, [panel]);
+
+  useEffect(() => {
+    if (panel === "presences") loadPresences();
   }, [panel]);
 
   useEffect(() => {
@@ -590,6 +615,59 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     setMLoading(false);
   }
 
+  async function loadActivities() {
+    setActLoading(true);
+    const ACT_ICONS: Record<string,string> = { message:"💬", prayer:"🙏", event:"📅", member:"👤", donation:"💝", sermon:"📖", check_in:"✅", rsvp:"📋" };
+    const { data } = await supabase
+      .from("activity_feed")
+      .select("id, type, description, created_at")
+      .order("created_at", { ascending: false })
+      .limit(25);
+    setActivities((data ?? []).map((a: {id:string;type:string;description:string;created_at:string}) => ({
+      id: a.id,
+      icon: ACT_ICONS[a.type] ?? "🔔",
+      text: a.description,
+      time: new Date(a.created_at).toLocaleDateString("fr-CH", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }),
+    })));
+    setActLoading(false);
+  }
+
+  async function loadPresences() {
+    setPresLoading(true);
+    const { data } = await supabase
+      .from("event_attendance")
+      .select("id, event_id, created_at, events(title, date)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    setMyPresences((data ?? []) as unknown as PresRow[]);
+    setPresLoading(false);
+  }
+
+  async function loadReadingPlans() {
+    setRpLoading(true);
+    const [{ data: plans }, { data: progress }] = await Promise.all([
+      supabase.from("reading_plans").select("id, titre, description, total_days").eq("is_active", true).order("total_days", { ascending: true }),
+      supabase.from("reading_plan_progress").select("plan_id, current_day").eq("user_id", userId),
+    ]);
+    setRpPlans(plans ?? []);
+    const prog: Record<string,number> = {};
+    for (const r of progress ?? []) prog[r.plan_id] = r.current_day;
+    setRpProgress(prog);
+    setRpLoading(false);
+  }
+
+  async function enrollPlan(planId: string) {
+    const { error } = await supabase.from("reading_plan_progress").upsert({ plan_id: planId, user_id: userId, current_day: 1 }, { onConflict: "plan_id,user_id" });
+    if (!error) setRpProgress(p => ({ ...p, [planId]: 1 }));
+  }
+
+  async function advancePlan(planId: string, totalDays: number) {
+    const next = Math.min((rpProgress[planId] ?? 0) + 1, totalDays);
+    const { error } = await supabase.from("reading_plan_progress").update({ current_day: next, updated_at: new Date().toISOString() }).eq("plan_id", planId).eq("user_id", userId);
+    if (!error) setRpProgress(p => ({ ...p, [planId]: next }));
+  }
+
   function insertEmoji(emoji: string) {
     const ta = msgInputRef.current;
     const start = ta?.selectionStart ?? msgInput.length;
@@ -654,7 +732,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   /* ── Navigation helper ───────────────────────────────────────── */
   function nav(p: Panel) {
     setPanel(p);
-    if (p === "priere") setBTab("mur");
+    if (p === "priere") setBTab("verset");
   }
 
   /* ── Calendar helper ─────────────────────────────────────────── */
@@ -1018,14 +1096,18 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     );
                   })
                   : <div style={{color:"#8890aa",fontSize:13}}>Aucun groupe assigné pour l&apos;instant.</div>}
-                <div style={{marginTop:16,fontSize:12,color:"#8890aa"}}>Plan de lecture</div>
-                {PLAN_LECTURE.slice(0,3).map((p,i) => (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",fontSize:13}}>
-                    <div style={{width:16,height:16,border:"2px solid",borderColor:planDone.includes(i)?"#1e2464":"#cbd5e0",borderRadius:4,background:planDone.includes(i)?"#1e2464":"transparent",flexShrink:0,cursor:"pointer"}}
-                      onClick={() => setPlanDone(d => d.includes(i) ? d.filter(x=>x!==i) : [...d,i])} />
-                    <span style={{textDecoration:planDone.includes(i)?"line-through":"none",color:planDone.includes(i)?"#8890aa":"#1a1d3a"}}>{p.ref}</span>
-                  </div>
-                ))}
+                <div style={{marginTop:16,fontSize:12,color:"#8890aa"}}>Plans de lecture</div>
+                {Object.entries(rpProgress).slice(0,2).map(([pid, day]) => {
+                  const plan = rpPlans.find(p => p.id === pid);
+                  if (!plan) return null;
+                  return (
+                    <div key={pid} style={{padding:"5px 0",fontSize:12}}>
+                      <div style={{color:"#1a1d3a",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{plan.titre}</div>
+                      <div style={{color:"#8890aa"}}>Jour {day} / {plan.total_days}</div>
+                    </div>
+                  );
+                })}
+                {Object.keys(rpProgress).length === 0 && <div style={{color:"#8890aa",fontSize:12}}>Aucun plan actif</div>}
               </div>
             </div>
           </div>
@@ -1131,7 +1213,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                               {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
                               <div style={{flex:1,minWidth:0}}>
                                 {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
-                                <div className="em-bubble">
+                                <div className="em-bubble em-reading-zone em-reading-text">
                                   {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
                                   {m.text}
                                 </div>
@@ -1353,7 +1435,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           {!r.mine && <div className="em-av" style={{width:26,height:26,fontSize:10,background:"#1e2464"}}>{r.from[0]}</div>}
                           <div>
                             {!r.mine && <div style={{fontSize:10,fontWeight:700,color:"#1e2464",marginBottom:2}}>{r.from}</div>}
-                            <div className="em-bubble" style={{fontSize:12}}>{r.text}</div>
+                            <div className="em-bubble em-reading-zone em-reading-text" style={{fontSize:12}}>{r.text}</div>
                             <div style={{fontSize:9,color:"#8890aa",marginTop:2,textAlign:r.mine?"right":"left"}}>{r.time}</div>
                           </div>
                         </div>
@@ -1407,11 +1489,48 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <div className="em-cal-grid">
                   {cells.map((cell,i) => (
                     <div key={i}
-                      className={`em-cal-cell${cell.type!=="curr"?" other-m":""}${cell.day===todayDay&&cell.type==="curr"?" today":""}${cell.hasEvt?" has-evt":""}`}>
+                      className={`em-cal-cell${cell.type!=="curr"?" other-m":""}${cell.day===todayDay&&cell.type==="curr"?" today":""}${cell.hasEvt?" has-evt":""}${calSelectedDate===cell.day&&cell.type==="curr"?" selected":""}`}
+                      onClick={() => {
+                        if (cell.type !== "curr") return;
+                        const next = calSelectedDate === cell.day ? null : cell.day;
+                        setCalSelectedDate(next);
+                        if (next) setCalNoteInput(calNotes[`${calYear}-${calMonth+1}-${cell.day}`] ?? "");
+                      }}
+                      style={{cursor:cell.type==="curr"?"pointer":"default"}}>
                       {cell.day}
                     </div>
                   ))}
                 </div>
+                {/* Notes et événements du jour sélectionné */}
+                {calSelectedDate !== null && (
+                  <div style={{marginTop:14,borderTop:"1px solid rgba(30,36,100,.1)",paddingTop:14}}>
+                    <div style={{fontWeight:700,fontSize:12,color:"#1e2464",marginBottom:8}}>
+                      📅 {calSelectedDate} {["jan.","fév.","mar.","avr.","mai","juin","juil.","août","sep.","oct.","nov.","déc."][calMonth]} {calYear}
+                    </div>
+                    {events.filter(ev=>{const d=new Date(ev.date+"T00:00:00");return d.getFullYear()===calYear&&d.getMonth()===calMonth&&d.getDate()===calSelectedDate;}).map(ev=>(
+                      <div key={ev.id} style={{fontSize:12,color:"#1e2464",marginBottom:4,padding:"4px 8px",background:"#eff6ff",borderRadius:6,display:"flex",alignItems:"center",gap:6}}>
+                        <span>{ev.time_start?.slice(0,5)}</span>
+                        <span style={{fontWeight:600}}>{ev.title}</span>
+                      </div>
+                    ))}
+                    <textarea
+                      className="em-input"
+                      placeholder="Note pour ce jour…"
+                      rows={2}
+                      value={calNoteInput}
+                      onChange={e=>setCalNoteInput(e.target.value)}
+                      style={{marginTop:8,fontSize:12,resize:"vertical",width:"100%"}}
+                    />
+                    <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:6,width:"100%"}}
+                      onClick={()=>{
+                        const k=`${calYear}-${calMonth+1}-${calSelectedDate}`;
+                        setCalNotes(n=>({...n,[k]:calNoteInput}));
+                        setToast("Note enregistrée ✅");
+                      }}>
+                      Enregistrer la note
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>Événements à venir</div>
@@ -1422,7 +1541,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       {new Date(ev.date).toLocaleDateString("fr-CH")} · {ev.time_start?.slice(0,5)}
                     </div>
                     {ev.location && <div style={{fontSize:11,color:"#8890aa"}}>📍 {ev.location}</div>}
-                    <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,width:"100%"}}>RSVP</button>
+                    <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,width:"100%",textDecoration:"none",textAlign:"center",display:"block"}}>Participer →</a>
                   </div>
                 )) : (
                   <div className="em-card-sm" style={{color:"#8890aa",fontSize:13,textAlign:"center",padding:"24px 0"}}>
@@ -1491,6 +1610,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             {/* Verset du jour */}
             {bTab==="verset" && (
               <div>
+                <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+                  <select className="em-select" value={bTrans} onChange={e=>setBTrans(e.target.value)} style={{fontSize:12}}>
+                    {TRANS.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+                  </select>
+                </div>
                 <div className="em-card-dark" style={{marginBottom:16}}>
                   <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:14}}>✦ Verset du jour — {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}</div>
                   <div className="em-verset-card">&ldquo;{VERSET.text}&rdquo;</div>
@@ -1502,16 +1626,33 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 </div>
                 <div className="em-g2">
                   <div className="em-card">
-                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Plan de lecture du jour</div>
-                    {PLAN_LECTURE.map((p,i) => (
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
-                        <div style={{width:18,height:18,border:"2px solid",borderColor:planDone.includes(i)?"#1e2464":"#cbd5e0",borderRadius:4,background:planDone.includes(i)?"#1e2464":"transparent",cursor:"pointer",flexShrink:0}}
-                          onClick={()=>setPlanDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} />
-                        <span style={{flex:1,fontSize:13,textDecoration:planDone.includes(i)?"line-through":"none",color:planDone.includes(i)?"#8890aa":"#1a1d3a"}}>{p.ref}</span>
-                        {planDone.includes(i) && <span style={{color:"#2f855a",fontSize:12}}>✓</span>}
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 Plans de lecture actifs</div>
+                    {Object.keys(rpProgress).length === 0 && (
+                      <div style={{color:"#8890aa",fontSize:13,textAlign:"center",padding:"8px 0"}}>
+                        Aucun plan actif.
+                        <button className="em-btn em-btn-outline em-btn-sm" style={{display:"block",width:"100%",marginTop:8}} onClick={()=>setBTab("plans")}>Choisir un plan →</button>
                       </div>
-                    ))}
-                    <div style={{marginTop:10,fontSize:11,color:"#8890aa"}}>{planDone.length}/{PLAN_LECTURE.length} passages lus</div>
+                    )}
+                    {Object.entries(rpProgress).slice(0,3).map(([pid, day]) => {
+                      const plan = rpPlans.find(p => p.id === pid);
+                      if (!plan) return null;
+                      const pct = Math.round((day / plan.total_days) * 100);
+                      return (
+                        <div key={pid} style={{marginBottom:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                            <span style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{plan.titre}</span>
+                            <span style={{fontSize:11,color:"#8890aa"}}>Jour {day}/{plan.total_days}</span>
+                          </div>
+                          <div style={{background:"#f0f2f9",borderRadius:6,height:6,marginBottom:6}}>
+                            <div style={{background:"#1e2464",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
+                          </div>
+                          {day < plan.total_days && (
+                            <button className="em-btn em-btn-outline em-btn-sm" style={{fontSize:11}} onClick={()=>advancePlan(pid, plan.total_days)}>✓ Marquer jour {day} comme lu</button>
+                          )}
+                          {day >= plan.total_days && <span className="em-tag-vert em-tag" style={{fontSize:10}}>Terminé !</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="em-card">
                     <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Prières récentes</div>
@@ -1731,23 +1872,50 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             {/* Plans de lecture */}
             {bTab==="plans" && (
               <div>
-                <div className="em-card" style={{marginBottom:14}}>
-                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 Plan annuel — Bible entière</div>
-                  <div style={{fontSize:13,color:"#8890aa",marginBottom:14}}>Avancement : {Math.round(planDone.length/PLAN_LECTURE.length*100)}%</div>
-                  <div style={{background:"#f0f2f9",borderRadius:8,height:8,marginBottom:16}}>
-                    <div style={{background:"#1e2464",borderRadius:8,height:"100%",width:`${Math.round(planDone.length/PLAN_LECTURE.length*100)}%`,transition:"width .3s"}} />
-                  </div>
-                  {PLAN_LECTURE.map((p,i) => (
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
-                      <div style={{width:20,height:20,border:"2px solid",borderColor:planDone.includes(i)?"#1e2464":"#cbd5e0",borderRadius:4,background:planDone.includes(i)?"#1e2464":"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}
-                        onClick={()=>setPlanDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])}>
-                        {planDone.includes(i) && <span style={{color:"#fff",fontSize:12,fontWeight:800}}>✓</span>}
+                {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des plans…</div>}
+                {!rpLoading && rpPlans.length === 0 && (
+                  <div className="em-card" style={{textAlign:"center",color:"#8890aa",padding:24}}>Aucun plan de lecture disponible pour le moment.</div>
+                )}
+                {!rpLoading && rpPlans.map(plan => {
+                  const currentDay = rpProgress[plan.id];
+                  const enrolled   = currentDay !== undefined;
+                  const pct        = enrolled ? Math.round((currentDay / plan.total_days) * 100) : 0;
+                  const done       = enrolled && currentDay >= plan.total_days;
+
+                  return (
+                    <div key={plan.id} className="em-card" style={{marginBottom:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                        <div>
+                          <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>{plan.titre}</div>
+                          {plan.description && <div style={{fontSize:12,color:"#8890aa",marginTop:2}}>{plan.description}</div>}
+                          <div style={{fontSize:11,color:"#8890aa",marginTop:4}}>{plan.total_days} jour{plan.total_days>1?"s":""}</div>
+                        </div>
+                        {done && <span className="em-tag-vert em-tag" style={{fontSize:10,flexShrink:0}}>Terminé ✓</span>}
+                        {enrolled && !done && <span className="em-tag em-tag-bleu" style={{fontSize:10,flexShrink:0}}>Actif · Jour {currentDay}</span>}
                       </div>
-                      <span style={{flex:1,fontSize:13,textDecoration:planDone.includes(i)?"line-through":"none",color:planDone.includes(i)?"#8890aa":"#1a1d3a"}}>{p.ref}</span>
-                      {planDone.includes(i) && <span className="em-tag-vert em-tag" style={{fontSize:10}}>Lu</span>}
+                      {enrolled && (
+                        <>
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                            <div style={{flex:1,background:"#f0f2f9",borderRadius:6,height:8}}>
+                              <div style={{background:"#1e2464",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
+                            </div>
+                            <span style={{fontSize:11,color:"#8890aa",flexShrink:0}}>{pct}%</span>
+                          </div>
+                          {!done && (
+                            <button className="em-btn em-btn-sm" style={{background:"#1e2464",color:"#fff",fontSize:12}} onClick={()=>advancePlan(plan.id, plan.total_days)}>
+                              ✓ Jour {currentDay} terminé → Jour {currentDay+1}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!enrolled && (
+                        <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>enrollPlan(plan.id)}>
+                          + S&apos;inscrire à ce plan
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1806,41 +1974,82 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
           {/* ── PRÉSENCES ───────────────────────────────────── */}
           <div className={`em-panel${panel==="presences"?" active":""}`}>
-            <div className="em-sect-title">Présences</div>
-            <div className="em-sect-sub">Suivi des présences aux cultes et événements</div>
-            <div className="em-g4" style={{marginBottom:18}}>
-              {[{num:"—",lbl:"Dimanche dernier"},{num:"—",lbl:"Taux de présence"},{num:"—",lbl:"Groupes actifs"},{num:"—",lbl:"Événements ce mois"}].map(s=>(
-                <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
-                  <div className="em-stat-num">{s.num}</div><div className="em-stat-lbl">{s.lbl}</div>
-                </div>
-              ))}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:8}}>
+              <div>
+                <div className="em-sect-title">Présences</div>
+                <div className="em-sect-sub">Historique de tes présences aux événements</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>📅 Pointer ma présence</a>
+                {canAdmin && <a href="/espace-membres/presences" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Vue admin →</a>}
+              </div>
+            </div>
+            <div className="em-g2" style={{marginBottom:16}}>
+              <div className="em-card-sm" style={{textAlign:"center"}}>
+                <div className="em-stat-num">{myPresences.length}</div>
+                <div className="em-stat-lbl">Événements fréquentés</div>
+              </div>
+              <div className="em-card-sm" style={{textAlign:"center"}}>
+                <div className="em-stat-num">{events.length > 0 ? events[0]?.title?.split(" ").slice(0,2).join(" ") ?? "—" : "—"}</div>
+                <div className="em-stat-lbl">Prochain événement</div>
+              </div>
             </div>
             <div className="em-card">
-              <table className="em-tbl">
-                <thead>
-                  <tr><th>Date</th><th>Événement</th><th>Présents</th><th>Groupe</th><th>Taux</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td colSpan={5} style={{textAlign:"center",color:"#8890aa",padding:"16px 0"}}>Aucune présence enregistrée — données disponibles via <a href="/espace-membres/presences" style={{color:"#2d3a8c"}}>l&apos;espace présences</a>.</td></tr>
-                </tbody>
-              </table>
+              <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Mes présences récentes</div>
+              {presLoading ? (
+                <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa",fontSize:13}}>Chargement…</div>
+              ) : myPresences.length === 0 ? (
+                <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:13}}>
+                  <div style={{fontSize:32,marginBottom:8}}>📋</div>
+                  <div>Aucune présence enregistrée.</div>
+                  <div style={{fontSize:12,marginTop:4}}>Utilise <a href="/espace-membres/agenda" style={{color:"#2d3a8c"}}>l&apos;agenda</a> pour pointer ta présence à un événement.</div>
+                </div>
+              ) : (
+                myPresences.map((p) => (
+                  <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
+                    <div>
+                      <div style={{fontWeight:600,color:"#1e2464"}}>{(p.events as {title:string;date:string}|null)?.title ?? "Événement"}</div>
+                      <div style={{fontSize:11,color:"#8890aa"}}>
+                        {(p.events as {title:string;date:string}|null)?.date
+                          ? new Date((p.events as {title:string;date:string}).date+"T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})
+                          : new Date(p.created_at).toLocaleDateString("fr-CH")}
+                      </div>
+                    </div>
+                    <span style={{color:"#16a34a",fontSize:20,fontWeight:700}}>✓</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* ── ACTIVITÉS ───────────────────────────────────── */}
           <div className={`em-panel${panel==="activites"?" active":""}`}>
-            <div className="em-sect-title">Activités</div>
-            <div className="em-sect-sub">Fil d&apos;actualité de la communauté</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+              <div>
+                <div className="em-sect-title">Activités</div>
+                <div className="em-sect-sub">Fil d&apos;actualité de la communauté</div>
+              </div>
+              <button className="em-btn em-btn-outline em-btn-sm" onClick={loadActivities} disabled={actLoading}>↺ Actualiser</button>
+            </div>
             <div className="em-card">
-              {ACTIVITIES.map((a,i) => (
-                <div key={i} className="em-activity">
-                  <div className="em-act-ico">{a.icon}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13.5,color:"#1a1d3a"}}>{a.text}</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{a.time}</div>
-                  </div>
+              {actLoading ? (
+                <div style={{textAlign:"center",padding:"32px 0",color:"#8890aa",fontSize:13}}>Chargement…</div>
+              ) : activities.length === 0 ? (
+                <div style={{textAlign:"center",padding:"32px 0",color:"#8890aa",fontSize:13}}>
+                  <div style={{fontSize:32,marginBottom:8}}>🔔</div>
+                  <div>Aucune activité récente dans la communauté.</div>
                 </div>
-              ))}
+              ) : (
+                activities.map((a) => (
+                  <div key={a.id} className="em-activity">
+                    <div className="em-act-ico">{a.icon}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13.5,color:"#1a1d3a"}}>{a.text}</div>
+                      <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{a.time}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -2199,8 +2408,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           {/* Activités récentes */}
           <div className="em-rp-sec">
             <div className="em-rp-title">Activités récentes</div>
-            {ACTIVITIES.slice(0,4).map((a,i)=>(
-              <div key={i} style={{display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
+            {activities.length === 0 ? (
+              <div style={{fontSize:11,color:"#8890aa",padding:"4px 0"}}>Aucune activité récente.</div>
+            ) : activities.slice(0,4).map((a)=>(
+              <div key={a.id} style={{display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
                 <span style={{fontSize:14}}>{a.icon}</span>
                 <div>
                   <div style={{fontSize:11.5,color:"#4a5070",lineHeight:1.4}}>{a.text}</div>

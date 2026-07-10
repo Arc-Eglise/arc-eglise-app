@@ -9,15 +9,6 @@ interface Testimonial {
   sort_order:  number;
 }
 
-const FALLBACK: Testimonial[] = [
-  { id: "1", author_name: "Miriam K.",       author_role: "Membre depuis 2021",      sort_order: 1, avatar_url: null,
-    content: "Depuis que j'ai rejoint l'ARC, ma vie a été transformée. L'enseignement de la Parole est profond et vivant. Je me sens vraiment chez moi dans cette famille spirituelle." },
-  { id: "2", author_name: "Jean-Claude M.",  author_role: "Visiteur devenu membre",  sort_order: 2, avatar_url: null,
-    content: "J'hésitais à entrer dans une église. Mais l'accueil chaleureux et l'authenticité des membres m'ont touché. Aujourd'hui, ma foi est plus forte que jamais." },
-  { id: "3", author_name: "Esther N.",       author_role: "Membre depuis 2023",      sort_order: 3, avatar_url: null,
-    content: "Le ministère de louange à l'ARC m'a aidée à retrouver la joie. Chaque culte est un moment de rencontre authentique avec Dieu. Je recommande cette communauté." },
-];
-
 export default async function TestimonialsSection() {
   const supabase = createClient();
   const { data } = await supabase
@@ -27,7 +18,8 @@ export default async function TestimonialsSection() {
     .order("sort_order", { ascending: true })
     .limit(6);
 
-  const items: Testimonial[] = (data && data.length > 0) ? data : FALLBACK;
+  const items: Testimonial[] = data ?? [];
+  if (items.length === 0) return null;
 
   return (
     <section id="temoignages" style={{ background: "#F8F6FF", padding: "96px 0" }}>

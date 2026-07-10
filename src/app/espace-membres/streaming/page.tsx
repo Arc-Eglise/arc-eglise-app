@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect }     from "next/navigation";
+import Link             from "next/link";
 import Image            from "next/image";
 
 type YTItem = {
@@ -81,6 +82,9 @@ export default async function StreamingPage() {
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Retour
+      </Link>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-serif text-3xl font-bold text-arc-navy">Streaming</h1>

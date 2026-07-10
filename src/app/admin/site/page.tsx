@@ -14,6 +14,10 @@ const KEYS = [
   "culte_1_label", "culte_2_label", "culte_3_label",
   "contact_address", "contact_email", "contact_horaires", "contact_map_url",
   "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
+  "histoire_p1", "histoire_p2", "histoire_citation",
+  "votre_impact_intro",
+  "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
+  "stats_nations", "stats_touches",
 ] as const;
 
 export default async function AdminSitePage({
@@ -96,6 +100,53 @@ export default async function AdminSitePage({
             <Field name="social_instagram" label="📸 Instagram" placeholder="https://www.instagram.com/…" defaultValue={v("social_instagram")} />
             <Field name="social_youtube"   label="▶️ YouTube"   placeholder="https://www.youtube.com/…"  defaultValue={v("social_youtube")} />
             <Field name="social_whatsapp"  label="📱 WhatsApp"  placeholder="https://wa.me/41…"          defaultValue={v("social_whatsapp")} />
+          </div>
+          <SaveBtn />
+        </form>
+
+        {/* ── Notre histoire ── */}
+        <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">
+          <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">📖 Notre histoire</h2>
+          <p className="text-xs text-arc-text3 mb-4">Textes de la section &ldquo;Notre histoire&rdquo; sur la page d&apos;accueil.</p>
+          <div className="flex flex-col gap-4">
+            <Field name="histoire_p1" label="Paragraphe 1 (fondation)" defaultValue={v("histoire_p1")} textarea />
+            <Field name="histoire_p2" label="Paragraphe 2 (vision)" defaultValue={v("histoire_p2")} textarea />
+            <Field name="histoire_citation" label="Citation / blockquote" defaultValue={v("histoire_citation")} textarea />
+          </div>
+          <SaveBtn />
+        </form>
+
+        {/* ── Découvrir ── */}
+        <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">
+          <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">✦ Découvrir — textes des cartes</h2>
+          <p className="text-xs text-arc-text3 mb-4">Descriptions des 4 cartes de la section &ldquo;Découvrir&rdquo;.</p>
+          <div className="flex flex-col gap-4">
+            <Field name="decouvrir_1_text" label="Carte 1 — Sermons & Replays"     defaultValue={v("decouvrir_1_text")} />
+            <Field name="decouvrir_2_text" label="Carte 2 — Rejoindre la famille"  defaultValue={v("decouvrir_2_text")} />
+            <Field name="decouvrir_3_text" label="Carte 3 — Événements & Cultes"   defaultValue={v("decouvrir_3_text")} />
+            <Field name="decouvrir_4_text" label="Carte 4 — Soutenir l'Église"     defaultValue={v("decouvrir_4_text")} />
+          </div>
+          <SaveBtn />
+        </form>
+
+        {/* ── Votre impact ── */}
+        <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">
+          <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">💛 Votre impact</h2>
+          <p className="text-xs text-arc-text3 mb-4">Introduction de la section &ldquo;Votre impact&rdquo; (dons).</p>
+          <Field name="votre_impact_intro" label="Texte d'introduction" defaultValue={v("votre_impact_intro")} textarea />
+          <SaveBtn />
+        </form>
+
+        {/* ── Statistiques ── */}
+        <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">
+          <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">📊 Statistiques héro</h2>
+          <p className="text-xs text-arc-text3 mb-4">
+            &ldquo;Membres&rdquo; est calculé automatiquement depuis la base (comptes validés).
+            &ldquo;Ans d&apos;histoire&rdquo; se calcule depuis 2018. Renseignez les deux valeurs éditables ci-dessous.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field name="stats_nations" label="Nations représentées" placeholder="ex: 32" defaultValue={v("stats_nations")} />
+            <Field name="stats_touches" label="Personnes touchées" placeholder="ex: 600+" defaultValue={v("stats_touches")} />
           </div>
           <SaveBtn />
         </form>

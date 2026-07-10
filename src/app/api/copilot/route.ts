@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { lunzikoFetch } from "@/lib/lunziko"
 
 const CHURCH_BASE =
@@ -62,6 +63,13 @@ async function buildSystemPrompt(): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Vérification d'authentification — IA réservée aux membres connectés
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: "Accès non autorisé — connexion requise" }, { status: 401 })
+    }
+
     const body = await req.json()
     const { message, history = [], stream = true } = body as {
       message: string

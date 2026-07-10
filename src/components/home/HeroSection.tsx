@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 
-export default function HeroSection({ subtitle }: { subtitle?: string }) {
+interface HeroStats { membres: number; nations: string | null; ans: number; touches: string | null; }
+
+export default function HeroSection({ subtitle, stats }: { subtitle?: string; stats?: HeroStats }) {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -88,10 +90,10 @@ export default function HeroSection({ subtitle }: { subtitle?: string }) {
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, maxWidth: 520 }}>
           {[
-            { v: "250",  l: "Membres" },
-            { v: "32",   l: "Nations" },
-            { v: "6",    l: "Ans d'histoire" },
-            { v: "600+", l: "Touchés" },
+            { v: stats?.membres ? String(stats.membres) : "—", l: "Membres" },
+            { v: stats?.nations ?? "—",                         l: "Nations" },
+            { v: stats?.ans ? String(stats.ans) : "—",          l: "Ans d'histoire" },
+            { v: stats?.touches ?? "—",                         l: "Touchés" },
           ].map((s) => (
             <div key={s.l} style={{ textAlign: "left" }}>
               <div className="font-serif" style={{ fontSize: 40, fontWeight: 600, color: "#1e2464", lineHeight: 1 }}>{s.v}</div>

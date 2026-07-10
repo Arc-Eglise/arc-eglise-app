@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 export default async function AnnuairePage() {
   const supabase = createClient();
@@ -21,6 +22,9 @@ export default async function AnnuairePage() {
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Retour
+      </Link>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Annuaire</h1>
         <p className="text-sm text-arc-text2 mt-0.5">{members?.length ?? 0} membres</p>

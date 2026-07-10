@@ -25,6 +25,7 @@ interface EventCardProps {
   attendCount: number;
   myCheckedIn: string | null;
   isPast: boolean;
+  isToday?: boolean;
   isAdmin: boolean;
   attendees: { userId: string; name: string }[];
 }
@@ -187,7 +188,7 @@ function AdminAttendees({ attendees, rsvpGoing, attendCount }: {
   );
 }
 
-export function EventCard({ event: ev, myRsvp, counts, attendCount, myCheckedIn, isPast, isAdmin, attendees }: EventCardProps) {
+export function EventCard({ event: ev, myRsvp, counts, attendCount, myCheckedIn, isPast, isToday, isAdmin, attendees }: EventCardProps) {
   const d = new Date(ev.date + "T00:00:00");
 
   return (
@@ -242,13 +243,13 @@ export function EventCard({ event: ev, myRsvp, counts, attendCount, myCheckedIn,
           )}
         </div>
 
-        {/* RSVP — uniquement pour les événements à venir */}
+        {/* RSVP — pour les événements à venir (pas encore passés) */}
         {!isPast && (
           <RsvpButtons eventId={ev.id} initial={myRsvp} counts={counts} />
         )}
 
-        {/* Check-in — pour les événements passés ET du jour */}
-        {isPast && (
+        {/* Check-in — pour les événements passés ET les événements du jour */}
+        {(isPast || isToday) && (
           <CheckInButton
             eventId={ev.id}
             initialCheckedIn={myCheckedIn}

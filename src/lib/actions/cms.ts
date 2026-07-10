@@ -135,8 +135,7 @@ export async function deleteEvent(id: string) {
 // ── TEAM MEMBERS ───────────────────────────────────────────────
 
 export async function createTeamMember(formData: FormData) {
-  const { supabase, profile } = await getCmsUser();
-  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+  const { supabase } = await getCmsUser();
 
   let avatar_url: string | null = null;
   const photo = formData.get("photo") as File | null;
@@ -161,8 +160,7 @@ export async function createTeamMember(formData: FormData) {
 }
 
 export async function deleteTeamMember(id: string) {
-  const { supabase, profile } = await getCmsUser();
-  if (!["admin", "pasteur"].includes(profile.role as string)) return { error: "Non autorisé" };
+  const { supabase } = await getCmsUser();
 
   const { error } = await supabase.from("team_members").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -256,6 +254,10 @@ const ALLOWED_SETTINGS = [
   "culte_1_label", "culte_2_label", "culte_3_label",
   "contact_address", "contact_email", "contact_horaires", "contact_map_url",
   "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
+  "histoire_p1", "histoire_p2", "histoire_citation",
+  "votre_impact_intro",
+  "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
+  "stats_nations", "stats_touches",
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {

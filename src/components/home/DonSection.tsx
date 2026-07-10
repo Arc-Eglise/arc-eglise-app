@@ -16,7 +16,7 @@ const PAYMENTS = [
   { icon: "🏦", label: "PostFinance" },
 ];
 
-export default function DonSection() {
+export default function DonSection({ intro }: { intro?: string }) {
   const [selected, setSelected] = useState("25");
   const [custom, setCustom]     = useState("");
   const [freq, setFreq]         = useState<"unique" | "mensuel">("unique");
@@ -43,7 +43,7 @@ export default function DonSection() {
           <span style={{ fontStyle: "italic", color: "#C9A227" }}>le Royaume</span>
         </h2>
         <p style={{ fontSize: 16, color: "#6b6f86", lineHeight: 1.7 }}>
-          Vos contributions soutiennent directement la mission de l'ARC : l'évangélisation, la formation et l'aide aux familles dans le besoin.
+          {intro ?? "Vos contributions soutiennent directement la mission de l'ARC : l'évangélisation, la formation et l'aide aux familles dans le besoin."}
         </p>
       </div>
 

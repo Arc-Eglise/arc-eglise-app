@@ -1,37 +1,21 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
 
-const DISCOVER = [
-  {
-    icon: "📺",
-    title: "Sermons & Replays",
-    text: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi.",
-    cta: "Voir les sermons",
-    href: "#sermons",
-  },
-  {
-    icon: "👨‍👩‍👧‍👦",
-    title: "Rejoindre la famille",
-    text: "Intégrez notre communauté de 250 membres issus de 32 nations différentes.",
-    cta: "Je veux rejoindre",
-    href: "#contact",
-  },
-  {
-    icon: "📅",
-    title: "Événements & Cultes",
-    text: "Consultez notre agenda, réservez vos places pour nos soirées spéciales.",
-    cta: "Voir l'agenda",
-    href: "#evenements",
-  },
-  {
-    icon: "💛",
-    title: "Soutenir l'Église",
-    text: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance.",
-    cta: "Faire un don",
-    href: "#dons",
-  },
+const STATIC_CARDS = [
+  { icon: "📺", title: "Sermons & Replays",      cta: "Voir les sermons",  href: "#sermons",    key: "decouvrir_1_text", fallback: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi." },
+  { icon: "👨‍👩‍👧‍👦", title: "Rejoindre la famille",  cta: "Je veux rejoindre", href: "#contact",    key: "decouvrir_2_text", fallback: "Rejoignez notre communauté évangélique ouverte à tous, issus de toutes les nations." },
+  { icon: "📅", title: "Événements & Cultes",     cta: "Voir l'agenda",     href: "#evenements", key: "decouvrir_3_text", fallback: "Consultez notre agenda, réservez vos places pour nos soirées spéciales." },
+  { icon: "💛", title: "Soutenir l'Église",       cta: "Faire un don",      href: "#dons",       key: "decouvrir_4_text", fallback: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance." },
 ];
 
-export default function FeaturesStrip() {
+export default async function FeaturesStrip() {
+  const supabase = createClient();
+  const keys = STATIC_CARDS.map((c) => c.key);
+  const { data } = await supabase.from("site_settings").select("key, value").in("key", keys);
+  const s: Record<string, string> = {};
+  for (const row of data ?? []) s[row.key] = row.value;
+
+  const DISCOVER = STATIC_CARDS.map((c) => ({ ...c, text: s[c.key] ?? c.fallback }));
+
   return (
     <section id="features" className="max-w-8xl mx-auto px-5 md:px-8" style={{ paddingBottom: 30 }}>
       {/* Label */}

@@ -1,5 +1,6 @@
 import { createClient }   from "@/lib/supabase/server";
 import { redirect }        from "next/navigation";
+import { Suspense }        from "react";
 import EspaceMembresClient from "./EspaceMembresClient";
 import type { EMClientProps } from "./EspaceMembresClient";
 
@@ -49,5 +50,9 @@ export default async function EspaceMembresPage() {
     events: (events ?? []) as EMClientProps["events"],
   };
 
-  return <EspaceMembresClient {...props} />;
+  return (
+    <Suspense fallback={null}>
+      <EspaceMembresClient {...props} />
+    </Suspense>
+  );
 }

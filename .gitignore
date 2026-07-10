@@ -35,4 +35,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# Migration scripts (contiennent potentiellement des mots de passe)
+# MIGRATION-README.md est conservé (pas de secrets)
+1-dump-ancien.ps1
+2-restore-nouveau.ps1
+3-verifier.ps1
+4-migrer-storage.js
+ancien-*.dump
+node_modules/

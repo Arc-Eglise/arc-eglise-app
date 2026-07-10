@@ -66,31 +66,7 @@ export default async function TeamSection() {
               </div>
             ))}
           </div>
-        ) : (
-          /* Placeholder cards */
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 22 }} className="arc-cards4">
-            {[
-              { name: "Pedro Obova", role: "Pasteur principal" },
-              { name: "Équipe pastorale", role: "Bergers" },
-              { name: "Louange & Gospel", role: "Ministère" },
-              { name: "Accueil & Familles", role: "Ministère" },
-            ].map((m) => (
-              <div
-                key={m.name}
-                style={{ background: "#fff", border: "1px solid rgba(30,36,100,.12)", borderRadius: 20, overflow: "hidden", textAlign: "center" }}
-              >
-                <div style={{ height: 220, background: "linear-gradient(150deg,#2b327f,#141738)", position: "relative" }}>
-                  <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 20px)" }} />
-                  <div style={{ position: "absolute", left: 0, right: 0, bottom: 10, fontFamily: "monospace", fontSize: 10, color: "rgba(255,255,255,.5)" }}>[ Portrait ]</div>
-                </div>
-                <div style={{ padding: 20 }}>
-                  <div className="font-serif" style={{ fontSize: 21, fontWeight: 600, color: "#1e2464" }}>{m.name}</div>
-                  <div style={{ fontSize: 12.5, color: "#C9A227", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", marginTop: 4 }}>{m.role}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        ) : null}
       </div>
 
       <style>{`

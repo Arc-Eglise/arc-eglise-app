@@ -11,24 +11,37 @@ import TeamSection            from "@/components/home/TeamSection";
 import VersetStrip            from "@/components/home/VersetStrip";
 import TestimonialsSection    from "@/components/home/TestimonialsSection";
 import DonSection             from "@/components/home/DonSection";
-import CopilotAssistant       from "@/components/home/CopilotAssistant";
 import ContactSection         from "@/components/home/ContactSection";
 
 export default async function HomePage() {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("site_settings")
-    .select("key, value")
-    .eq("key", "hero_subtitle")
-    .single();
-  const heroSubtitle = data?.value;
+  const [
+    { data: settingsRows },
+    { count: membresCount },
+  ] = await Promise.all([
+    supabase.from("site_settings").select("key, value")
+      .in("key", ["hero_subtitle", "votre_impact_intro", "stats_nations", "stats_touches"]),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
+  ]);
+
+  const settings: Record<string, string> = {};
+  for (const row of settingsRows ?? []) settings[row.key] = row.value;
+
+  const heroSubtitle      = settings.hero_subtitle;
+  const votre_impact_intro = settings.votre_impact_intro;
+  const heroStats = {
+    membres: membresCount ?? 0,
+    nations: settings.stats_nations || null,
+    ans:     new Date().getFullYear() - 2018,
+    touches: settings.stats_touches || null,
+  };
 
   return (
     <>
       <AnnouncementBar />
       <Header />
       <main>
-        <HeroSection subtitle={heroSubtitle} />
+        <HeroSection subtitle={heroSubtitle} stats={heroStats} />
         <FeaturesStrip />
         <AboutSection />
         <SermonsSection />
@@ -36,8 +49,7 @@ export default async function HomePage() {
         <TeamSection />
         <VersetStrip />
         <TestimonialsSection />
-        <DonSection />
-        <CopilotAssistant />
+        <DonSection intro={votre_impact_intro} />
         <ContactSection />
       </main>
       <Footer />

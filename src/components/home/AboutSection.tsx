@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+
 const VALUES = [
   { icon: "📖", title: "La Parole",  text: "La Bible est notre autorité absolue et notre guide quotidien." },
   { icon: "🙏", title: "La Prière",  text: "Nous sommes une maison de prière et d'intercession." },
@@ -5,7 +7,25 @@ const VALUES = [
   { icon: "🌍", title: "La Mission", text: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
 ];
 
-export default function AboutSection() {
+const DEFAULTS = {
+  histoire_p1:
+    "Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.",
+  histoire_p2:
+    "Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.",
+  histoire_citation:
+    "« Construisons des générations de disciples qui influencent positivement leur environnement. »",
+};
+
+export default async function AboutSection() {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["histoire_p1", "histoire_p2", "histoire_citation"]);
+
+  const s: Record<string, string> = { ...DEFAULTS };
+  for (const row of data ?? []) s[row.key] = row.value;
+
   return (
     <section id="apropos" style={{ maxWidth: 1240, margin: "0 auto", padding: "90px 32px" }}>
       <div style={{ display: "grid", gridTemplateColumns: ".9fr 1.1fr", gap: 64, alignItems: "center" }} className="arc-two">
@@ -66,10 +86,10 @@ export default function AboutSection() {
             <span style={{ fontStyle: "italic", color: "#C9A227" }}>dans la Parole</span>
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.75, color: "#6b6f86", marginBottom: 16 }}>
-            Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.
+            {s.histoire_p1}
           </p>
           <p style={{ fontSize: 16, lineHeight: 1.75, color: "#6b6f86", marginBottom: 24 }}>
-            Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.
+            {s.histoire_p2}
           </p>
           <blockquote
             style={{
@@ -83,7 +103,7 @@ export default function AboutSection() {
             }}
             className="font-serif"
           >
-            « Construisons des générations de disciples qui influencent positivement leur environnement. »
+            {s.histoire_citation}
           </blockquote>
 
           {/* Values grid */}

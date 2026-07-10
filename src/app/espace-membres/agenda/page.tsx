@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { EventCard } from "./AgendaClient";
 
 export default async function AgendaPage() {
@@ -81,6 +82,9 @@ export default async function AgendaPage() {
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Retour
+      </Link>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Agenda</h1>
         <p className="text-sm text-arc-text2 mt-0.5">Événements à venir — confirme ta présence</p>
@@ -106,6 +110,7 @@ export default async function AgendaPage() {
                 attendCount={attendMap[ev.id] ?? 0}
                 myCheckedIn={myAttendMap[ev.id] ?? null}
                 isPast={false}
+                isToday={ev.date === today}
                 isAdmin={isAdmin}
                 attendees={attendeesMap[ev.id] ?? []}
               />
