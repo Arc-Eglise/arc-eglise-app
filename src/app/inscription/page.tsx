@@ -63,12 +63,24 @@ export default function InscriptionPage() {
     });
 
     if (error) {
+      console.error("[INSCRIPTION] Supabase signUp error:", error.message, error);
+      const msg = error.message ?? "";
       setError(
-        error.message.includes("already registered") || error.message.includes("already been registered")
-          ? "Cet email est déjà utilisé. Connecte-toi."
-          : error.message.includes("User already registered")
-          ? "Cet email est déjà utilisé. Connecte-toi."
-          : "Erreur lors de l'inscription. Réessaie."
+        msg.includes("already registered") || msg.includes("already been registered") || msg.includes("User already registered")
+          ? "Cet email est déjà utilisé. Connecte-toi ou utilise un autre email."
+          : msg.includes("rate limit") || msg.includes("over_email_send_rate_limit")
+          ? "Trop de tentatives d'inscription. Réessaie dans une heure."
+          : msg.includes("only request this once every 60 seconds")
+          ? "Attends 60 secondes avant de réessayer."
+          : msg.includes("Database error") || msg.includes("database error")
+          ? `Erreur base de données lors de la création. Contacte le support.`
+          : msg.includes("signup") && msg.includes("disabled")
+          ? "Les inscriptions sont temporairement désactivées. Contacte le support."
+          : msg.includes("invalid") && msg.includes("email")
+          ? "Adresse email invalide."
+          : msg.includes("Password") || msg.includes("password")
+          ? "Le mot de passe ne respecte pas les critères requis."
+          : `Erreur lors de l'inscription : ${msg}`
       );
       setLoading(false);
     } else {
@@ -108,7 +120,7 @@ export default function InscriptionPage() {
           {[
             { icon: "✍️", title: "Tu remplis le formulaire", desc: "Prénom, nom, email, mot de passe." },
             { icon: "📧", title: "Confirme ton email",       desc: "Un lien de confirmation t'est envoyé." },
-            { icon: "✅", title: "Le Pasteur valide",        desc: "Ton compte Visiteur devient Membre." },
+            { icon: "✅", title: "Un responsable valide",      desc: "Ton compte Visiteur devient Membre." },
             { icon: "🎉", title: "Bienvenue dans l'ARC !",  desc: "Accès complet à l'espace membres." },
           ].map((j, i) => (
             <div key={i} className="flex items-start gap-3">
@@ -214,7 +226,7 @@ export default function InscriptionPage() {
             Créer un compte
           </h1>
           <p className="text-sm text-arc-text2 mb-6">
-            Tu rejoins comme <span className="font-bold text-arc-navy">Visiteur</span> — le Pasteur validera ton compte.
+            Tu rejoins comme <span className="font-bold text-arc-navy">Visiteur</span> — un responsable validera ton accès.
           </p>
 
           {/* Step bar */}
