@@ -1,8 +1,8 @@
 import { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { SITE_BASE as base } from "@/lib/url";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.arc-eglise.ch").replace(/\/$/, "");
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base,             lastModified: new Date(), changeFrequency: "weekly",  priority: 1.0 },

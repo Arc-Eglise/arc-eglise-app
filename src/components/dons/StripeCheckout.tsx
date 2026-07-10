@@ -8,6 +8,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { SITE_BASE } from "@/lib/url";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -47,7 +48,7 @@ function CheckoutForm({
 
     const { error: stripeErr, paymentIntent } = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: `${window.location.origin}/#dons` },
+      confirmParams: { return_url: `${SITE_BASE}/#dons` },
       redirect: "if_required",
     });
 

@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
+import { SITE_BASE as base } from "@/lib/url";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.arc-eglise.ch").replace(/\/$/, "");
   return {
     rules: [
       {

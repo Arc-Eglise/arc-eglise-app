@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
+import { SITE_BASE } from "@/lib/url";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -18,7 +19,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.arc-eglise.ch"),
+  metadataBase: new URL(SITE_BASE),
   title: "ARC — Ambassade du Royaume de Christ · La Chaux-de-Fonds",
   description:
     "Une communauté évangélique vivante, fondée sur la Parole de Dieu, ouverte à toutes les nations. La Chaux-de-Fonds, Suisse.",
