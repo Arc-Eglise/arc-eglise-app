@@ -244,17 +244,25 @@ export async function updateGrievanceStatus(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
+  const { data: profile } = await supabase
+    .from("profiles").select("role, groups").eq("id", user.id).single();
+  const canManage =
+    ["admin","pasteur"].includes(profile?.role ?? "") ||
+    (profile?.groups as string[] | null)?.includes("support");
+  if (!canManage) return { error: "Non autorisé" };
+
   const id             = formData.get("id") as string;
   const status         = formData.get("status") as string;
   const admin_response = (formData.get("admin_response") as string)?.trim() || null;
 
   const { error } = await supabase
     .from("grievances")
-    .update({ status, admin_response })
+    .update({ status, admin_response, responded_by: user.id })
     .eq("id", id);
 
   if (error) return { error: error.message };
   revalidatePath("/espace-membres/doleances");
+  revalidatePath("/admin/doleances");
   return { success: true };
 }
 

@@ -9,18 +9,21 @@ export default async function AdminDashboard() {
     { count: eventsCount },
     { count: membresCount },
     { count: visiteursCount },
+    { count: doleancesCount },
   ] = await Promise.all([
     supabase.from("sermons").select("*", { count: "exact", head: true }),
     supabase.from("events").select("*", { count: "exact", head: true }).gte("date", new Date().toISOString().split("T")[0]),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("grievances").select("*", { count: "exact", head: true }).eq("status", "en_attente"),
   ]);
 
   const STATS = [
-    { icon: "📺", label: "Sermons",          value: sermonsCount  ?? 0, href: "/admin/sermons",    color: "bg-arc-navy" },
-    { icon: "📅", label: "Événements à venir",value: eventsCount  ?? 0, href: "/admin/evenements", color: "bg-arc-blue" },
-    { icon: "✅", label: "Membres validés",   value: membresCount ?? 0, href: "/admin/membres",    color: "bg-arc-green" },
-    { icon: "⏳", label: "En attente",        value: visiteursCount ?? 0, href: "/admin/membres",  color: "bg-amber-500" },
+    { icon: "📺", label: "Sermons",           value: sermonsCount   ?? 0, href: "/admin/sermons",    color: "bg-arc-navy"  },
+    { icon: "📅", label: "Événements à venir",value: eventsCount    ?? 0, href: "/admin/evenements", color: "bg-arc-blue"  },
+    { icon: "✅", label: "Membres validés",    value: membresCount  ?? 0, href: "/admin/membres",    color: "bg-arc-green" },
+    { icon: "⏳", label: "Comptes en attente", value: visiteursCount ?? 0, href: "/admin/membres",   color: "bg-amber-500" },
+    { icon: "📬", label: "Doléances en att.",  value: doleancesCount ?? 0, href: "/admin/doleances", color: "bg-purple-600"},
   ];
 
   const { data: recentSermons } = await supabase

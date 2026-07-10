@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -10,6 +11,13 @@ const TYPE_LABELS: Record<string, string> = {
   suggestion: "💡 Suggestion d'amélioration",
   pastoral:   "🤝 Question pastorale",
   autre:      "⚠️ Autre",
+};
+
+const TYPE_TO_CATEGORY: Record<string, string> = {
+  bug:        "technique",
+  suggestion: "organisation",
+  pastoral:   "pastoral",
+  autre:      "autre",
 };
 
 export async function submitDoleance(
@@ -68,5 +76,21 @@ export async function submitDoleance(
   });
 
   if (error) return { error: error.message };
+
+  // Sauvegarde en base (table grievances) pour que l'admin puisse traiter
+  if (user) {
+    const category = TYPE_TO_CATEGORY[type] ?? "autre";
+    const title    = (TYPE_LABELS[type] ?? type).replace(/^[^ ]+ /, ""); // retire l'emoji
+    await supabase.from("grievances").insert({
+      user_id:      user.id,
+      title,
+      description:  message,
+      category,
+      is_anonymous: anon,
+    });
+    revalidatePath("/admin/doleances");
+    revalidatePath("/espace-membres/doleances");
+  }
+
   return { success: true };
 }
