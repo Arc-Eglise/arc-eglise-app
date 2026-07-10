@@ -5,6 +5,7 @@ import Link  from "next/link";
 import Image from "next/image";
 import { updateMemberGroups, addMemberNote, deleteMemberNote, setMemberRole } from "@/lib/actions/crm";
 import { validateMember, rejectMember } from "@/lib/actions/cms";
+import { DangerActionsPanel } from "./DangerActionsPanel";
 
 const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 const ROLES  = ["admin", "pasteur", "membre", "visiteur"] as const;
@@ -46,7 +47,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   // Charger le profil cible + notes avec adminClient
   const admin = createAdminClient();
 
-  const [{ data: member }, { data: notes }] = await Promise.all([
+  const [{ data: member }, { data: notes }, { data: authData }] = await Promise.all([
     admin.from("profiles")
       .select("id, first_name, last_name, email, role, groups, validated, country, phone, avatar_url, created_at")
       .eq("id", params.id)
@@ -55,7 +56,13 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
       .select("*, profiles!author_id(first_name, last_name)")
       .eq("member_id", params.id)
       .order("created_at", { ascending: false }),
+    admin.auth.admin.getUserById(params.id),
   ]);
+
+  // Statut de blocage — banned_until dans le futur = compte bloqué
+  const isBanned = authData?.user?.banned_until
+    ? new Date(authData.user.banned_until) > new Date()
+    : false;
 
   if (!member) notFound();
 
@@ -133,6 +140,11 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${roleStyle[member.role] ?? "bg-arc-blueBg text-arc-navy"}`}>
               {member.role}
             </span>
+            {isBanned && (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-200 text-gray-600">
+                🚫 Bloqué
+              </span>
+            )}
             <div className="text-[10px] text-arc-text3">
               Inscrit le {new Date(member.created_at).toLocaleDateString("fr-CH")}
             </div>
@@ -210,6 +222,14 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               </button>
             </form>
           </div>
+
+          {/* Actions administratives */}
+          <DangerActionsPanel
+            memberId={params.id}
+            memberName={fullName}
+            isBanned={isBanned}
+            isAdmin={callerIsAdmin}
+          />
 
           {/* Notes pastorales */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">

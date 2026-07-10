@@ -3,6 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { sendPasswordResetEmail } from "@/lib/email";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://arc-eglise.ch";
 
 async function requireAdminOrPasteur() {
   const supabase = createClient();
@@ -49,6 +52,90 @@ export async function deleteMemberNote(noteId: string, memberId: string) {
   const { supabase } = await requireAdminOrPasteur();
   await supabase.from("member_notes").delete().eq("id", noteId);
   revalidatePath(`/admin/crm/${memberId}`);
+  return { success: true };
+}
+
+// ── Réinitialisation du mot de passe (admin déclenche l'envoi) ─────────────
+export async function sendPasswordResetToMember(memberId: string) {
+  await requireAdminOrPasteur();
+  const admin = createAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("email, first_name")
+    .eq("id", memberId)
+    .single();
+
+  if (!profile?.email) return { error: "Email introuvable." };
+
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: profile.email,
+    options: {
+      redirectTo: `${SITE_URL}/auth/callback?next=/nouveau-mot-de-passe`,
+    },
+  });
+
+  if (error || !data?.properties?.action_link) {
+    return { error: "Impossible de générer le lien de réinitialisation." };
+  }
+
+  try {
+    await sendPasswordResetEmail(
+      profile.email,
+      profile.first_name ?? "",
+      data.properties.action_link,
+    );
+  } catch (e) {
+    return { error: `Lien généré mais email non envoyé : ${(e as Error).message}` };
+  }
+
+  return { success: true };
+}
+
+// ── Bloquer un compte (ban Supabase Auth — empêche la connexion) ────────────
+export async function blockMember(memberId: string) {
+  await requireAdminOrPasteur();
+  const admin = createAdminClient();
+
+  const { error } = await admin.auth.admin.updateUserById(memberId, {
+    ban_duration: "876000h", // ~100 ans, révocable via unblockMember
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/crm/${memberId}`);
+  return { success: true };
+}
+
+// ── Débloquer un compte ───────────────────────────────────────────────────────
+export async function unblockMember(memberId: string) {
+  await requireAdminOrPasteur();
+  const admin = createAdminClient();
+
+  const { error } = await admin.auth.admin.updateUserById(memberId, {
+    ban_duration: "none",
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/crm/${memberId}`);
+  return { success: true };
+}
+
+// ── Supprimer un compte (admin uniquement) ───────────────────────────────────
+export async function deleteMember(memberId: string) {
+  const { role: callerRole } = await requireAdminOrPasteur();
+  if (callerRole !== "admin") {
+    return { error: "Seul l'admin peut supprimer un compte." };
+  }
+
+  const admin = createAdminClient();
+
+  // Supprime de auth.users → cascade vers profiles via FK ON DELETE CASCADE
+  const { error } = await admin.auth.admin.deleteUser(memberId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/crm");
+  revalidatePath("/admin/membres");
   return { success: true };
 }
 
