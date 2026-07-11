@@ -19,10 +19,12 @@ async function requireAdminOrPasteur() {
 }
 
 export async function updateMemberGroups(memberId: string, groups: string[]) {
-  const { supabase } = await requireAdminOrPasteur();
+  await requireAdminOrPasteur();
+  // createAdminClient() bypasse RLS — obligatoire pour modifier le profil d'un autre utilisateur
+  const admin = createAdminClient();
   const updateData: { groups: string[]; validated?: boolean } = { groups };
   if (groups.includes("support")) updateData.validated = true;
-  const { error } = await supabase.from("profiles").update(updateData).eq("id", memberId);
+  const { error } = await admin.from("profiles").update(updateData).eq("id", memberId);
   if (error) return { error: error.message };
   revalidatePath(`/admin/crm/${memberId}`);
   revalidatePath("/admin/crm");

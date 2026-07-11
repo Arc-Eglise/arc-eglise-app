@@ -23,6 +23,7 @@ async function getToken(): Promise<string> {
         scope:         "https://graph.microsoft.com/.default",
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     },
   );
   if (!res.ok) {
@@ -44,6 +45,7 @@ async function gfetch(path: string, opts?: RequestInit): Promise<unknown> {
       ...(opts?.headers ?? {}),
     },
     cache: "no-store",
+    signal: opts?.signal ?? AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => res.statusText);

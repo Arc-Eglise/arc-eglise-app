@@ -47,7 +47,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   // Charger le profil cible + notes avec adminClient
   const admin = createAdminClient();
 
-  const [{ data: member }, { data: notes }, { data: authData }] = await Promise.all([
+  const [{ data: member }, { data: notes }] = await Promise.all([
     admin.from("profiles")
       .select("id, first_name, last_name, email, role, groups, validated, country, phone, avatar_url, created_at")
       .eq("id", params.id)
@@ -56,13 +56,18 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
       .select("*, profiles!author_id(first_name, last_name)")
       .eq("member_id", params.id)
       .order("created_at", { ascending: false }),
-    admin.auth.admin.getUserById(params.id),
   ]);
 
-  // Statut de blocage — banned_until dans le futur = compte bloqué
-  const isBanned = authData?.user?.banned_until
-    ? new Date(authData.user.banned_until) > new Date()
-    : false;
+  // Statut de blocage — appel séparé pour isoler un éventuel timeout de l'Auth Admin API
+  let isBanned = false;
+  try {
+    const { data: authData } = await admin.auth.admin.getUserById(params.id);
+    isBanned = authData?.user?.banned_until
+      ? new Date(authData.user.banned_until) > new Date()
+      : false;
+  } catch {
+    // Auth Admin API injoignable — page affichée sans statut de blocage
+  }
 
   if (!member) notFound();
 
