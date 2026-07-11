@@ -8,7 +8,7 @@ UPDATE profiles
 SET validated   = true,
     role        = 'admin',
     validated_at = NOW()
-WHERE email = 'jaise.buka.dilu@gmail.com';
+WHERE email = 'arceglise.cdf@gmail.com';
 
 -- 2. Trigger : auto-valider admin et pasteur sans validation manuelle
 CREATE OR REPLACE FUNCTION auto_validate_privileged_roles()

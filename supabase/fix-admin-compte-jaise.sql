@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
---  FIX PRIORITAIRE — Compte Admin jaise.buka.dilu@gmail.com
+--  FIX PRIORITAIRE — Compte Admin arceglise.cdf@gmail.com
 --  À exécuter dans : Supabase > SQL Editor > New Query
 --
 --  Ce script est un UPSERT : il crée le profil s'il n'existe pas,
@@ -20,7 +20,7 @@ SELECT
   true,
   NOW()
 FROM auth.users u
-WHERE u.email = 'jaise.buka.dilu@gmail.com'
+WHERE u.email = 'arceglise.cdf@gmail.com'
 ON CONFLICT (id) DO UPDATE
   SET role         = 'admin',
       validated    = true,
@@ -39,7 +39,7 @@ SELECT
   validated_at,
   created_at
 FROM profiles
-WHERE email = 'jaise.buka.dilu@gmail.com';
+WHERE email = 'arceglise.cdf@gmail.com';
 
 -- ── Étape 3 : Corriger tous les admin/pasteur non validés ────
 -- Couvre les autres comptes privilégiés éventuellement bloqués.

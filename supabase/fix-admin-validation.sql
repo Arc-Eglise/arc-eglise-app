@@ -2,7 +2,7 @@
 UPDATE profiles
 SET validated = true,
     role      = 'admin'
-WHERE email = 'jaise.buka.dilu@gmail.com';
+WHERE email = 'arceglise.cdf@gmail.com';
 
 -- Recréer le trigger auto-validation au cas où il manque
 CREATE OR REPLACE FUNCTION auto_validate_special_roles()

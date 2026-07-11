@@ -112,7 +112,7 @@ CREATE INDEX profiles_validated_idx ON profiles(validated);
 CREATE INDEX profiles_email_idx     ON profiles(email);
 
 -- ── 7. Admin initial — remplace par ton UUID Supabase ───────────
--- À exécuter APRÈS que Jaise soit inscrit via l'interface
--- UPDATE profiles SET role = 'admin' WHERE email = 'jaise.buka.dilu@gmail.com';
+-- À exécuter APRÈS que arceglise.cdf@gmail.com soit inscrit via l'interface
+-- UPDATE profiles SET role = 'admin' WHERE email = 'arceglise.cdf@gmail.com';
 
 -- ── FIN ─────────────────────────────────────────────────────────
