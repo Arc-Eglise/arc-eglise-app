@@ -15,10 +15,13 @@ async function uploadToStorage(bucket: string, path: string, file: File) {
   return data.publicUrl;
 }
 
-async function getCmsUser() {
+type CmsOk  = { ok: true;  supabase: ReturnType<typeof createClient>; profile: { role: string; groups: string[] | null }; userId: string };
+type CmsErr = { ok: false; error: string };
+
+async function getCmsUser(): Promise<CmsOk | CmsErr> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Non authentifié");
+  if (!user) return { ok: false, error: "Non authentifié" };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -26,23 +29,25 @@ async function getCmsUser() {
     .eq("id", user.id)
     .single();
 
-  if (!profile) throw new Error("Profil introuvable");
+  if (!profile) return { ok: false, error: "Profil introuvable" };
 
   const canCms =
     profile.role === "admin" ||
     profile.role === "pasteur" ||
-    profile.groups?.includes("support") ||
-    profile.groups?.includes("media") ||
-    profile.groups?.includes("communication");
+    (profile.groups as string[] | null)?.includes("support") ||
+    (profile.groups as string[] | null)?.includes("media") ||
+    (profile.groups as string[] | null)?.includes("communication");
 
-  if (!canCms) throw new Error("Accès non autorisé");
-  return { supabase, profile, userId: user.id };
+  if (!canCms) return { ok: false, error: "Accès non autorisé" };
+  return { ok: true, supabase, profile: { role: profile.role as string, groups: profile.groups as string[] | null }, userId: user.id };
 }
 
 // ── SERMONS ────────────────────────────────────────────────────
 
 export async function createSermon(formData: FormData) {
-  const { supabase, userId } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase, userId } = cms;
 
   const { error } = await supabase.from("sermons").insert({
     title:        formData.get("title")     as string,
@@ -64,7 +69,9 @@ export async function createSermon(formData: FormData) {
 }
 
 export async function updateSermon(id: string, formData: FormData) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
 
   const { error } = await supabase.from("sermons").update({
     title:        formData.get("title")     as string,
@@ -85,7 +92,9 @@ export async function updateSermon(id: string, formData: FormData) {
 }
 
 export async function deleteSermon(id: string) {
-  const { supabase, profile } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase, profile } = cms;
   const canDelete =
     ["admin", "pasteur"].includes(profile.role as string) ||
     (profile.groups as string[] | null)?.includes("support");
@@ -101,7 +110,9 @@ export async function deleteSermon(id: string) {
 // ── EVENTS ─────────────────────────────────────────────────────
 
 export async function createEvent(formData: FormData) {
-  const { supabase, userId } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase, userId } = cms;
 
   const tagsRaw = formData.get("tags") as string;
   const tags = tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
@@ -128,7 +139,9 @@ export async function createEvent(formData: FormData) {
 }
 
 export async function deleteEvent(id: string) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
   const { error } = await supabase.from("events").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/");
@@ -139,7 +152,9 @@ export async function deleteEvent(id: string) {
 // ── TEAM MEMBERS ───────────────────────────────────────────────
 
 export async function createTeamMember(formData: FormData) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
 
   let avatar_url: string | null = null;
   const photo = formData.get("photo") as File | null;
@@ -152,7 +167,7 @@ export async function createTeamMember(formData: FormData) {
     name:       formData.get("name")       as string,
     role_label: formData.get("role_label") as string,
     bio:        formData.get("bio")        as string || null,
-    initials:   (formData.get("initials") as string).toUpperCase(),
+    initials:   ((formData.get("initials") as string) || "").toUpperCase(),
     sort_order: Number(formData.get("sort_order") ?? 5),
     avatar_url,
   });
@@ -164,7 +179,9 @@ export async function createTeamMember(formData: FormData) {
 }
 
 export async function deleteTeamMember(id: string) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
 
   const { error } = await supabase.from("team_members").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -176,7 +193,9 @@ export async function deleteTeamMember(id: string) {
 // ── MEMBERS (validation) ────────────────────────────────────────
 
 export async function validateMember(memberId: string) {
-  const { profile, userId } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { profile, userId } = cms;
   const canManage =
     ["admin", "pasteur"].includes(profile.role as string) ||
     (profile.groups as string[] | null)?.includes("support");
@@ -198,7 +217,9 @@ export async function validateMember(memberId: string) {
 }
 
 export async function rejectMember(memberId: string) {
-  const { profile } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { profile } = cms;
   const canManage =
     ["admin", "pasteur"].includes(profile.role as string) ||
     (profile.groups as string[] | null)?.includes("support");
@@ -219,7 +240,9 @@ export async function rejectMember(memberId: string) {
 // ── TÉMOIGNAGES ────────────────────────────────────────────────
 
 export async function createTestimonial(formData: FormData) {
-  const { supabase, userId } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase, userId } = cms;
 
   let avatar_url: string | null = null;
   const photo = formData.get("photo") as File | null;
@@ -245,7 +268,9 @@ export async function createTestimonial(formData: FormData) {
 }
 
 export async function deleteTestimonial(id: string) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
   const { error } = await supabase.from("testimonials").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/");
@@ -254,7 +279,9 @@ export async function deleteTestimonial(id: string) {
 }
 
 export async function toggleTestimonialPublished(id: string, published: boolean) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
   const { error } = await supabase.from("testimonials").update({ is_published: published }).eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/");
@@ -277,7 +304,9 @@ const ALLOWED_SETTINGS = [
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {
-  const { supabase } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
 
   const upserts = ALLOWED_SETTINGS
     .filter((key) => formData.has(key))
@@ -298,7 +327,9 @@ export async function updateSiteSettings(formData: FormData) {
 // ── PHOTO VITRINE (section À propos) ───────────────────────────
 
 export async function saveVitrinePhoto(formData: FormData) {
-  const { supabase, profile } = await getCmsUser();
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase, profile } = cms;
 
   const canPhoto =
     ["admin", "pasteur"].includes(profile.role as string) ||

@@ -6,20 +6,24 @@ import { revalidatePath } from "next/cache";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { SITE_BASE as SITE_URL } from "@/lib/url";
 
-async function requireAdminOrPasteur() {
+type AuthOk = { ok: true; supabase: ReturnType<typeof createClient>; userId: string; role: string; groups: string[] };
+type AuthErr = { ok: false; error: string };
+
+async function requireAdminOrPasteur(): Promise<AuthOk | AuthErr> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Non authentifié");
+  if (!user) return { ok: false, error: "Non authentifié" };
   const { data: profile } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
   const allowed =
     ["admin", "pasteur"].includes(profile?.role ?? "") ||
     (profile?.groups as string[] | null)?.includes("support");
-  if (!allowed) throw new Error("Non autorisé");
-  return { supabase, userId: user.id, role: profile?.role as string, groups: profile?.groups as string[] };
+  if (!allowed) return { ok: false, error: "Non autorisé" };
+  return { ok: true, supabase, userId: user.id, role: profile?.role as string, groups: profile?.groups as string[] };
 }
 
 export async function updateMemberGroups(memberId: string, groups: string[]) {
-  await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
   // createAdminClient() bypasse RLS — obligatoire pour modifier le profil d'un autre utilisateur
   const admin = createAdminClient();
   const updateData: { groups: string[]; validated?: boolean } = { groups };
@@ -32,7 +36,9 @@ export async function updateMemberGroups(memberId: string, groups: string[]) {
 }
 
 export async function addMemberNote(formData: FormData) {
-  const { supabase, userId } = await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
+  const { supabase, userId } = auth;
   const memberId = formData.get("member_id") as string;
   const content  = (formData.get("content") as string)?.trim();
   const type     = (formData.get("type") as string) || "general";
@@ -50,7 +56,9 @@ export async function addMemberNote(formData: FormData) {
 }
 
 export async function deleteMemberNote(noteId: string, memberId: string) {
-  const { supabase } = await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
+  const { supabase } = auth;
   await supabase.from("member_notes").delete().eq("id", noteId);
   revalidatePath(`/admin/crm/${memberId}`);
   return { success: true };
@@ -58,7 +66,8 @@ export async function deleteMemberNote(noteId: string, memberId: string) {
 
 // ── Réinitialisation du mot de passe (admin déclenche l'envoi) ─────────────
 export async function sendPasswordResetToMember(memberId: string) {
-  await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
   const admin = createAdminClient();
 
   const { data: profile } = await admin
@@ -96,7 +105,8 @@ export async function sendPasswordResetToMember(memberId: string) {
 
 // ── Bloquer un compte (ban Supabase Auth — empêche la connexion) ────────────
 export async function blockMember(memberId: string) {
-  await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
   const admin = createAdminClient();
 
   const { error } = await admin.auth.admin.updateUserById(memberId, {
@@ -110,7 +120,8 @@ export async function blockMember(memberId: string) {
 
 // ── Débloquer un compte ───────────────────────────────────────────────────────
 export async function unblockMember(memberId: string) {
-  await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
   const admin = createAdminClient();
 
   const { error } = await admin.auth.admin.updateUserById(memberId, {
@@ -124,7 +135,9 @@ export async function unblockMember(memberId: string) {
 
 // ── Supprimer un compte (admin uniquement) ───────────────────────────────────
 export async function deleteMember(memberId: string) {
-  const { role: callerRole } = await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
+  const callerRole = auth.role;
   if (callerRole !== "admin") {
     return { error: "Seul l'admin peut supprimer un compte." };
   }
@@ -144,7 +157,9 @@ export async function deleteMember(memberId: string) {
 const ALLOWED_ROLES = ["admin", "pasteur", "membre", "visiteur"] as const;
 
 export async function setMemberRole(memberId: string, newRole: string) {
-  const { role: callerRole } = await requireAdminOrPasteur();
+  const auth = await requireAdminOrPasteur();
+  if (!auth.ok) return { error: auth.error };
+  const callerRole = auth.role;
 
   // Seul l'admin peut promouvoir quelqu'un au rôle 'admin'
   if (newRole === "admin" && callerRole !== "admin") {
