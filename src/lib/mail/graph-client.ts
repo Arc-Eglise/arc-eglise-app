@@ -51,8 +51,10 @@ async function gfetch(path: string, opts?: RequestInit): Promise<unknown> {
     const txt = await res.text().catch(() => res.statusText);
     throw new Error(`[Graph] ${res.status} ${path}: ${txt}`);
   }
-  if (res.status === 204) return null;
-  return res.json();
+  if (res.status === 204 || res.status === 202) return null;
+  const text = await res.text();
+  if (!text) return null;
+  return JSON.parse(text);
 }
 
 export type GraphMessage = {
