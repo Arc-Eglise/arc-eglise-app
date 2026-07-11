@@ -461,7 +461,13 @@ export async function updateMemberRole(memberId: string, newRole: string) {
     .eq("id", memberId)
     .single();
 
-  const { error } = await admin.from("profiles").update({ role: newRole }).eq("id", memberId);
+  const updatePayload: Record<string, unknown> = { role: newRole };
+  if (newRole === "pasteur") {
+    const { data: cur } = await admin.from("profiles").select("groups").eq("id", memberId).single();
+    const existing = (cur?.groups as string[]) ?? [];
+    if (!existing.includes("pasteur")) updatePayload.groups = [...existing, "pasteur"];
+  }
+  const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
   // Notification email (best-effort)
