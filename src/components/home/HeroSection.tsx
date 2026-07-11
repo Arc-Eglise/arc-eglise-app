@@ -3,8 +3,17 @@
 import Link from "next/link";
 
 interface HeroStats { membres: number; nations: string | null; ans: number; touches: string | null; }
+interface LastSermon { title: string; pastor: string; reference: string | null; }
 
-export default function HeroSection({ subtitle, stats }: { subtitle?: string; stats?: HeroStats }) {
+export default function HeroSection({
+  subtitle,
+  stats,
+  lastSermon,
+}: {
+  subtitle?: string;
+  stats?: HeroStats;
+  lastSermon?: LastSermon | null;
+}) {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -133,24 +142,24 @@ export default function HeroSection({ subtitle, stats }: { subtitle?: string; st
           </div>
         </div>
 
-        {/* Floating sermon info card */}
-        <div
-          className="animate-float"
-          style={{
-            position: "absolute", left: -26, top: 64, width: 230,
-            background: "#fff", borderRadius: 18, padding: 18,
-            boxShadow: "0 24px 50px rgba(20,23,56,.22)",
-            border: "1px solid rgba(30,36,100,.12)",
-          }}
-        >
-          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: "#C9A227", fontWeight: 700, marginBottom: 8 }}>Sermon du jour</div>
-          <div className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "#1e2464", lineHeight: 1.1 }}>L'amour désintéressé</div>
-          <div style={{ fontSize: 12.5, color: "#6b6f86", marginTop: 6 }}>1 Corinthiens 13 · Past. Pedro Obova</div>
-          <div style={{ display: "flex", gap: 16, marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(30,36,100,.12)" }}>
-            <div><div style={{ fontWeight: 700, color: "#1e2464", fontSize: 15 }}>—</div><div style={{ fontSize: 11, color: "#6b6f86" }}>Vues</div></div>
-            <div><div style={{ fontWeight: 700, color: "#1e2464", fontSize: 15 }}>—</div><div style={{ fontSize: 11, color: "#6b6f86" }}>Nations</div></div>
+        {/* Floating sermon info card — masquée si aucun sermon publié */}
+        {lastSermon && (
+          <div
+            className="animate-float"
+            style={{
+              position: "absolute", left: -26, top: 64, width: 230,
+              background: "#fff", borderRadius: 18, padding: 18,
+              boxShadow: "0 24px 50px rgba(20,23,56,.22)",
+              border: "1px solid rgba(30,36,100,.12)",
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: "#C9A227", fontWeight: 700, marginBottom: 8 }}>Dernier sermon</div>
+            <div className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "#1e2464", lineHeight: 1.1 }}>{lastSermon.title}</div>
+            <div style={{ fontSize: 12.5, color: "#6b6f86", marginTop: 6 }}>
+              {[lastSermon.reference, lastSermon.pastor ? `Past. ${lastSermon.pastor}` : null].filter(Boolean).join(" · ")}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Floating event card (delayed float) */}
         <div

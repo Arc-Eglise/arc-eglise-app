@@ -23,7 +23,15 @@ const PAYMENTS = [
 
 type Step = "form" | "stripe" | "success";
 
-export default function DonSection({ intro }: { intro?: string }) {
+export default function DonSection({
+  intro,
+  twintNumero,
+  donIban,
+}: {
+  intro?: string;
+  twintNumero?: string | null;
+  donIban?: string | null;
+}) {
   const [selected, setSelected] = useState("25");
   const [custom,   setCustom]   = useState("");
   const [payment,  setPayment]  = useState("TWINT");
@@ -92,14 +100,21 @@ export default function DonSection({ intro }: { intro?: string }) {
               </p>
               {payment === "TWINT" && (
                 <div style={{ background: "rgba(201,162,39,.08)", border: "1.5px solid #C9A227", borderRadius: 13, padding: 18, fontSize: 13.5, color: "#1e2464", lineHeight: 1.8 }}>
-                  <strong>TWINT :</strong> coordonnées disponibles à l'église ou via le contact.<br />
+                  <strong>TWINT :</strong>{" "}
+                  {twintNumero
+                    ? <>{twintNumero}</>
+                    : <>Coordonnées disponibles à l'église ou via <a href="#contact" style={{ color: "#C9A227", fontWeight: 700 }}>notre formulaire</a>.</>
+                  }<br />
                   <span style={{ color: "#6b6f86" }}>Référence : ARC-DON{email ? ` · ${email}` : ""}</span>
                 </div>
               )}
               {payment === "Virement" && (
                 <div style={{ background: "rgba(201,162,39,.08)", border: "1.5px solid #C9A227", borderRadius: 13, padding: 18, fontSize: 13.5, color: "#1e2464", lineHeight: 1.8 }}>
                   <strong>Virement bancaire :</strong><br />
-                  Coordonnées disponibles via <a href="#contact" style={{ color: "#C9A227", fontWeight: 700 }}>notre formulaire de contact</a>.<br />
+                  {donIban
+                    ? <>{donIban}</>
+                    : <>Coordonnées disponibles via <a href="#contact" style={{ color: "#C9A227", fontWeight: 700 }}>notre formulaire de contact</a>.</>
+                  }<br />
                   <span style={{ color: "#6b6f86" }}>Référence : ARC-DON{email ? ` · ${email}` : ""}</span>
                 </div>
               )}

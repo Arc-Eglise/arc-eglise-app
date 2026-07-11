@@ -18,16 +18,27 @@ export default async function HomePage() {
   const [
     { data: settingsRows },
     { count: membresCount },
+    { data: lastSermon },
   ] = await Promise.all([
     supabase.from("site_settings").select("key, value")
-      .in("key", ["hero_subtitle", "votre_impact_intro", "stats_nations", "stats_touches"]),
+      .in("key", [
+        "hero_subtitle", "votre_impact_intro",
+        "stats_nations", "stats_touches",
+        "don_twint_numero", "don_iban",
+      ]),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
+    supabase.from("sermons")
+      .select("title, pastor, reference")
+      .eq("is_published", true)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const settings: Record<string, string> = {};
   for (const row of settingsRows ?? []) settings[row.key] = row.value;
 
-  const heroSubtitle      = settings.hero_subtitle;
+  const heroSubtitle       = settings.hero_subtitle;
   const votre_impact_intro = settings.votre_impact_intro;
   const heroStats = {
     membres: membresCount ?? 0,
@@ -41,7 +52,7 @@ export default async function HomePage() {
       <AnnouncementBar />
       <Header />
       <main>
-        <HeroSection subtitle={heroSubtitle} stats={heroStats} />
+        <HeroSection subtitle={heroSubtitle} stats={heroStats} lastSermon={lastSermon ?? null} />
         <FeaturesStrip />
         <AboutSection />
         <SermonsSection />
@@ -49,7 +60,11 @@ export default async function HomePage() {
         <TeamSection />
         <VersetStrip />
         <TestimonialsSection />
-        <DonSection intro={votre_impact_intro} />
+        <DonSection
+          intro={votre_impact_intro}
+          twintNumero={settings.don_twint_numero || null}
+          donIban={settings.don_iban || null}
+        />
         <ContactSection />
       </main>
       <Footer />
