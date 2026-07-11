@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ArcEvent } from "@/lib/supabase/types";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
-const CULTE_DEFAULTS = [
-  { icon: "⛪", label: "Dimanche 09h30 — Culte principal" },
-  { icon: "🌙", label: "Dimanche 17h00 — Culte du soir" },
-  { icon: "🙏", label: "Mercredi 19h00 — Prière & Parole" },
+const CULTE_DEFAULTS: { iconName: IconName; label: string }[] = [
+  { iconName: "lieu-de-culte", label: "Dimanche 09h30 — Culte principal" },
+  { iconName: "priere-bible",  label: "Dimanche 17h00 — Culte du soir" },
+  { iconName: "priere-bible",  label: "Mercredi 19h00 — Prière & Parole" },
 ];
 
 export default async function EventsSection() {
@@ -32,7 +33,7 @@ export default async function EventsSection() {
     const raw = s[`culte_${i + 1}_label`] ?? c.label;
     const [dayPart, namePart] = raw.split(" — ");
     return {
-      icon: c.icon,
+      iconName: c.iconName,
       day:  dayPart?.trim() ?? raw,
       name: namePart?.trim() ?? "",
       time: dayPart?.match(/\d{2}h\d{2}/)?.[0] ?? "",
@@ -103,50 +104,28 @@ export default async function EventsSection() {
                   fontWeight: 700, fontSize: 14.5,
                 }}
               >
-                🎟 Réserver ma place
+                Réserver ma place
               </a>
             </div>
           </div>
         ) : (
-          /* Placeholder featured */
-          <div style={{ background: "#1e2464", color: "#fff", borderRadius: 22, overflow: "hidden", boxShadow: "0 24px 56px rgba(20,23,56,.28)" }}>
-            <div style={{ position: "relative", height: 220, background: "linear-gradient(150deg,#3a4196,#1e2464)" }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
-              <div style={{ position: "absolute", top: 18, left: 18, background: "#C9A227", color: "#141738", fontWeight: 700, fontSize: 12, padding: "6px 13px", borderRadius: 999 }}>
-                À LA UNE · CHF 25
+          /* Aucun événement publié */
+          <div style={{ background: "#1e2464", color: "#fff", borderRadius: 22, overflow: "hidden", boxShadow: "0 24px 56px rgba(20,23,56,.28)", minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <Icon name="agenda" variant="line" size={52} style={{ marginBottom: 16, opacity: 0.5 }} />
+              <div style={{ fontSize: 15, color: "rgba(255,255,255,.6)", lineHeight: 1.6 }}>
+                Aucun événement à venir pour le moment.<br />
+                Revenez bientôt ou contactez-nous.
               </div>
-              <div style={{ position: "absolute", bottom: 16, left: 18, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
-                [ Photo — Soirée Gospel ]
-              </div>
-            </div>
-            <div style={{ padding: 28 }}>
-              <div style={{ display: "flex", gap: 18, marginBottom: 14 }}>
-                <div style={{ textAlign: "center", background: "rgba(255,255,255,.1)", borderRadius: 12, padding: "10px 16px" }}>
-                  <div className="font-serif" style={{ fontSize: 30, fontWeight: 700, lineHeight: 1 }}>27</div>
-                  <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase" }}>Juin</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <h3 className="font-serif" style={{ fontSize: 28, fontWeight: 600 }}>Soirée Gospel & Dîner</h3>
-                  <div style={{ fontSize: 13.5, color: "rgba(255,255,255,.65)", marginTop: 3 }}>Samedi · 18h00 — 22h00 · 22/60 places réservées</div>
-                </div>
-              </div>
-              <p style={{ fontSize: 14.5, color: "rgba(255,255,255,.7)", lineHeight: 1.6, marginBottom: 18 }}>
-                Une soirée de louange gospel suivie d'un dîner convivial. Ouvert à tous — invitez vos amis et votre famille !
-              </p>
-              <a
-                href="#contact"
-                style={{ textDecoration: "none", display: "inline-block", background: "#C9A227", color: "#141738", padding: "14px 28px", borderRadius: 999, fontWeight: 700, fontSize: 14.5 }}
-              >
-                🎟 Réserver ma place
-              </a>
             </div>
           </div>
         )}
 
         {/* Cultes schedule */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div className="font-serif" style={{ fontSize: 24, fontWeight: 600, color: "#1e2464", marginBottom: 2 }}>
-            📅 Prochains cultes
+          <div className="font-serif" style={{ fontSize: 24, fontWeight: 600, color: "#1e2464", marginBottom: 2, display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="agenda" size={24} />
+            Prochains cultes
           </div>
           {CULTES.map((c) => (
             <div
@@ -157,8 +136,8 @@ export default async function EventsSection() {
                 borderRadius: 14, padding: 18,
               }}
             >
-              <div style={{ width: 54, height: 54, borderRadius: 12, background: "rgba(30,36,100,.07)", display: "grid", placeItems: "center", fontSize: 22, flexShrink: 0 }}>
-                {c.icon}
+              <div style={{ width: 54, height: 54, borderRadius: 12, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <Icon name={c.iconName} variant="tile" size={54} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, color: "#1e2464", fontSize: 15 }}>{c.day}</div>

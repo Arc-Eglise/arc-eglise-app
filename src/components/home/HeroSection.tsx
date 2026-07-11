@@ -173,7 +173,7 @@ export default function HeroSection({ subtitle, stats }: { subtitle?: string; st
             className="block text-center font-bold text-[13.5px] text-arc-navy9 hover:opacity-90 transition-opacity"
             style={{ marginTop: 14, background: "#C9A227", padding: 11, borderRadius: 11, border: "none", cursor: "pointer", width: "100%" }}
           >
-            🎟 Réserver ma place
+            Réserver ma place
           </button>
         </div>
       </div>

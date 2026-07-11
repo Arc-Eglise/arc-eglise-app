@@ -72,7 +72,7 @@ export default function ContactForm() {
   if (sent) {
     return (
       <div style={{ padding: "64px 32px", textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🙏</div>
+        <div style={{ fontSize: 48, marginBottom: 16, color: "#C9A227" }}>✦</div>
         <h3 className="font-serif" style={{ fontSize: 28, fontWeight: 600, color: "#1e2464", marginBottom: 8 }}>
           Message envoyé !
         </h3>
@@ -94,7 +94,7 @@ export default function ContactForm() {
     >
       {error && (
         <div style={{ background: "#fff5f5", border: "1px solid #fed7d7", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#c53030", marginBottom: 16 }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -144,7 +144,7 @@ export default function ContactForm() {
           transition: "opacity .15s",
         }}
       >
-        {sending ? "Envoi en cours…" : "Envoyer le message ✉️"}
+        {sending ? "Envoi en cours…" : "Envoyer le message"}
       </button>
     </form>
   );

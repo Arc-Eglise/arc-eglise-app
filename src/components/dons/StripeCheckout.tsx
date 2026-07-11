@@ -72,7 +72,7 @@ function CheckoutForm({
         <p style={{ color: "#d32f2f", fontSize: 13, marginTop: 10 }}>{error}</p>
       )}
       <button type="submit" disabled={!stripe || loading} style={BTN}>
-        {loading ? "Traitement en cours…" : `💛 Confirmer CHF ${amount}`}
+        {loading ? "Traitement en cours…" : `Confirmer CHF ${amount}`}
       </button>
       <button
         type="button"

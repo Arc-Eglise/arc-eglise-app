@@ -2,21 +2,23 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { Smartphone, CreditCard, Landmark, Lock } from "lucide-react";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
 const StripeCheckout = dynamic(() => import("@/components/dons/StripeCheckout"), { ssr: false });
 
 const AMOUNTS = ["10", "25", "50", "100"];
 
-const PROJECTS = [
-  { icon: "📖", title: "Bibliothèque spirituelle", text: "Vos dons financent l'achat de Bibles et de matériel d'étude pour les nouveaux membres.", pct: 78 },
-  { icon: "🌍", title: "Missions & Évangélisation", text: "Soutenir nos équipes qui partent en mission dans les nations pour partager l'Évangile.", pct: 62 },
-  { icon: "🏠", title: "Lieu de culte", text: "Maintenance et amélioration de notre espace d'accueil pour toute la communauté.", pct: 45 },
+const PROJECTS: { icon: IconName; title: string; text: string }[] = [
+  { icon: "la-parole",        title: "Bibliothèque spirituelle", text: "Vos dons financent l'achat de Bibles et de matériel d'étude pour les nouveaux membres." },
+  { icon: "rejoindre-famille", title: "Missions & Évangélisation", text: "Soutenir nos équipes qui partent en mission dans les nations pour partager l'Évangile." },
+  { icon: "lieu-de-culte",    title: "Lieu de culte",            text: "Maintenance et amélioration de notre espace d'accueil pour toute la communauté." },
 ];
 
 const PAYMENTS = [
-  { icon: "📱", label: "TWINT" },
-  { icon: "💳", label: "Carte" },
-  { icon: "🏦", label: "Virement" },
+  { icon: <Smartphone size={20} strokeWidth={2} color="#1e2464" />, label: "TWINT" },
+  { icon: <CreditCard  size={20} strokeWidth={2} color="#1e2464" />, label: "Carte" },
+  { icon: <Landmark    size={20} strokeWidth={2} color="#1e2464" />, label: "Virement" },
 ];
 
 type Step = "form" | "stripe" | "success";
@@ -66,26 +68,13 @@ export default function DonSection({ intro }: { intro?: string }) {
               key={p.title}
               style={{ background: "#fff", border: "1px solid rgba(30,36,100,.12)", borderRadius: 18, padding: 24, display: "flex", gap: 18, alignItems: "center" }}
             >
-              <div style={{ width: 58, height: 58, borderRadius: 14, background: "rgba(30,36,100,.07)", display: "grid", placeItems: "center", fontSize: 26, flexShrink: 0 }}>
-                {p.icon}
-              </div>
+              <Icon name={p.icon} variant="tile" size={56} style={{ flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div className="font-serif" style={{ fontSize: 21, fontWeight: 600, color: "#1e2464" }}>{p.title}</div>
-                <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, margin: "4px 0 12px" }}>{p.text}</div>
-                <div style={{ height: 8, background: "rgba(30,36,100,.08)", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${p.pct}%`, background: "linear-gradient(90deg,#C9A227,#E6C763)", borderRadius: 999 }} />
-                </div>
-                <div style={{ fontSize: 12, color: "#C9A227", fontWeight: 700, marginTop: 7 }}>{p.pct}% de l'objectif atteint</div>
+                <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, margin: "4px 0 0" }}>{p.text}</div>
               </div>
             </div>
           ))}
-
-          <div style={{ background: "#141738", color: "#fff", borderRadius: 18, padding: 24, display: "flex", alignItems: "center", gap: 18 }}>
-            <div className="font-serif" style={{ fontSize: 42, fontWeight: 700, color: "#E6C763", lineHeight: 1 }}>600+</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,.7)", lineHeight: 1.5 }}>
-              vies déjà touchées grâce à votre générosité depuis 2018.
-            </div>
-          </div>
         </div>
 
         {/* Right card */}
@@ -94,7 +83,7 @@ export default function DonSection({ intro }: { intro?: string }) {
           {/* ── SUCCESS ── */}
           {step === "success" && (
             <div>
-              <div style={{ textAlign: "center", fontSize: 44, marginBottom: 12 }}>💛</div>
+              <Icon name="dons-paiements" variant="tile" size={52} style={{ display: "block", margin: "0 auto 16px" }} />
               <h3 className="font-serif" style={{ fontSize: 24, fontWeight: 600, color: "#1e2464", textAlign: "center", marginBottom: 6 }}>
                 Merci pour votre don !
               </h3>
@@ -103,15 +92,14 @@ export default function DonSection({ intro }: { intro?: string }) {
               </p>
               {payment === "TWINT" && (
                 <div style={{ background: "rgba(201,162,39,.08)", border: "1.5px solid #C9A227", borderRadius: 13, padding: 18, fontSize: 13.5, color: "#1e2464", lineHeight: 1.8 }}>
-                  <strong>TWINT :</strong> numéro <strong>+41 78 123 45 67</strong> (pasteur Pedro) ou scannez le QR à l'église.<br />
+                  <strong>TWINT :</strong> coordonnées disponibles à l'église ou via le contact.<br />
                   <span style={{ color: "#6b6f86" }}>Référence : ARC-DON{email ? ` · ${email}` : ""}</span>
                 </div>
               )}
               {payment === "Virement" && (
                 <div style={{ background: "rgba(201,162,39,.08)", border: "1.5px solid #C9A227", borderRadius: 13, padding: 18, fontSize: 13.5, color: "#1e2464", lineHeight: 1.8 }}>
                   <strong>Virement bancaire :</strong><br />
-                  IBAN : <strong>CH56 0076 2011 6238 5295 7</strong><br />
-                  Bénéficiaire : ARC Ambassade du Royaume de Christ<br />
+                  Coordonnées disponibles via <a href="#contact" style={{ color: "#C9A227", fontWeight: 700 }}>notre formulaire de contact</a>.<br />
                   <span style={{ color: "#6b6f86" }}>Référence : ARC-DON{email ? ` · ${email}` : ""}</span>
                 </div>
               )}
@@ -192,7 +180,7 @@ export default function DonSection({ intro }: { intro?: string }) {
                       transition: "all .15s",
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>{pm.icon}</span>
+                    {pm.icon}
                     {pm.label}
                   </button>
                 ))}
@@ -217,13 +205,14 @@ export default function DonSection({ intro }: { intro?: string }) {
                 }}
                 className="arc-don-btn"
               >
-                💛 Donner {amountFmt}{payment === "Carte" ? " par carte" : ""}
+                Donner {amountFmt}{payment === "Carte" ? " par carte" : ""}
               </button>
 
-              <div style={{ textAlign: "center", fontSize: 12, color: "#6b6f86", marginTop: 14 }}>
+              <div style={{ textAlign: "center", fontSize: 12, color: "#6b6f86", marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Lock size={12} color="#6b6f86" />
                 {payment === "Carte"
-                  ? "🔒 Paiement sécurisé par Stripe · SSL 256-bit"
-                  : "🔒 Transaction sécurisée · Reçu fiscal sur demande"}
+                  ? "Paiement sécurisé par Stripe · SSL 256-bit"
+                  : "Transaction sécurisée · Reçu fiscal sur demande"}
               </div>
             </>
           )}

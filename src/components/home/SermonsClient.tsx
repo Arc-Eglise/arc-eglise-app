@@ -161,7 +161,6 @@ export default function SermonsClient({ sermons, dark = false }: { sermons: Serm
               }}
             >
               <div style={{ textAlign: "center", padding: 24 }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>📺</div>
                 <div style={{ fontSize: 13, color: dark ? "rgba(255,255,255,.35)" : "#8890aa" }}>
                   Prochain message<br />à venir
                 </div>

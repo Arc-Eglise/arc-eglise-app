@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Home, Settings, LogOut } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 
 const NAV_LINKS = [
@@ -17,10 +18,10 @@ const NAV_LINKS = [
 ];
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
-  admin:    { label: "👑 Admin",    cls: "bg-red-100 border-red-300 text-red-700" },
-  pasteur:  { label: "✝️ Pasteur",  cls: "bg-purple-100 border-purple-300 text-purple-700" },
-  membre:   { label: "✅ Membre",   cls: "bg-green-100 border-green-300 text-green-700" },
-  visiteur: { label: "⏳ Visiteur", cls: "bg-amber-100 border-amber-300 text-amber-700" },
+  admin:    { label: "Admin",    cls: "bg-red-100 border-red-300 text-red-700" },
+  pasteur:  { label: "Pasteur",  cls: "bg-purple-100 border-purple-300 text-purple-700" },
+  membre:   { label: "Membre",   cls: "bg-green-100 border-green-300 text-green-700" },
+  visiteur: { label: "Visiteur", cls: "bg-amber-100 border-amber-300 text-amber-700" },
 };
 
 export default function Header() {
@@ -97,7 +98,7 @@ export default function Header() {
           {user && (
             <li>
               <Link href="/espace-membres" className="arc-link text-[14.5px] font-semibold text-arc-green hover:text-green-700 transition-colors">
-                ＋ Mon espace
+                + Mon espace
               </Link>
             </li>
           )}
@@ -105,11 +106,6 @@ export default function Header() {
 
         {/* Right CTAs */}
         <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-          <span className="flex items-center gap-1.5 text-[12.5px] text-arc-muted font-medium">
-            <span className="animate-pulse2 inline-block w-[7px] h-[7px] rounded-full bg-green-500" />
-            18 en ligne
-          </span>
-
           {!loading && !user && (
             <>
               <Link
@@ -165,18 +161,21 @@ export default function Header() {
                       <div className="text-[11px] text-arc-text3">{profile?.email}</div>
                     </div>
                     <Link href="/espace-membres" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
-                      🏠 Mon espace membres
+                      <Home size={14} />
+                      Mon espace membres
                     </Link>
                     {role === "admin" && (
                       <Link href="/admin" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
-                        ⚙️ Administration
+                        <Settings size={14} />
+                        Administration
                       </Link>
                     )}
                     <button
                       onClick={signOut}
                       className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-arc-red hover:bg-red-50 transition-colors border-t border-arc-border"
                     >
-                      🚪 Se déconnecter
+                      <LogOut size={14} />
+                      Se déconnecter
                     </button>
                   </div>
                 )}
@@ -218,7 +217,7 @@ export default function Header() {
             {user ? (
               <>
                 <Link href="/espace-membres" className="w-full py-3 rounded-full bg-arc-navy text-white text-[14px] font-semibold text-center" style={{ boxShadow: "0 8px 22px rgba(30,36,100,.28)" }}>
-                  🏠 Mon espace membres
+                  Mon espace membres
                 </Link>
                 <button onClick={signOut} className="w-full py-3 rounded-full border border-arc-red text-arc-red text-[14px] font-semibold hover:bg-red-50 transition-colors">
                   Déconnexion

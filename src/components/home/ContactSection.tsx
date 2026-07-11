@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import ContactForm from "./ContactForm";
 import Icon from "@/components/ui/Icon";
+import { ExternalLink } from "lucide-react";
 
 const DEFAULTS: Record<string, string> = {
   contact_address:  "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds, Suisse",
@@ -11,6 +12,13 @@ const DEFAULTS: Record<string, string> = {
   social_instagram: "https://www.instagram.com/arc.eglise",
   social_youtube:   "https://www.youtube.com/@ARCEglise",
   social_whatsapp:  "https://wa.me/41000000000",
+};
+
+const SOCIAL_ABBR: Record<string, { abbr: string; color: string }> = {
+  social_facebook:  { abbr: "FB", color: "#1877F2" },
+  social_instagram: { abbr: "IG", color: "#E1306C" },
+  social_youtube:   { abbr: "YT", color: "#FF0000" },
+  social_whatsapp:  { abbr: "WA", color: "#25D366" },
 };
 
 export default async function ContactSection() {
@@ -36,10 +44,10 @@ export default async function ContactSection() {
   ];
 
   const SOCIALS = [
-    { icon: "📘", label: "Facebook",  href: s.social_facebook },
-    { icon: "📸", label: "Instagram", href: s.social_instagram },
-    { icon: "▶️", label: "YouTube",   href: s.social_youtube },
-    { icon: "📱", label: "WhatsApp",  href: s.social_whatsapp },
+    { key: "social_facebook",  label: "Facebook",  href: s.social_facebook },
+    { key: "social_instagram", label: "Instagram", href: s.social_instagram },
+    { key: "social_youtube",   label: "YouTube",   href: s.social_youtube },
+    { key: "social_whatsapp",  label: "WhatsApp",  href: s.social_whatsapp },
   ].filter((soc) => soc.href && soc.href.trim() !== "");
 
   return (
@@ -109,37 +117,48 @@ export default async function ContactSection() {
                 padding: "5px 11px",
                 borderRadius: 8,
                 textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
               }}
             >
-              🗺️ Ouvrir dans Maps
+              <ExternalLink size={11} />
+              Ouvrir dans Maps
             </a>
           </div>
 
           {/* Socials */}
           {SOCIALS.length > 0 && (
             <div style={{ display: "flex", gap: 10 }}>
-              {SOCIALS.map((soc) => (
-                <a
-                  key={soc.label}
-                  href={soc.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={soc.label}
-                  style={{
-                    textDecoration: "none",
-                    width: 46, height: 46,
-                    borderRadius: 12,
-                    background: "#fff",
-                    border: "1px solid rgba(30,36,100,.12)",
-                    display: "grid", placeItems: "center",
-                    fontSize: 18,
-                    transition: "transform .15s",
-                  }}
-                  className="arc-social-btn"
-                >
-                  {soc.icon}
-                </a>
-              ))}
+              {SOCIALS.map((soc) => {
+                const meta = SOCIAL_ABBR[soc.key] ?? { abbr: soc.label.slice(0, 2).toUpperCase(), color: "#1e2464" };
+                return (
+                  <a
+                    key={soc.label}
+                    href={soc.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={soc.label}
+                    title={soc.label}
+                    style={{
+                      textDecoration: "none",
+                      width: 46, height: 46,
+                      borderRadius: 12,
+                      background: "#fff",
+                      border: "1px solid rgba(30,36,100,.12)",
+                      display: "grid", placeItems: "center",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: meta.color,
+                      letterSpacing: ".02em",
+                      transition: "transform .15s",
+                    }}
+                    className="arc-social-btn"
+                  >
+                    {meta.abbr}
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>
@@ -152,6 +171,7 @@ export default async function ContactSection() {
         @media (max-width: 820px) {
           .arc-two { grid-template-columns: 1fr !important; }
         }
+        .arc-social-btn:hover { transform: translateY(-2px); }
       `}</style>
     </section>
   );

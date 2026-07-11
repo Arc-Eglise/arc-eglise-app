@@ -3,7 +3,6 @@ import AnnouncementMarquee    from "./AnnouncementMarquee";
 
 const STATIC_ITEMS = [
   "Bienvenue à l'ARC — venez tels que vous êtes",
-  "600+ personnes touchées par l'Évangile",
 ];
 
 export default async function AnnouncementBar() {
@@ -31,20 +30,20 @@ export default async function AnnouncementBar() {
     for (const row of settings ?? []) s[row.key] = row.value;
 
     if (s.culte_1_label) {
-      items.unshift(`⛪ ${s.culte_1_label}`);
+      items.unshift(s.culte_1_label);
     }
 
     if (s.verset_reference) {
-      items.push(`📖 Verset du jour : ${s.verset_reference}`);
+      items.push(`Verset du jour : ${s.verset_reference}`);
     }
 
     for (const ev of events ?? []) {
       const date = new Date(ev.date).toLocaleDateString("fr-CH", { weekday: "short", day: "numeric", month: "short" });
-      items.unshift(`📅 ${ev.title} · ${date} ${ev.time_start?.slice(0, 5) ?? ""}`);
+      items.unshift(`${ev.title} · ${date} ${ev.time_start?.slice(0, 5) ?? ""}`);
     }
   } catch {
-    items.unshift("⛪ Dimanche 09h30 — Culte principal");
-    items.unshift("⛪ Dimanche 17h00 — Culte du soir");
+    items.unshift("Dimanche 09h30 — Culte principal");
+    items.unshift("Dimanche 17h00 — Culte du soir");
   }
 
   return <AnnouncementMarquee items={items} />;

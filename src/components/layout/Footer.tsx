@@ -1,5 +1,6 @@
 import Image          from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import Icon from "@/components/ui/Icon";
 
 const NAV = [
   { label: "Accueil",     href: "#accueil" },
@@ -20,10 +21,10 @@ const COMMUNITY = [
 ];
 
 const SOCIAL_DEFS = [
-  { key: "social_facebook",  icon: "📘", label: "Facebook",  fallback: "https://www.facebook.com/ARCEgliseCDF" },
-  { key: "social_instagram", icon: "📸", label: "Instagram", fallback: "https://www.instagram.com/arc.eglise" },
-  { key: "social_youtube",   icon: "▶️", label: "YouTube",   fallback: "https://www.youtube.com/@ARCEglise" },
-  { key: "social_whatsapp",  icon: "📱", label: "WhatsApp",  fallback: "https://wa.me/41000000000" },
+  { key: "social_facebook",  abbr: "FB",  label: "Facebook",  fallback: "https://www.facebook.com/ARCEgliseCDF",    color: "#1877F2" },
+  { key: "social_instagram", abbr: "IG",  label: "Instagram", fallback: "https://www.instagram.com/arc.eglise",     color: "#E1306C" },
+  { key: "social_youtube",   abbr: "YT",  label: "YouTube",   fallback: "https://www.youtube.com/@ARCEglise",       color: "#FF0000" },
+  { key: "social_whatsapp",  abbr: "WA",  label: "WhatsApp",  fallback: "https://wa.me/41000000000",                color: "#25D366" },
 ];
 
 export default async function Footer() {
@@ -45,7 +46,7 @@ export default async function Footer() {
   }
 
   const SOCIALS = SOCIAL_DEFS
-    .map((d) => ({ icon: d.icon, label: d.label, href: s[d.key] ?? d.fallback }))
+    .map((d) => ({ abbr: d.abbr, label: d.label, href: s[d.key] ?? d.fallback, color: d.color }))
     .filter((soc) => soc.href.trim() !== "");
 
   const address  = s.contact_address  ?? "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds";
@@ -93,16 +94,20 @@ export default async function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={soc.label}
+                  title={soc.label}
                   className="arc-footer-social"
                   style={{
                     textDecoration: "none",
                     width: 40, height: 40, borderRadius: 10,
                     background: "rgba(255,255,255,.08)",
                     display: "grid", placeItems: "center",
-                    fontSize: 16,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: soc.color,
+                    letterSpacing: ".02em",
                   }}
                 >
-                  {soc.icon}
+                  {soc.abbr}
                 </a>
               ))}
             </div>
@@ -152,10 +157,19 @@ export default async function Footer() {
               Contact
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 11, color: "rgba(255,255,255,.7)", fontSize: 14, lineHeight: 1.5 }}>
-              <span>📍 {line1}{line2 ? <><br />{line2}</> : null}</span>
-              <span>📧 {email}</span>
+              <span style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <Icon name="nous-trouver" size={16} style={{ flexShrink: 0, marginTop: 1, opacity: 0.7 }} />
+                <span>{line1}{line2 ? <><br />{line2}</> : null}</span>
+              </span>
+              <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Icon name="mail" size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+                {email}
+              </span>
               {horaireLines.map((h, i) => (
-                <span key={i}>🗓 {h}</span>
+                <span key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <Icon name="agenda" size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+                  {h}
+                </span>
               ))}
             </div>
           </div>
@@ -181,6 +195,7 @@ export default async function Footer() {
         @media (max-width: 540px) {
           .arc-footer-grid { grid-template-columns: 1fr !important; }
         }
+        .arc-footer-social:hover { opacity: .8; }
       `}</style>
     </footer>
   );

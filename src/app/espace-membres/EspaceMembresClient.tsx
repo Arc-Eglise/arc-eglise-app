@@ -8,6 +8,7 @@ import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
+import { saveVitrinePhoto } from "@/lib/actions/cms";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -301,6 +302,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showSalle, setShowSalle]       = useState(false);
   const [showMP, setShowMP]           = useState(false);
+  const [showVitrinePhoto, setShowVitrinePhoto] = useState(false);
+  const [vitrinePhotoFile, setVitrinePhotoFile] = useState<File|null>(null);
+  const [vitrinePhotoUrl, setVitrinePhotoUrl]   = useState("");
+  const [vitrinePhotoCaption, setVitrinePhotoCaption] = useState("");
+  const [vitrinePhotoSaving, setVitrinePhotoSaving]   = useState(false);
   const [showMajInfo, setShowMajInfo] = useState(false);
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [showDoleance, setShowDoleance]   = useState(false);
@@ -447,6 +453,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const initiale    = (profile?.first_name?.[0] ?? profile?.email?.[0] ?? "?").toUpperCase();
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
   const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("communication");
+  const canVitrinePhoto  = isAdmin || role === "pasteur" || (profile?.groups ?? []).includes("communication") || (profile?.groups ?? []).includes("media");
 
   /* ── Guard session-only (quand "rester connecté" était désactivé) ── */
   useEffect(() => {
@@ -570,6 +577,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  /* ── Chargement photo vitrine depuis Supabase ───────────────── */
+  useEffect(() => {
+    if (!showVitrinePhoto) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("site_settings").select("key,value").in("key", ["about_photo_url","about_photo_caption"]);
+        const vals: Record<string,string> = {};
+        for (const row of data ?? []) vals[row.key] = row.value;
+        if (vals.about_photo_url)     setVitrinePhotoUrl(vals.about_photo_url);
+        if (vals.about_photo_caption) setVitrinePhotoCaption(vals.about_photo_caption);
+      } catch { /* silencieux */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVitrinePhoto]);
 
   /* ── Chargement des cartes MP depuis Supabase ───────────────── */
   useEffect(() => {
@@ -2235,7 +2257,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   )}
                   {(canAdmin||canMajPlateforme) && (
                     <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMP(true)} title="Gestion des 4 modules vitrine — Groupe Communication">
-                      🖼️ Maj Plateformes
+                      Maj Plateformes
+                    </button>
+                  )}
+                  {canVitrinePhoto && (
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowVitrinePhoto(true)} title="Photo de la section À propos — Communication / Média">
+                      Photo vitrine
                     </button>
                   )}
                   {canAdmin && (
@@ -3028,6 +3055,95 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   setToast("🚀 Publié sur arc-eglise.ch !");
                   setShowMP(false);
                 }}>🚀 Publier sur le site</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Photo vitrine (section À propos) ── */}
+      {showVitrinePhoto && canVitrinePhoto && (
+        <div style={{position:"fixed",inset:0,background:"rgba(10,13,42,.85)",backdropFilter:"blur(8px)",zIndex:4500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:12,overflowY:"auto"}} onClick={()=>setShowVitrinePhoto(false)}>
+          <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:620,marginTop:40,boxShadow:"0 32px 80px rgba(0,0,0,.5)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+            <div style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",padding:"16px 22px",display:"flex",alignItems:"center",gap:14}}>
+              <Icon name="notre-histoire" size={28} style={{filter:"brightness(10)"}} />
+              <div style={{color:"#fff"}}>
+                <div style={{fontWeight:700,fontSize:16}}>Photo vitrine — Section À propos</div>
+                <div style={{fontSize:12,opacity:.75}}>Visible sur arc-eglise.ch · Communication / Média</div>
+              </div>
+              <button style={{marginLeft:"auto",background:"rgba(255,255,255,.15)",border:"none",color:"#fff",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:14}} onClick={()=>setShowVitrinePhoto(false)}>✕</button>
+            </div>
+            <div style={{padding:24,display:"flex",flexDirection:"column",gap:18}}>
+              {/* Aperçu actuel */}
+              {vitrinePhotoUrl && (
+                <div style={{borderRadius:12,overflow:"hidden",maxHeight:200,position:"relative"}}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={vitrinePhotoUrl} alt="Aperçu actuel" style={{width:"100%",height:200,objectFit:"cover"}} />
+                  <div style={{position:"absolute",top:8,left:8,background:"rgba(30,36,100,.85)",color:"#fff",fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:6}}>Photo actuelle</div>
+                </div>
+              )}
+
+              {/* Upload fichier */}
+              <div>
+                <label style={{fontSize:13,fontWeight:700,color:"#1e2464",display:"block",marginBottom:6}}>Uploader une nouvelle photo</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={e => setVitrinePhotoFile(e.target.files?.[0] ?? null)}
+                  style={{fontSize:13,color:"#374151"}}
+                />
+                <div style={{fontSize:11,color:"#9ca3af",marginTop:4}}>JPG, PNG ou WebP · max 5 Mo</div>
+                {vitrinePhotoFile && (
+                  <div style={{marginTop:6,fontSize:12,color:"#2563eb",fontWeight:600}}>Fichier sélectionné : {vitrinePhotoFile.name}</div>
+                )}
+              </div>
+
+              {/* Ou URL */}
+              <div>
+                <label style={{fontSize:13,fontWeight:700,color:"#1e2464",display:"block",marginBottom:6}}>Ou coller une URL d'image</label>
+                <input
+                  className="em-input"
+                  style={{width:"100%"}}
+                  placeholder="https://..."
+                  value={vitrinePhotoUrl}
+                  onChange={e => {setVitrinePhotoUrl(e.target.value); setVitrinePhotoFile(null);}}
+                />
+              </div>
+
+              {/* Légende */}
+              <div>
+                <label style={{fontSize:13,fontWeight:700,color:"#1e2464",display:"block",marginBottom:6}}>Légende (texte alternatif)</label>
+                <input
+                  className="em-input"
+                  style={{width:"100%"}}
+                  placeholder="Ex : Pasteur Pedro Obova & l'équipe"
+                  value={vitrinePhotoCaption}
+                  onChange={e => setVitrinePhotoCaption(e.target.value)}
+                />
+              </div>
+
+              <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowVitrinePhoto(false)}>Annuler</button>
+                <button
+                  className="em-btn em-btn-sm"
+                  style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",color:"white",opacity:vitrinePhotoSaving?.5:1}}
+                  disabled={vitrinePhotoSaving}
+                  onClick={async()=>{
+                    setVitrinePhotoSaving(true);
+                    const fd = new FormData();
+                    if (vitrinePhotoFile) fd.append("photo", vitrinePhotoFile);
+                    else if (vitrinePhotoUrl) fd.append("url", vitrinePhotoUrl);
+                    fd.append("caption", vitrinePhotoCaption);
+                    const res = await saveVitrinePhoto(fd);
+                    setVitrinePhotoSaving(false);
+                    if (res?.error) { setToast(`Erreur : ${res.error}`); return; }
+                    setToast("Photo publiée sur arc-eglise.ch");
+                    setVitrinePhotoFile(null);
+                    setShowVitrinePhoto(false);
+                  }}
+                >
+                  {vitrinePhotoSaving ? "Publication…" : "Publier la photo"}
+                </button>
               </div>
             </div>
           </div>

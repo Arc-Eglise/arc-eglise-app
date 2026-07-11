@@ -273,6 +273,7 @@ const ALLOWED_SETTINGS = [
   "votre_impact_intro",
   "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
   "stats_nations", "stats_touches",
+  "about_photo_url", "about_photo_caption",
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {
@@ -291,6 +292,48 @@ export async function updateSiteSettings(formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/site");
+  return { success: true };
+}
+
+// ── PHOTO VITRINE (section À propos) ───────────────────────────
+
+export async function saveVitrinePhoto(formData: FormData) {
+  const { supabase, profile } = await getCmsUser();
+
+  const canPhoto =
+    ["admin", "pasteur"].includes(profile.role as string) ||
+    (profile.groups as string[] | null)?.includes("communication") ||
+    (profile.groups as string[] | null)?.includes("media");
+  if (!canPhoto) return { error: "Non autorisé" };
+
+  const upserts: { key: string; value: string }[] = [];
+
+  const file = formData.get("photo") as File | null;
+  const existingUrl = formData.get("url") as string | null;
+
+  if (file && file.size > 0) {
+    if (file.size > 5 * 1024 * 1024) return { error: "Fichier trop grand (max 5 Mo)" };
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    const url = await uploadToStorage("media", `vitrine/about-photo.${ext}`, file);
+    if (!url) return { error: "Erreur lors de l'upload" };
+    upserts.push({ key: "about_photo_url", value: url });
+  } else if (existingUrl && existingUrl.trim()) {
+    upserts.push({ key: "about_photo_url", value: existingUrl.trim() });
+  }
+
+  const caption = formData.get("caption") as string | null;
+  if (caption !== null) {
+    upserts.push({ key: "about_photo_caption", value: caption });
+  }
+
+  if (upserts.length === 0) return { error: "Aucune modification à enregistrer" };
+
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert(upserts, { onConflict: "key" });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
   return { success: true };
 }
 

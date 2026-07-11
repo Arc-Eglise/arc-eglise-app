@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import Icon from "@/components/ui/Icon";
 
@@ -22,10 +23,13 @@ export default async function AboutSection() {
   const { data } = await supabase
     .from("site_settings")
     .select("key, value")
-    .in("key", ["histoire_p1", "histoire_p2", "histoire_citation"]);
+    .in("key", ["histoire_p1", "histoire_p2", "histoire_citation", "about_photo_url", "about_photo_caption"]);
 
   const s: Record<string, string> = { ...DEFAULTS };
   for (const row of data ?? []) s[row.key] = row.value;
+
+  const photoUrl     = s.about_photo_url     ?? null;
+  const photoCaption = s.about_photo_caption ?? "Photo — Pasteur Pedro Obova & l'équipe";
 
   return (
     <section id="apropos" style={{ maxWidth: 1240, margin: "0 auto", padding: "90px 32px" }}>
@@ -41,23 +45,22 @@ export default async function AboutSection() {
               position: "relative",
             }}
           >
-            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 22px)" }} />
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: 24, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
-              [ Photo — Pasteur Pedro Obova & l'équipe ]
-            </div>
-          </div>
-
-          {/* Gold stat badge */}
-          <div
-            style={{
-              position: "absolute", right: -20, bottom: -26,
-              background: "#C9A227", color: "#141738",
-              borderRadius: 18, padding: "20px 24px",
-              boxShadow: "0 18px 40px rgba(201,162,39,.4)",
-            }}
-          >
-            <div className="font-serif" style={{ fontSize: 42, fontWeight: 700, lineHeight: 1 }}>600+</div>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase" }}>Personnes touchées</div>
+            {photoUrl ? (
+              <Image
+                src={photoUrl}
+                alt={photoCaption}
+                fill
+                sizes="(max-width:900px) 100vw, 45vw"
+                style={{ objectFit: "cover" }}
+              />
+            ) : (
+              <>
+                <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 22px)" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: 24, fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,.5)" }}>
+                  [ {photoCaption} ]
+                </div>
+              </>
+            )}
           </div>
 
           {/* Year chip */}
