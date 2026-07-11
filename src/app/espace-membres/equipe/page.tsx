@@ -165,7 +165,6 @@ export default async function EspaceMembresEquipe({
                         <button
                           type="submit"
                           className="text-[11px] px-3 py-1.5 rounded-lg border border-arc-border text-arc-text3 hover:border-red-400 hover:text-red-600 transition-colors"
-                          onClick={(e) => { if (!confirm(`Supprimer ${m.name} ?`)) e.preventDefault(); }}
                         >
                           🗑 Supprimer
                         </button>
