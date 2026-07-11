@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
-import { replyToMessage } from "@/lib/mail/graph-client";
+import { replyToMessage, getMessage } from "@/lib/mail/graph-client";
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -25,7 +25,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await replyToMessage(body.box, body.id, body.comment);
+    // Lire le message original pour trouver le bon destinataire :
+    // Si le message a un champ replyTo, l'utiliser — sinon utiliser From.
+    const original = await getMessage(body.box, body.id);
+    const toRecipients =
+      original.replyTo && original.replyTo.length > 0
+        ? original.replyTo
+        : [{ emailAddress: original.from.emailAddress }];
+
+    await replyToMessage(body.box, body.id, body.comment, toRecipients);
     return NextResponse.json({ success: true });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Erreur inconnue";

@@ -63,6 +63,7 @@ export type GraphMessage = {
   from: { emailAddress: { name: string; address: string } };
   toRecipients?: { emailAddress: { name: string; address: string } }[];
   ccRecipients?: { emailAddress: { name: string; address: string } }[];
+  replyTo?: { emailAddress: { name: string; address: string } }[];
   receivedDateTime: string;
   isRead: boolean;
   bodyPreview: string;
@@ -87,7 +88,7 @@ export async function listMessages(
 }
 
 export async function getMessage(mailbox: string, msgId: string): Promise<GraphMessage> {
-  const sel = "id,subject,from,toRecipients,ccRecipients,receivedDateTime,isRead,body,hasAttachments,importance";
+  const sel = "id,subject,from,toRecipients,ccRecipients,replyTo,receivedDateTime,isRead,body,hasAttachments,importance";
   return gfetch(`/users/${enc(mailbox)}/messages/${msgId}?$select=${sel}`) as Promise<GraphMessage>;
 }
 
@@ -98,10 +99,19 @@ export async function markAsRead(mailbox: string, msgId: string): Promise<void> 
   });
 }
 
-export async function replyToMessage(mailbox: string, msgId: string, comment: string): Promise<void> {
+export async function replyToMessage(
+  mailbox: string,
+  msgId: string,
+  comment: string,
+  toRecipients?: { emailAddress: { address: string; name?: string } }[],
+): Promise<void> {
+  const payload: Record<string, unknown> = { comment };
+  if (toRecipients && toRecipients.length > 0) {
+    payload.message = { toRecipients };
+  }
   await gfetch(`/users/${enc(mailbox)}/messages/${msgId}/reply`, {
     method: "POST",
-    body: JSON.stringify({ comment }),
+    body: JSON.stringify(payload),
   });
 }
 
