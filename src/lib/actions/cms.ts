@@ -175,6 +175,35 @@ export async function createTeamMember(formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/equipe");
+  revalidatePath("/espace-membres/equipe");
+  return { success: true };
+}
+
+export async function updateTeamMember(id: string, formData: FormData) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
+
+  const updateData: Record<string, unknown> = {
+    name:       formData.get("name")       as string,
+    role_label: formData.get("role_label") as string,
+    bio:        formData.get("bio")        as string || null,
+    initials:   ((formData.get("initials") as string) || "").toUpperCase(),
+    sort_order: Number(formData.get("sort_order") ?? 5),
+  };
+
+  const photo = formData.get("photo") as File | null;
+  if (photo && photo.size > 0) {
+    const ext = photo.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    const newUrl = await uploadToStorage("team-photos", `team-${id}.${ext}`, photo);
+    if (newUrl) updateData.avatar_url = newUrl;
+  }
+
+  const { error } = await supabase.from("team_members").update(updateData).eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/equipe");
+  revalidatePath("/espace-membres/equipe");
   return { success: true };
 }
 
@@ -187,6 +216,7 @@ export async function deleteTeamMember(id: string) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/equipe");
+  revalidatePath("/espace-membres/equipe");
   return { success: true };
 }
 

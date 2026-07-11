@@ -3225,10 +3225,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                     <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Équipe pastorale visible sur le site</div>
-                    <a href="/admin/equipe" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Gérer l&apos;équipe →</a>
+                    <a href="/espace-membres/equipe" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Gérer l&apos;équipe →</a>
                   </div>
-                  <p style={{fontSize:12,color:"#8890aa"}}>Gérez les profils de l&apos;équipe pastorale visibles sur la page publique du site vitrine.</p>
-                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Page équipe mise à jour sur le site !");}}>📤 Publier</button>
+                  <p style={{fontSize:12,color:"#8890aa"}}>Ajoutez, modifiez ou supprimez les membres de l&apos;équipe pastorale visibles sur le site.</p>
+                  <a href="/espace-membres/equipe" className="em-btn em-btn-primary" style={{width:"100%",marginTop:12,display:"block",textAlign:"center",textDecoration:"none"}}>✏️ Ouvrir la gestion d&apos;équipe</a>
                 </div>
               )}
             </div>
