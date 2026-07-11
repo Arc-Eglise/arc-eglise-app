@@ -46,30 +46,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erreur lors de l'enregistrement" }, { status: 500 });
   }
 
-  // ── Notifier contact@ via Graph API (si configuré) ──────────────────
+  // ── Envoyer notification + confirmation (tous deux attendus avant la réponse)
   const notifHtml = buildNotifHtml(data);
 
-  if (GRAPH_READY) {
-    import("@/lib/mail/graph-client").then(({ sendMail }) =>
-      sendMail({
-        from:    "contact@arc-eglise.ch",
-        to:      "contact@arc-eglise.ch",
-        replyTo: data.email,
-        subject: `[Contact] ${data.subject}`,
-        body:    notifHtml,
-        isHtml:  true,
-      })
-    ).catch((e) => console.error("[api/contact] Graph sendMail:", e));
-  } else {
-    // Fallback Resend si Graph pas encore configuré
-    import("@/lib/email").then(({ sendContactNotification }) =>
-      sendContactNotification(data)
-    ).catch((e) => console.error("[api/contact] Resend fallback:", e));
-  }
-
-  // ── Confirmer réception à l'expéditeur ──────────────────────────────
-  sendContactConfirmation({ first_name: data.first_name, email: data.email })
-    .catch((e) => console.error("[api/contact] Confirmation email:", e));
+  await Promise.allSettled([
+    // Notification interne → contact@arc-eglise.ch
+    (async () => {
+      if (GRAPH_READY) {
+        const { sendMail } = await import("@/lib/mail/graph-client");
+        await sendMail({
+          from:    "contact@arc-eglise.ch",
+          to:      "contact@arc-eglise.ch",
+          replyTo: data.email,
+          subject: `[Contact] ${data.subject}`,
+          body:    notifHtml,
+          isHtml:  true,
+        });
+        console.log("[api/contact] Notification envoyée via Graph API");
+      } else {
+        const { sendContactNotification } = await import("@/lib/email");
+        await sendContactNotification(data);
+        console.log("[api/contact] Notification envoyée via Resend (fallback)");
+      }
+    })(),
+    // Confirmation à l'expéditeur
+    sendContactConfirmation({ first_name: data.first_name, email: data.email })
+      .catch((e: unknown) => console.error("[api/contact] Confirmation email:", e)),
+  ]);
 
   return NextResponse.json({ success: true });
 }
