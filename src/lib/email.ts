@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { SITE_BASE, siteUrl } from "@/lib/url";
 
 // Init lazy pour éviter un crash au build si RESEND_API_KEY n'est pas présente
 let _resend: Resend | null = null;
@@ -9,8 +10,8 @@ function getResend(): Resend {
 const FROM_NOREPLY = "ARC Église <noreply@arc-eglise.ch>";
 const FROM_CONTACT = "ARC Église <contact@arc-eglise.ch>";
 const REPLY_TO   = "contact@arc-eglise.ch";
-const LOGO_URL   = "https://arc-eglise.ch/logo-arc.jpeg";
-const SITE_URL   = "https://arc-eglise.ch";
+const LOGO_URL   = siteUrl("/logo-arc.jpeg");
+const SITE_URL   = SITE_BASE;
 
 // ── Template engine ────────────────────────────────────────────────────────
 // Replace {{variable}} placeholders — warn if a key is missing.
