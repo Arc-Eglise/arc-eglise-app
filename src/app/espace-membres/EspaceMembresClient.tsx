@@ -835,7 +835,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
   const MSG_CHANNELS = [
     { section:"Canaux", items:[
-      { id:"général",  icon:"#",  badge:3 },
+      { id:"général",  icon:"#" },
       { id:"annonces", icon:"📣", locked:!canAdmin },
       { id:"prière",   icon:"🙏", badge:undefined as number|undefined },
     ]},
@@ -879,7 +879,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const NAV_ITEMS: NavGroup[] = [
     { section:"Principal", items:[
       { id:"accueil",     lbl:"Accueil",        ico:"⌂",  Icon:Home,          arcIcon:"accueil" },
-      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, arcIcon:"messagerie", badge:5 },
+      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, arcIcon:"messagerie" },
       { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
       { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
       { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
@@ -892,7 +892,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       ] : [
         { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName },
       ]),
-      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell,           arcIcon:"activites", badge:7 },
+      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell,           arcIcon:"activites" },
     ]},
     { section:"Personnel", items:[
       { id:"notes",     lbl:"Notes bibliques", ico:"📝", Icon:BookMarked, arcIcon:"notes-bibliques", href:"/espace-membres/notes" },
@@ -2579,7 +2579,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       <nav className="em-mob-nav">
         {([
           { id:"accueil",    Icon:Home,          lbl:"Accueil" },
-          { id:"messagerie", Icon:MessageSquare, lbl:"Messages", badge:5 },
+          { id:"messagerie", Icon:MessageSquare, lbl:"Messages" },
           { id:"priere",     Icon:BookOpen,      lbl:"Bible" },
           { id:"streaming",  Icon:PlayCircle,    lbl:"Stream" },
           { id:"__more__",   Icon:Bell,          lbl:"Plus" },

@@ -265,12 +265,18 @@ export async function createGrievance(formData: FormData) {
 
   // Notifier contact@arc-eglise.ch via Graph API (silencieux si non configuré)
   if (process.env.GRAPH_TENANT_ID && process.env.GRAPH_CLIENT_ID && process.env.GRAPH_CLIENT_SECRET) {
+    let senderLine = "Anonyme";
+    if (!is_anonymous) {
+      const { data: prof } = await supabase.from("profiles").select("first_name, last_name, email").eq("id", user.id).single();
+      const name = [prof?.first_name, prof?.last_name].filter(Boolean).join(" ") || "—";
+      senderLine = `${name} <${prof?.email ?? user.email ?? "—"}>`;
+    }
     import("@/lib/mail/graph-client").then(({ sendMail }) =>
       sendMail({
         from: "contact@arc-eglise.ch",
         to:   "contact@arc-eglise.ch",
         subject: `[Doléance] ${title}`,
-        body:    `Catégorie : ${category}\n\n${description}\n\n— ${is_anonymous ? "Anonyme" : `Membre (ID: ${user.id})`}`,
+        body:    `Catégorie : ${category}\n\n${description}\n\n— ${senderLine}`,
       })
     ).catch(() => {});
   }
