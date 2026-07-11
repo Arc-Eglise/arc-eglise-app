@@ -1,5 +1,6 @@
 import Image          from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { DONS_ENABLED } from "@/lib/features";
 import Icon from "@/components/ui/Icon";
 
 const NAV = [
@@ -8,7 +9,7 @@ const NAV = [
   { label: "Sermons",    href: "#sermons" },
   { label: "Événements", href: "#evenements" },
   { label: "Équipe",     href: "#equipe" },
-  { label: "Donner",     href: "#dons" },
+  ...(DONS_ENABLED ? [{ label: "Donner", href: "#dons" }] : []),
   { label: "Contact",    href: "#contact" },
 ];
 

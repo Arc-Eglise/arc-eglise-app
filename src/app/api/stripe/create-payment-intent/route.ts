@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { DONS_ENABLED } from "@/lib/features";
 
 export async function POST(req: NextRequest) {
+  if (!DONS_ENABLED) {
+    return NextResponse.json(
+      { error: "Les dons en ligne ne sont pas encore disponibles. Veuillez nous contacter directement." },
+      { status: 503 },
+    );
+  }
+
   let body: { amount?: number; currency?: string; email?: string };
   try {
     body = await req.json();

@@ -19,6 +19,7 @@ import {
 import Icon, { type IconName } from "@/components/ui/Icon";
 import MailPanel from "@/components/mail/MailPanel";
 import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
+import { DONS_ENABLED } from "@/lib/features";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
@@ -898,7 +899,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox,      arcIcon:"doleances", href:"/espace-membres/doleances" },
     ]},
     { section:"Gestion", items:[
-      { id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" },
+      ...(DONS_ENABLED ? [{ id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" as IconName }] : []),
       ...(canAdmin ? [
         { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
         { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings,  arcIcon:"parametres" as IconName },
@@ -2541,9 +2542,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
             <button className="em-qa" onClick={()=>nav("streaming")}>
               <span className="em-qa-ico">▶</span> Streaming en direct
             </button>
-            <button className="em-qa" onClick={()=>nav("dons")}>
-              <span className="em-qa-ico">♡</span> Faire un don
-            </button>
+            {DONS_ENABLED && (
+              <button className="em-qa" onClick={()=>nav("dons")}>
+                <span className="em-qa-ico">♡</span> Faire un don
+              </button>
+            )}
             <button className="em-qa" onClick={()=>nav("agenda")}>
               <span className="em-qa-ico">📅</span> Voir l&apos;agenda
             </button>

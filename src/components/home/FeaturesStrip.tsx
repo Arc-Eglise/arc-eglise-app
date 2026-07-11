@@ -1,12 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
+import { DONS_ENABLED } from "@/lib/features";
 import Icon from "@/components/ui/Icon";
 
-const STATIC_CARDS = [
-  { icon: "sermons-replay" as const,      title: "Sermons & Replays",      cta: "Voir les sermons",  href: "#sermons",    key: "decouvrir_1_text", fallback: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi." },
-  { icon: "rejoindre-famille" as const,   title: "Rejoindre la famille",   cta: "Je veux rejoindre", href: "#contact",    key: "decouvrir_2_text", fallback: "Rejoignez notre communauté évangélique ouverte à tous, issus de toutes les nations." },
-  { icon: "agenda" as const,              title: "Événements & Cultes",    cta: "Voir l'agenda",     href: "#evenements", key: "decouvrir_3_text", fallback: "Consultez notre agenda, réservez vos places pour nos soirées spéciales." },
-  { icon: "dons-paiements" as const,      title: "Soutenir l'Église",      cta: "Faire un don",      href: "#dons",       key: "decouvrir_4_text", fallback: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance." },
+const ALL_CARDS = [
+  { icon: "sermons-replay" as const,      title: "Sermons & Replays",      cta: "Voir les sermons",  href: "#sermons",    key: "decouvrir_1_text", fallback: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi.", isDons: false },
+  { icon: "rejoindre-famille" as const,   title: "Rejoindre la famille",   cta: "Je veux rejoindre", href: "#contact",    key: "decouvrir_2_text", fallback: "Rejoignez notre communauté évangélique ouverte à tous, issus de toutes les nations.", isDons: false },
+  { icon: "agenda" as const,              title: "Événements & Cultes",    cta: "Voir l'agenda",     href: "#evenements", key: "decouvrir_3_text", fallback: "Consultez notre agenda, réservez vos places pour nos soirées spéciales.", isDons: false },
+  { icon: "dons-paiements" as const,      title: "Soutenir l'Église",      cta: "Faire un don",      href: "#dons",       key: "decouvrir_4_text", fallback: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance.", isDons: true },
 ];
+const STATIC_CARDS = ALL_CARDS.filter((c) => !c.isDons || DONS_ENABLED);
 
 export default async function FeaturesStrip() {
   const supabase = createClient();
@@ -28,7 +30,7 @@ export default async function FeaturesStrip() {
       </div>
 
       {/* Cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }} className="arc-cards4">
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${DISCOVER.length},1fr)`, gap: 18 }} className="arc-cards4">
         {DISCOVER.map((d) => (
           <a
             key={d.title}

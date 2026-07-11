@@ -5,17 +5,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { Home, Settings, LogOut } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
+import { DONS_ENABLED } from "@/lib/features";
 
-const NAV_LINKS = [
+const NAV_LINKS_BASE = [
   { label: "Accueil",       href: "#accueil" },
   { label: "À propos",      href: "#apropos" },
   { label: "Sermons",       href: "#sermons" },
   { label: "Événements",    href: "#evenements" },
   { label: "Équipe",        href: "#equipe" },
   { label: "Témoignages",   href: "#temoignages" },
-  { label: "Donner",        href: "#dons" },
+  { label: "Donner",        href: "#dons",   donOnly: true },
   { label: "Contact",       href: "#contact" },
 ];
+const NAV_LINKS = NAV_LINKS_BASE.filter((l) => !l.donOnly || DONS_ENABLED);
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   admin:    { label: "Admin",    cls: "bg-red-100 border-red-300 text-red-700" },
@@ -131,19 +133,21 @@ export default function Header() {
 
           {!loading && user && (
             <>
-              <Link
-                href="#dons"
-                className="text-[14px] font-semibold text-white"
-                style={{
-                  background: "#1e2464",
-                  padding: "11px 22px",
-                  borderRadius: 999,
-                  boxShadow: "0 8px 22px rgba(30,36,100,.28)",
-                }}
-                onClick={(e) => { e.preventDefault(); scrollTo("dons"); }}
-              >
-                Donner
-              </Link>
+              {DONS_ENABLED && (
+                <Link
+                  href="#dons"
+                  className="text-[14px] font-semibold text-white"
+                  style={{
+                    background: "#1e2464",
+                    padding: "11px 22px",
+                    borderRadius: 999,
+                    boxShadow: "0 8px 22px rgba(30,36,100,.28)",
+                  }}
+                  onClick={(e) => { e.preventDefault(); scrollTo("dons"); }}
+                >
+                  Donner
+                </Link>
+              )}
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}

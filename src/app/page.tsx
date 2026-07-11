@@ -1,4 +1,5 @@
 import { createClient }       from "@/lib/supabase/server";
+import { DONS_ENABLED }      from "@/lib/features";
 import AnnouncementBar        from "@/components/home/AnnouncementBar";
 import Header                 from "@/components/layout/Header";
 import Footer                 from "@/components/layout/Footer";
@@ -24,7 +25,7 @@ export default async function HomePage() {
       .in("key", [
         "hero_subtitle", "votre_impact_intro",
         "stats_nations", "stats_touches",
-        "don_twint_numero", "don_iban",
+        ...(DONS_ENABLED ? ["don_twint_numero", "don_iban"] : []),
       ]),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
     supabase.from("sermons")
@@ -60,11 +61,13 @@ export default async function HomePage() {
         <TeamSection />
         <VersetStrip />
         <TestimonialsSection />
-        <DonSection
-          intro={votre_impact_intro}
-          twintNumero={settings.don_twint_numero || null}
-          donIban={settings.don_iban || null}
-        />
+        {DONS_ENABLED && (
+          <DonSection
+            intro={votre_impact_intro}
+            twintNumero={settings.don_twint_numero || null}
+            donIban={settings.don_iban || null}
+          />
+        )}
         <ContactSection />
       </main>
       <Footer />
