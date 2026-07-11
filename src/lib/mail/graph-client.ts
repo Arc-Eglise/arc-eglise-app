@@ -124,16 +124,19 @@ export async function sendMail(opts: {
   subject: string;
   body: string;
   isHtml?: boolean;
+  replyTo?: string;
 }): Promise<void> {
+  const message: Record<string, unknown> = {
+    subject: opts.subject,
+    body: { contentType: opts.isHtml ? "HTML" : "Text", content: opts.body },
+    toRecipients: [{ emailAddress: { address: opts.to } }],
+  };
+  if (opts.replyTo) {
+    message.replyTo = [{ emailAddress: { address: opts.replyTo } }];
+  }
   await gfetch(`/users/${enc(opts.from)}/sendMail`, {
     method: "POST",
-    body: JSON.stringify({
-      message: {
-        subject: opts.subject,
-        body: { contentType: opts.isHtml ? "HTML" : "Text", content: opts.body },
-        toRecipients: [{ emailAddress: { address: opts.to } }],
-      },
-    }),
+    body: JSON.stringify({ message }),
   });
 }
 
