@@ -161,6 +161,14 @@ export async function setMemberRole(memberId: string, newRole: string) {
   const admin = createAdminClient();
 
   const updateData: Record<string, unknown> = { role: newRole };
+  if (newRole === "pasteur") {
+    // Règle RBAC : rôle pasteur → fonction 'pasteur' automatiquement présente dans groups
+    const { data: current } = await admin.from("profiles").select("groups").eq("id", memberId).single();
+    const existing = (current?.groups as string[]) ?? [];
+    if (!existing.includes("pasteur")) {
+      updateData.groups = [...existing, "pasteur"];
+    }
+  }
   if (newRole === "membre") {
     updateData.validated    = true;
     updateData.validated_at = new Date().toISOString();
