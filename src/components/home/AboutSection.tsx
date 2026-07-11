@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import Icon from "@/components/ui/Icon";
 
 const VALUES = [
-  { icon: "📖", title: "La Parole",  text: "La Bible est notre autorité absolue et notre guide quotidien." },
-  { icon: "🙏", title: "La Prière",  text: "Nous sommes une maison de prière et d'intercession." },
-  { icon: "❤️", title: "L'Amour",   text: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
-  { icon: "🌍", title: "La Mission", text: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
+  { icon: "la-parole" as const,           title: "La Parole",  text: "La Bible est notre autorité absolue et notre guide quotidien." },
+  { icon: "priere-bible" as const,        title: "La Prière",  text: "Nous sommes une maison de prière et d'intercession." },
+  { icon: "amour" as const,               title: "L'Amour",    text: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
+  { icon: "rejoindre-famille" as const,   title: "La Mission", text: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
 ];
 
 const DEFAULTS = {
@@ -118,7 +119,7 @@ export default async function AboutSection() {
                   padding: 18,
                 }}
               >
-                <div style={{ fontSize: 22, marginBottom: 10 }}>{v.icon}</div>
+                <Icon name={v.icon} variant="tile" size={44} style={{ marginBottom: 10, display: "block" }} />
                 <div className="font-serif" style={{ fontSize: 19, fontWeight: 600, color: "#1e2464" }}>{v.title}</div>
                 <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, marginTop: 4 }}>{v.text}</div>
               </div>

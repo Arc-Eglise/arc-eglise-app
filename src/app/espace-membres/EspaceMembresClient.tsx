@@ -15,6 +15,7 @@ import {
   UserCheck, Settings, BarChart3, Mail,
   type LucideIcon,
 } from "lucide-react";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import MailPanel from "@/components/mail/MailPanel";
 import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
 
@@ -850,40 +851,40 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const { cells, today: todayDay } = buildCalendar(calYear, calMonth);
 
   /* ── Sidebar nav items ───────────────────────────────────────── */
-  type NavItem = { id:string; lbl:string; ico:string; Icon:LucideIcon; badge?:number; live?:boolean; count?:number; href?:string; };
+  type NavItem = { id:string; lbl:string; ico:string; Icon:LucideIcon; arcIcon?:IconName; badge?:number; live?:boolean; count?:number; href?:string; };
   type NavGroup = { section:string; items:NavItem[] };
   const NAV_ITEMS: NavGroup[] = [
     { section:"Principal", items:[
-      { id:"accueil",     lbl:"Accueil",        ico:"⌂",  Icon:Home },
-      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, badge:5 },
-      { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar },
-      { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle, live:true },
-      { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen },
-      { id:"ai-biblique", lbl:"ARC Église AI",  ico:"✦",  Icon:Sparkles, href:"/espace-membres/ai-biblique" },
+      { id:"accueil",     lbl:"Accueil",        ico:"⌂",  Icon:Home,          arcIcon:"accueil" },
+      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, arcIcon:"messagerie", badge:5 },
+      { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
+      { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
+      { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
+      { id:"ai-biblique", lbl:"ARC Église AI",  ico:"✦",  Icon:Sparkles,      arcIcon:"arc-ai", href:"/espace-membres/ai-biblique" },
     ]},
     { section:"Communauté", items:[
-      { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users, count:membresValides },
+      { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
       ...(canAdmin ? [
-        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, href:"/espace-membres/presences" },
+        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName, href:"/espace-membres/presences" },
       ] : [
-        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck },
+        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName },
       ]),
-      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell, badge:7 },
+      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell,           arcIcon:"activites", badge:7 },
     ]},
     { section:"Personnel", items:[
-      { id:"notes",     lbl:"Notes bibliques", ico:"📝", Icon:BookMarked, href:"/espace-membres/notes" },
-      { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox, href:"/espace-membres/doleances" },
+      { id:"notes",     lbl:"Notes bibliques", ico:"📝", Icon:BookMarked, arcIcon:"notes-bibliques", href:"/espace-membres/notes" },
+      { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox,      arcIcon:"doleances", href:"/espace-membres/doleances" },
     ]},
     { section:"Gestion", items:[
-      { id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins },
+      { id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" },
       ...(canAdmin ? [
-        { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, href:"/espace-membres/crm" },
-        { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings },
+        { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
+        { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings,  arcIcon:"parametres" as IconName },
       ] : []),
     ]},
     ...((canAdmin || (profile?.groups ?? []).length > 0) ? [{
       section:"Messagerie",
-      items:[{ id:"mail", lbl:"Boîtes Mail", ico:"📬", Icon:Mail }],
+      items:[{ id:"mail", lbl:"Boîtes Mail", ico:"📬", Icon:Mail, arcIcon:"mail" as IconName }],
     }] : []),
   ];
 
@@ -905,10 +906,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           </a>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <button className="em-hdr-ico" onClick={() => setShowSearch(true)}>🔍</button>
+          <button className="em-hdr-ico" onClick={() => setShowSearch(true)}><Icon name="recherche" size={20} /></button>
           <div ref={notifRef} style={{position:"relative"}}>
             <button className="em-hdr-ico" title="Notifications" onClick={handleNotifOpen} style={{position:"relative"}}>
-              🔔
+              <Icon name="notification" size={20} />
               {unreadCount > 0 && (
                 <span style={{position:"absolute",top:2,right:2,background:"#e53e3e",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:700,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid #1a1d3a",lineHeight:1}}>
                   {unreadCount > 9 ? "9+" : unreadCount}
@@ -962,9 +963,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           </div>
         </a>
 
-        <button className="em-search" style={{cursor:"text",textAlign:"left",border:"1.5px solid rgba(30,36,100,.12)"}}
+        <button className="em-search" style={{cursor:"text",textAlign:"left",border:"1.5px solid rgba(30,36,100,.12)",display:"flex",alignItems:"center",gap:6}}
           onClick={() => setShowSearch(true)}>
-          🔍&nbsp; Rechercher…
+          <Icon name="recherche" size={16} style={{flexShrink:0}} />&nbsp;Rechercher…
         </button>
 
         <div className="em-hdr-meta">
@@ -1036,16 +1037,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 <div className="em-sb-section">{group.section}</div>
                 {group.items.map(item => {
                   const NavIcon = item.Icon;
-                  return item.href ? (
+                  const niIco = item.arcIcon
+                  ? <Icon name={item.arcIcon} size={20} style={{opacity:.85}} />
+                  : <NavIcon size={16} strokeWidth={1.75} />;
+                return item.href ? (
                   <a key={item.id} href={item.href} className="em-ni"
                     style={{textDecoration:"none",display:"flex",alignItems:"center"}}>
-                    <span className="em-ni-ico"><NavIcon size={16} strokeWidth={1.75} /></span>
+                    <span className="em-ni-ico">{niIco}</span>
                     <span className="em-ni-lbl">{item.lbl}</span>
                   </a>
                 ) : (
                   <button key={item.id} className={`em-ni${panel === item.id ? " active" : ""}`}
                     onClick={() => nav(item.id as Panel)}>
-                    <span className="em-ni-ico"><NavIcon size={16} strokeWidth={1.75} /></span>
+                    <span className="em-ni-ico">{niIco}</span>
                     <span className="em-ni-lbl">{item.lbl}</span>
                     {"badge" in item && item.badge
                       ? <span className="em-badge">{item.badge}</span>
@@ -1076,12 +1080,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           </a>
           <button className="em-ni" style={{margin:"4px 8px 0",color:"rgba(255,255,255,.35)",fontSize:12}}
             onClick={()=>setShowSettings(true)}>
-            <span className="em-ni-ico" style={{fontSize:12}}>⚙️</span>
+            <span className="em-ni-ico"><Icon name="parametres" size={18} style={{opacity:.5}} /></span>
             <span>Paramètres</span>
           </button>
           <button className="em-ni" style={{margin:"4px 8px 12px",color:"rgba(255,255,255,.35)",fontSize:12}}
             onClick={async()=>{ await fetch("/api/auth/signout"); window.location.href="/"; }}>
-            <span className="em-ni-ico" style={{fontSize:12}}>←</span>
+            <span className="em-ni-ico"><Icon name="deconnexion" size={18} style={{opacity:.5}} /></span>
             <span>Déconnexion</span>
           </button>
         </aside>

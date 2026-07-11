@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getMailboxLabel, FUNCTION_MAILBOXES, CONTACT_MAILBOX, isGrievanceEmail } from "@/lib/mail/mailbox-config";
+import Icon from "@/components/ui/Icon";
 
 type GMsg = {
   id: string;
@@ -203,7 +204,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       {/* ── En-tête ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
         <div>
-          <div style={{fontSize:16,fontWeight:800,color:navy,fontFamily:"Playfair Display,serif"}}>📬 Messagerie interne</div>
+          <div style={{fontSize:16,fontWeight:800,color:navy,fontFamily:"Playfair Display,serif",display:"flex",alignItems:"center",gap:8}}><Icon name="mail" size={22} /> Messagerie interne</div>
           <div style={{fontSize:12,color:blue,marginTop:2}}>Boîtes Microsoft 365 · arc-eglise.ch</div>
         </div>
         <button

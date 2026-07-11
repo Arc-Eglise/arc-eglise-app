@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import Icon from "@/components/ui/Icon";
 
 const STATIC_CARDS = [
-  { icon: "📺", title: "Sermons & Replays",      cta: "Voir les sermons",  href: "#sermons",    key: "decouvrir_1_text", fallback: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi." },
-  { icon: "👨‍👩‍👧‍👦", title: "Rejoindre la famille",  cta: "Je veux rejoindre", href: "#contact",    key: "decouvrir_2_text", fallback: "Rejoignez notre communauté évangélique ouverte à tous, issus de toutes les nations." },
-  { icon: "📅", title: "Événements & Cultes",     cta: "Voir l'agenda",     href: "#evenements", key: "decouvrir_3_text", fallback: "Consultez notre agenda, réservez vos places pour nos soirées spéciales." },
-  { icon: "💛", title: "Soutenir l'Église",       cta: "Faire un don",      href: "#dons",       key: "decouvrir_4_text", fallback: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance." },
+  { icon: "sermons-replay" as const,      title: "Sermons & Replays",      cta: "Voir les sermons",  href: "#sermons",    key: "decouvrir_1_text", fallback: "Retrouvez tous nos messages en vidéo, audio et transcription dès le lundi." },
+  { icon: "rejoindre-famille" as const,   title: "Rejoindre la famille",   cta: "Je veux rejoindre", href: "#contact",    key: "decouvrir_2_text", fallback: "Rejoignez notre communauté évangélique ouverte à tous, issus de toutes les nations." },
+  { icon: "agenda" as const,              title: "Événements & Cultes",    cta: "Voir l'agenda",     href: "#evenements", key: "decouvrir_3_text", fallback: "Consultez notre agenda, réservez vos places pour nos soirées spéciales." },
+  { icon: "dons-paiements" as const,      title: "Soutenir l'Église",      cta: "Faire un don",      href: "#dons",       key: "decouvrir_4_text", fallback: "Participez à l'œuvre de Dieu via TWINT, carte bancaire ou PostFinance." },
 ];
 
 export default async function FeaturesStrip() {
@@ -46,7 +47,7 @@ export default async function FeaturesStrip() {
             }}
             className="arc-discover-card"
           >
-            <span style={{ fontSize: 26, marginBottom: "auto" }}>{d.icon}</span>
+            <Icon name={d.icon} variant="tile" size={52} style={{ marginBottom: "auto", flexShrink: 0 }} />
             <span className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "#1e2464", marginTop: 18 }}>{d.title}</span>
             <span style={{ fontSize: 13.5, color: "#6b6f86", lineHeight: 1.55, marginTop: 7 }}>{d.text}</span>
             <span style={{ fontSize: 13.5, color: "#C9A227", fontWeight: 700, marginTop: 14 }}>{d.cta} →</span>

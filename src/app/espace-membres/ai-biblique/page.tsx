@@ -2,6 +2,7 @@ import { createClient }    from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { redirect }          from "next/navigation"
 import BibleAIClient         from "@/components/bible-ai/BibleAIClient"
+import Icon                  from "@/components/ui/Icon"
 import type { AIUserPreferences } from "@/lib/bible-ai"
 import type { BibleLevel }        from "@/lib/bible-ai-prompts"
 
@@ -70,17 +71,16 @@ export default async function AIBibliquePage() {
             <a href="/espace-membres" className="text-white/50 hover:text-white text-xs">← Espace Membres</a>
           </div>
           <div className="px-4 flex-1">
-            {[
-              { href: "/espace-membres",             label: "Accueil",        icon: "🏠" },
-              { href: "/espace-membres/assistant",   label: "Assistant IA",   icon: "✨" },
-              { href: "/espace-membres/ai-biblique", label: "ARC Église AI",  icon: "✦" },
-              { href: "/espace-membres/annuaire",    label: "Annuaire",       icon: "👥" },
-              { href: "/espace-membres/agenda",      label: "Agenda",         icon: "📅" },
-              { href: "/espace-membres/messagerie",  label: "Messages",       icon: "💬" },
-              { href: "/espace-membres/priere",      label: "Prière",         icon: "🙏" },
-              { href: "/espace-membres/streaming",   label: "Streaming",      icon: "📺" },
-              { href: "/espace-membres/bible",       label: "Bible",          icon: "📖" },
-            ].map(item => (
+            {([
+              { href: "/espace-membres",             label: "Accueil",        icon: "accueil"      as const },
+              { href: "/espace-membres/ai-biblique", label: "ARC Église AI",  icon: "arc-ai"       as const },
+              { href: "/espace-membres/annuaire",    label: "Annuaire",       icon: "contacts"     as const },
+              { href: "/espace-membres/agenda",      label: "Agenda",         icon: "agenda"       as const },
+              { href: "/espace-membres/messagerie",  label: "Messages",       icon: "messagerie"   as const },
+              { href: "/espace-membres/priere",      label: "Prière",         icon: "priere-bible" as const },
+              { href: "/espace-membres/streaming",   label: "Streaming",      icon: "streaming"    as const },
+              { href: "/espace-membres/bible",       label: "Bible",          icon: "la-parole"    as const },
+            ]).map(item => (
               <a
                 key={item.href}
                 href={item.href}
@@ -90,7 +90,7 @@ export default async function AIBibliquePage() {
                     : "text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
-                <span className="text-base w-5 text-center">{item.icon}</span>
+                <Icon name={item.icon} size={20} style={{ flexShrink: 0 }} />
                 <span>{item.label}</span>
               </a>
             ))}

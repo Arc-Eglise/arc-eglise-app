@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import Icon from "@/components/ui/Icon";
 
 export default async function AdminDashboard() {
   const supabase = createClient();
@@ -19,11 +20,11 @@ export default async function AdminDashboard() {
   ]);
 
   const STATS = [
-    { icon: "📺", label: "Sermons",           value: sermonsCount   ?? 0, href: "/admin/sermons",    color: "bg-arc-navy"  },
-    { icon: "📅", label: "Événements à venir",value: eventsCount    ?? 0, href: "/admin/evenements", color: "bg-arc-blue"  },
-    { icon: "✅", label: "Membres validés",    value: membresCount  ?? 0, href: "/admin/membres",    color: "bg-arc-green" },
-    { icon: "⏳", label: "Comptes en attente", value: visiteursCount ?? 0, href: "/admin/membres",   color: "bg-amber-500" },
-    { icon: "📬", label: "Doléances en att.",  value: doleancesCount ?? 0, href: "/admin/doleances", color: "bg-purple-600"},
+    { icon: "sermons-replay"       as const, label: "Sermons",           value: sermonsCount   ?? 0, href: "/admin/sermons"    },
+    { icon: "agenda"               as const, label: "Événements à venir",value: eventsCount    ?? 0, href: "/admin/evenements" },
+    { icon: "presences"            as const, label: "Membres validés",    value: membresCount  ?? 0, href: "/admin/membres"    },
+    { icon: "notification"         as const, label: "Comptes en attente", value: visiteursCount ?? 0, href: "/admin/membres"   },
+    { icon: "doleances"            as const, label: "Doléances en att.",  value: doleancesCount ?? 0, href: "/admin/doleances" },
   ];
 
   const { data: recentSermons } = await supabase
@@ -54,8 +55,8 @@ export default async function AdminDashboard() {
             href={s.href}
             className="bg-white rounded-2xl p-5 border border-arc-border hover:border-arc-blue hover:-translate-y-0.5 hover:shadow-arc transition-all duration-200 block"
           >
-            <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center text-xl mb-3`}>
-              {s.icon}
+            <div className="mb-3">
+              <Icon name={s.icon} variant="tile" size={44} />
             </div>
             <div className="font-serif text-3xl font-bold text-arc-navy">{s.value}</div>
             <div className="text-xs text-arc-text3 mt-0.5">{s.label}</div>
@@ -125,20 +126,20 @@ export default async function AdminDashboard() {
 
       {/* Quick links */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { href: "/admin/sermons",      icon: "➕", label: "Ajouter un sermon" },
-          { href: "/admin/evenements",   icon: "➕", label: "Ajouter un événement" },
-          { href: "/admin/membres",      icon: "👤", label: "Gérer les membres" },
-          { href: "/admin/equipe",       icon: "✏️", label: "Modifier l'équipe" },
-          { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
-          { href: "/admin/site",         icon: "⚙️", label: "Site vitrine" },
-        ].map((l) => (
+        {([
+          { href: "/admin/sermons",      icon: "sermons-replay"       as const, label: "Ajouter un sermon" },
+          { href: "/admin/evenements",   icon: "agenda"               as const, label: "Ajouter un événement" },
+          { href: "/admin/membres",      icon: "gestion-utilisateurs" as const, label: "Gérer les membres" },
+          { href: "/admin/equipe",       icon: "notre-equipe"         as const, label: "Modifier l'équipe" },
+          { href: "/admin/temoignages",  icon: "temoignage"           as const, label: "Témoignages" },
+          { href: "/admin/site",         icon: "parametres"           as const, label: "Site vitrine" },
+        ]).map((l) => (
           <Link
             key={l.label}
             href={l.href}
             className="bg-white border border-arc-border rounded-xl px-4 py-3 text-sm font-semibold text-arc-navy flex items-center gap-2 hover:border-arc-blue hover:bg-arc-blueBg transition-all duration-200"
           >
-            <span>{l.icon}</span> {l.label}
+            <Icon name={l.icon} size={20} /> {l.label}
           </Link>
         ))}
       </div>

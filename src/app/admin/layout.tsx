@@ -1,17 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect }     from "next/navigation";
 import Link             from "next/link";
+import Icon             from "@/components/ui/Icon";
 
 const NAV = [
-  { href: "/admin",              icon: "📊", label: "Tableau de bord" },
-  { href: "/admin/crm",          icon: "🗂️", label: "CRM — Membres" },
-  { href: "/admin/doleances",    icon: "📬", label: "Doléances" },
-  { href: "/admin/sermons",      icon: "📺", label: "Sermons" },
-  { href: "/admin/evenements",   icon: "📅", label: "Événements" },
-  { href: "/admin/equipe",       icon: "👥", label: "Équipe pastorale" },
-  { href: "/admin/temoignages",  icon: "💬", label: "Témoignages" },
-  { href: "/admin/membres",      icon: "✅", label: "Validation membres" },
-  { href: "/admin/site",         icon: "⚙️", label: "Site vitrine" },
+  { href: "/admin",              icon: "votre-impact"         as const, label: "Tableau de bord" },
+  { href: "/admin/crm",          icon: "gestion-utilisateurs" as const, label: "CRM — Membres" },
+  { href: "/admin/doleances",    icon: "doleances"            as const, label: "Doléances" },
+  { href: "/admin/sermons",      icon: "sermons-replay"       as const, label: "Sermons" },
+  { href: "/admin/evenements",   icon: "agenda"               as const, label: "Événements" },
+  { href: "/admin/equipe",       icon: "notre-equipe"         as const, label: "Équipe pastorale" },
+  { href: "/admin/temoignages",  icon: "temoignage"           as const, label: "Témoignages" },
+  { href: "/admin/membres",      icon: "presences"            as const, label: "Validation membres" },
+  { href: "/admin/site",         icon: "parametres"           as const, label: "Site vitrine" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -60,7 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               href={item.href}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 mb-0.5"
             >
-              <span className="text-base">{item.icon}</span>
+              <Icon name={item.icon} size={20} style={{ flexShrink: 0 }} />
               {item.label}
             </Link>
           ))}
@@ -93,8 +94,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/" className="font-serif text-base font-bold text-white tracking-[2px]">ARC Admin</Link>
           <div className="flex gap-2">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="text-white/60 hover:text-white text-xl" title={n.label}>
-                {n.icon}
+              <Link key={n.href} href={n.href} className="text-white/60 hover:text-white" title={n.label}>
+                <Icon name={n.icon} size={22} />
               </Link>
             ))}
           </div>

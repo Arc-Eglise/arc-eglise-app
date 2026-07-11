@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ContactForm from "./ContactForm";
+import Icon from "@/components/ui/Icon";
 
 const DEFAULTS: Record<string, string> = {
   contact_address:  "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds, Suisse",
@@ -29,9 +30,9 @@ export default async function ContactSection() {
   }
 
   const INFOS = [
-    { icon: "📍", label: "Adresse",            value: s.contact_address },
-    { icon: "✉️", label: "Email",              value: s.contact_email },
-    { icon: "🕐", label: "Horaires des cultes", value: s.contact_horaires },
+    { icon: "nous-trouver" as const, label: "Adresse",            value: s.contact_address },
+    { icon: "mail" as const,         label: "Email",              value: s.contact_email },
+    { icon: "agenda" as const,       label: "Horaires des cultes", value: s.contact_horaires },
   ];
 
   const SOCIALS = [
@@ -72,8 +73,8 @@ export default async function ContactSection() {
                 gap: 16,
               }}
             >
-              <div style={{ width: 50, height: 50, borderRadius: 13, background: "rgba(30,36,100,.07)", display: "grid", placeItems: "center", fontSize: 22, flexShrink: 0 }}>
-                {ci.icon}
+              <div style={{ width: 50, height: 50, flexShrink: 0, display: "grid", placeItems: "center" }}>
+                <Icon name={ci.icon} variant="tile" size={50} />
               </div>
               <div>
                 <div style={{ fontWeight: 700, color: "#1e2464", fontSize: 15, marginBottom: 4 }}>{ci.label}</div>
