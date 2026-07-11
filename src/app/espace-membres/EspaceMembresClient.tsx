@@ -6,7 +6,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
@@ -253,12 +253,12 @@ const GD_DEFAULTS: Record<string,Record<string,boolean>> = {
 };
 
 /* ─── Maj Plateformes ─────────────────────────────────────────────── */
-interface MPCard { id:number; icon:string; title:string; tag:string; desc:string; descLong:string; cta:string; link:string; video:string; schedule:string; contact:string; bg:string; }
+interface MPCard { id:number; icon:string; title:string; tag:string; desc:string; descLong:string; cta:string; link:string; video:string; image_url:string; schedule:string; contact:string; bg:string; }
 const MP_CARDS_DEFAULT: MPCard[] = [
-  { id:0, icon:"🔥", title:"La Jeunesse ARC", tag:"Pour les Jeunes · 15-35 ans", desc:"Un espace de croissance, d'amitié profonde et de foi engagée pour les 15-35 ans.", descLong:"La Jeunesse ARC est un mouvement de foi pour les 15-35 ans. Chaque vendredi soir, nous nous réunissons pour la louange, la Parole et des activités.", cta:"En savoir plus →", link:"/jeunesse", video:"", schedule:"Vendredi soir · 19h00 — 21h30", contact:"Past. Daniel Mwamba", bg:"linear-gradient(135deg,#c53030,#e53e3e,#2d3a8e)" },
-  { id:1, icon:"🌸", title:"Groupe des Femmes", tag:"Pour les Femmes", desc:"Un espace sacré de sœurie, de prière partagée et d'encouragement mutuel.", descLong:"Le Groupe des Femmes ARC se réunit chaque mardi pour prier, partager la Parole et s'encourager mutuellement.", cta:"En savoir plus →", link:"/femmes", video:"", schedule:"Mardi · 18h00 — 20h00", contact:"Christine Mabika", bg:"linear-gradient(135deg,#7b3f00,#c05621,#d4a843)" },
-  { id:2, icon:"🌱", title:"Écodim", tag:"Pour les Enfants · 0-14 ans", desc:"Des enseignements adaptés et des activités créatives pour vos enfants.", descLong:"L'École du Dimanche ARC accueille les enfants de 0 à 14 ans chaque dimanche pendant le culte principal.", cta:"En savoir plus →", link:"/ecodim", video:"", schedule:"Dimanche · 09h30 — 12h00", contact:"Félicité Mukuna", bg:"linear-gradient(135deg,#276749,#4a9e6e,#0f123a)" },
-  { id:3, icon:"🏠", title:"La Famille ARC", tag:"Toute la communauté", desc:"Rejoignez une communauté chaleureuse fondée sur l'amour, la prière et la fraternité.", descLong:"La Famille ARC, c'est vous ! Une communauté unie par la foi et l'amour du Christ. Bienvenue dans votre famille spirituelle.", cta:"Rejoindre la famille →", link:"/rejoindre", video:"", schedule:"Dimanche · 09h30 & 17h00", contact:"contact@arc-eglise.ch", bg:"linear-gradient(135deg,#1e2464,#2d3a8e,#553c9a)" },
+  { id:0, icon:"🔥", title:"La Jeunesse ARC", tag:"Pour les Jeunes · 15-35 ans", desc:"Un espace de croissance, d'amitié profonde et de foi engagée pour les 15-35 ans.", descLong:"La Jeunesse ARC est un mouvement de foi pour les 15-35 ans. Chaque vendredi soir, nous nous réunissons pour la louange, la Parole et des activités.", cta:"En savoir plus →", link:"/jeunesse", video:"", image_url:"", schedule:"Vendredi soir · 19h00 — 21h30", contact:"Past. Daniel Mwamba", bg:"linear-gradient(135deg,#c53030,#e53e3e,#2d3a8e)" },
+  { id:1, icon:"🌸", title:"Groupe des Femmes", tag:"Pour les Femmes", desc:"Un espace sacré de sœurie, de prière partagée et d'encouragement mutuel.", descLong:"Le Groupe des Femmes ARC se réunit chaque mardi pour prier, partager la Parole et s'encourager mutuellement.", cta:"En savoir plus →", link:"/femmes", video:"", image_url:"", schedule:"Mardi · 18h00 — 20h00", contact:"Christine Mabika", bg:"linear-gradient(135deg,#7b3f00,#c05621,#d4a843)" },
+  { id:2, icon:"🌱", title:"Écodim", tag:"Pour les Enfants · 0-14 ans", desc:"Des enseignements adaptés et des activités créatives pour vos enfants.", descLong:"L'École du Dimanche ARC accueille les enfants de 0 à 14 ans chaque dimanche pendant le culte principal.", cta:"En savoir plus →", link:"/ecodim", video:"", image_url:"", schedule:"Dimanche · 09h30 — 12h00", contact:"Félicité Mukuna", bg:"linear-gradient(135deg,#276749,#4a9e6e,#0f123a)" },
+  { id:3, icon:"🏠", title:"La Famille ARC", tag:"Toute la communauté", desc:"Rejoignez une communauté chaleureuse fondée sur l'amour, la prière et la fraternité.", descLong:"La Famille ARC, c'est vous ! Une communauté unie par la foi et l'amour du Christ. Bienvenue dans votre famille spirituelle.", cta:"Rejoindre la famille →", link:"/rejoindre", video:"", image_url:"", schedule:"Dimanche · 09h30 & 17h00", contact:"contact@arc-eglise.ch", bg:"linear-gradient(135deg,#1e2464,#2d3a8e,#553c9a)" },
 ];
 const MP_GRADIENTS = [
   "linear-gradient(135deg,#c53030,#e53e3e,#2d3a8e)",
@@ -447,6 +447,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
   const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("communication");
 
+  /* ── Guard session-only (quand "rester connecté" était désactivé) ── */
+  useEffect(() => {
+    const isSessionOnly = sessionStorage.getItem("arc_session_only") === "1";
+    const hasPersist    = localStorage.getItem("arc_persist") === "1";
+    // Si aucune des deux flags n'est présente → session ouverte dans un nouveau contexte sans préférence
+    // → on ne touche à rien (cas par défaut : session Supabase déjà persistée dans le cookie)
+    // Si "session only" et la session vient d'être restaurée depuis les cookies (nouveau onglet/fenêtre) → déconnecter
+    if (!isSessionOnly && !hasPersist) {
+      // Aucune préférence mémorisée — comportement neutre, on ne déconnecte pas
+      return;
+    }
+    // Si le flag session-only est présent dans sessionStorage → session valide dans cet onglet
+    // Si arc_persist est dans localStorage → session persistante, tout va bien
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── Effects ─────────────────────────────────────────────────── */
   useEffect(() => {
     const tick = () => {
@@ -554,6 +569,24 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  /* ── Chargement des cartes MP depuis Supabase ───────────────── */
+  useEffect(() => {
+    if (!showMP) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("site_settings").select("value").eq("key", "mp_cards").single();
+        if (data?.value) {
+          const saved = JSON.parse(data.value as string) as MPCard[];
+          if (Array.isArray(saved) && saved.length > 0) {
+            // Fusionner avec les defaults pour ne pas perdre les champs ajoutés
+            setMpCards(MP_CARDS_DEFAULT.map((def, i) => ({ ...def, ...(saved[i] ?? {}), id: def.id })));
+          }
+        }
+      } catch { /* silencieux */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMP]);
 
   /* ── Chargement des droits sauvegardés (GD modal) ──────────── */
   useEffect(() => {
@@ -2949,6 +2982,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte du bouton CTA</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.cta} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,cta:e.target.value}:x))} />
                     </div>
+                    {/* Image / Vidéo */}
+                    <div style={{marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🖼 Média (image / vidéo)</div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>URL de l&apos;image ou photo (remplace le fond coloré)</label>
+                      <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.image_url} placeholder="https://... ou laisser vide" onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,image_url:e.target.value}:x))} />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>URL mini-vidéo YouTube (optionnel)</label>
+                      <input className="em-input" style={{marginBottom:4,width:"100%"}} value={card.video} placeholder="https://youtu.be/..." onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,video:e.target.value}:x))} />
+                      {card.image_url && (
+                        <div style={{marginTop:8,borderRadius:8,overflow:"hidden",maxHeight:120,background:"#000"}}>
+                          <img src={card.image_url} alt="" style={{width:"100%",height:120,objectFit:"cover"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}} />
+                        </div>
+                      )}
+                    </div>
                     {/* Liens */}
                     <div>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🔗 Liens &amp; Infos</div>
@@ -2967,8 +3013,17 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               <div style={{fontSize:11,color:"#8890aa"}}>Modifications publiées instantanément sur arc-eglise.ch via API Supabase</div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowMP(false)}>Annuler</button>
-                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={()=>setToast("💾 Carte sauvegardée !")}>💾 Sauvegarder cette carte</button>
-                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2f855a,#38a169)",color:"white"}} onClick={()=>{setToast("🚀 Publié sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier sur le site</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={async()=>{
+                  const res = await savePlatformCards(mpCards);
+                  if (res?.error) setToast(`❌ ${res.error}`);
+                  else setToast("💾 Carte sauvegardée !");
+                }}>💾 Sauvegarder cette carte</button>
+                <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2f855a,#38a169)",color:"white"}} onClick={async()=>{
+                  const res = await savePlatformCards(mpCards);
+                  if (res?.error) { setToast(`❌ ${res.error}`); return; }
+                  setToast("🚀 Publié sur arc-eglise.ch !");
+                  setShowMP(false);
+                }}>🚀 Publier sur le site</button>
               </div>
             </div>
           </div>

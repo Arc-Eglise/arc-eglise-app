@@ -11,11 +11,12 @@ function ConnexionForm() {
   const searchParams = useSearchParams();
   const supabase     = createClient();
 
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [showPwd,  setShowPwd]  = useState(false);
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [showPwd,    setShowPwd]    = useState(false);
+  const [resterConnecte, setResterConnecte] = useState(true);
 
   // Message depuis le callback ou l'inscription
   const urlError   = searchParams.get("error");
@@ -24,6 +25,14 @@ function ConnexionForm() {
   useEffect(() => {
     if (urlError === "auth_callback_error") setError("Lien de confirmation invalide ou expiré.");
   }, [urlError]);
+
+  // Rediriger vers l'espace membres si déjà connecté (évite d'afficher le form au retour navigateur)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace("/espace-membres");
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +51,15 @@ function ConnexionForm() {
       );
       setLoading(false);
     } else {
+      // Si "rester connecté" est désactivé, noter en sessionStorage
+      // (la session sera active dans cet onglet mais ne survivra pas à la fermeture du navigateur)
+      if (!resterConnecte) {
+        sessionStorage.setItem("arc_session_only", "1");
+        localStorage.removeItem("arc_persist");
+      } else {
+        localStorage.setItem("arc_persist", "1");
+        sessionStorage.removeItem("arc_session_only");
+      }
       router.push("/espace-membres");
       router.refresh();
     }
@@ -193,6 +211,17 @@ function ConnexionForm() {
                 </button>
               </div>
             </div>
+
+            {/* Rester connecté */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={resterConnecte}
+                onChange={(e) => setResterConnecte(e.target.checked)}
+                className="w-4 h-4 accent-arc-navy rounded"
+              />
+              <span className="text-sm text-arc-text2">Rester connecté</span>
+            </label>
 
             <button
               type="submit"

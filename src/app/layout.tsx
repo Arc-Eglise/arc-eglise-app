@@ -34,23 +34,35 @@ export const metadata: Metadata = {
   authors: [{ name: "ARC Église" }],
   applicationName: "ARC Église",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/images/logo-arc.jpeg", type: "image/jpeg" },
+    ],
+    apple: [
+      { url: "/images/logo-arc.jpeg", type: "image/jpeg" },
+    ],
+    shortcut: "/images/logo-arc.jpeg",
+  },
   openGraph: {
     title: "ARC — Ambassade du Royaume de Christ",
     description: "Église évangélique à La Chaux-de-Fonds, Suisse",
     locale: "fr_CH",
     type: "website",
     siteName: "ARC Église",
+    images: [{ url: "/images/logo-arc.jpeg", width: 1200, height: 630, alt: "ARC Église" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "ARC — Ambassade du Royaume de Christ",
     description: "Église évangélique à La Chaux-de-Fonds, Suisse",
+    images: ["/images/logo-arc.jpeg"],
   },
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION,
   },
   other: {
     "msapplication-TileColor": "#1e2464",
+    "msapplication-TileImage": "/images/logo-arc.jpeg",
     "msapplication-config": "/browserconfig.xml",
   },
 };

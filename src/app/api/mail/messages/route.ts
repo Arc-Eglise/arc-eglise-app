@@ -29,12 +29,18 @@ export async function GET(req: NextRequest) {
   if (!authorized.includes(box))
     return NextResponse.json({ error: "Accès refusé à cette boîte" }, { status: 403 });
 
+  if (!process.env.GRAPH_TENANT_ID || !process.env.GRAPH_CLIENT_ID || !process.env.GRAPH_CLIENT_SECRET) {
+    return NextResponse.json({
+      error: "Messagerie Microsoft non configurée — variables GRAPH_TENANT_ID, GRAPH_CLIENT_ID et GRAPH_CLIENT_SECRET manquantes dans Vercel.",
+    }, { status: 503 });
+  }
+
   try {
     const data = await listMessages(box, folder, top, skip);
     return NextResponse.json(data);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur inconnue";
     console.error("[api/mail/messages]", msg);
-    return NextResponse.json({ error: "Erreur Graph API", detail: msg }, { status: 502 });
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

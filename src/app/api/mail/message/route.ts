@@ -21,12 +21,17 @@ export async function GET(req: NextRequest) {
   if (!authorized.includes(box))
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
+  if (!process.env.GRAPH_TENANT_ID || !process.env.GRAPH_CLIENT_ID || !process.env.GRAPH_CLIENT_SECRET) {
+    return NextResponse.json({ error: "Messagerie Microsoft non configurée — variables GRAPH_* manquantes." }, { status: 503 });
+  }
+
   try {
     const msg = await getMessage(box, id);
     if (!msg.isRead) await markAsRead(box, id).catch(() => {});
     return NextResponse.json(msg);
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: "Erreur Graph API", detail }, { status: 502 });
+    console.error("[api/mail/message]", detail);
+    return NextResponse.json({ error: detail }, { status: 502 });
   }
 }

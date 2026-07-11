@@ -78,7 +78,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
     try {
       const res = await fetch(`/api/mail/messages?box=${encodeURIComponent(box)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      if (!res.ok) throw new Error(data.error ?? data.detail ?? "Erreur de chargement");
       setMessages(data.value ?? []);
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : "Erreur de chargement"}`);
@@ -102,7 +102,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
     try {
       const res = await fetch(`/api/mail/message?box=${encodeURIComponent(selectedBox!)}&id=${msg.id}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      if (!res.ok) throw new Error(data.error ?? data.detail ?? "Erreur de chargement");
       setDetail(data);
       // Marquer comme lu localement
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));

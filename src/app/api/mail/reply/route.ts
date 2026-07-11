@@ -20,11 +20,16 @@ export async function POST(req: NextRequest) {
   if (!authorized.includes(body.box))
     return NextResponse.json({ error: "Accès refusé à cette boîte" }, { status: 403 });
 
+  if (!process.env.GRAPH_TENANT_ID || !process.env.GRAPH_CLIENT_ID || !process.env.GRAPH_CLIENT_SECRET) {
+    return NextResponse.json({ error: "Messagerie Microsoft non configurée — variables GRAPH_* manquantes." }, { status: 503 });
+  }
+
   try {
     await replyToMessage(body.box, body.id, body.comment);
     return NextResponse.json({ success: true });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: "Erreur Graph API", detail }, { status: 502 });
+    console.error("[api/mail/reply]", detail);
+    return NextResponse.json({ error: detail }, { status: 502 });
   }
 }

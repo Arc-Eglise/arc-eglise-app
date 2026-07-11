@@ -176,13 +176,15 @@ export async function deleteTeamMember(id: string) {
 // ── MEMBERS (validation) ────────────────────────────────────────
 
 export async function validateMember(memberId: string) {
-  const { supabase, profile, userId } = await getCmsUser();
+  const { profile, userId } = await getCmsUser();
   const canManage =
     ["admin", "pasteur"].includes(profile.role as string) ||
     (profile.groups as string[] | null)?.includes("support");
   if (!canManage) return { error: "Non autorisé" };
 
-  const { error } = await supabase.from("profiles").update({
+  // Doit utiliser createAdminClient() pour contourner le RLS
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({
     validated:    true,
     role:         "membre",
     validated_by: userId,
@@ -191,23 +193,26 @@ export async function validateMember(memberId: string) {
 
   if (error) return { error: error.message };
   revalidatePath("/admin/membres");
+  revalidatePath(`/admin/crm/${memberId}`);
   return { success: true };
 }
 
 export async function rejectMember(memberId: string) {
-  const { supabase, profile } = await getCmsUser();
+  const { profile } = await getCmsUser();
   const canManage =
     ["admin", "pasteur"].includes(profile.role as string) ||
     (profile.groups as string[] | null)?.includes("support");
   if (!canManage) return { error: "Non autorisé" };
 
-  const { error } = await supabase.from("profiles").update({
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({
     validated: false,
     role:      "visiteur",
   }).eq("id", memberId);
 
   if (error) return { error: error.message };
   revalidatePath("/admin/membres");
+  revalidatePath(`/admin/crm/${memberId}`);
   return { success: true };
 }
 

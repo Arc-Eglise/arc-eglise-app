@@ -27,11 +27,16 @@ export async function POST(req: NextRequest) {
   if (body.message.length > 10_000)
     return NextResponse.json({ error: "Message trop long (max 10 000 caractères)" }, { status: 400 });
 
+  if (!process.env.GRAPH_TENANT_ID || !process.env.GRAPH_CLIENT_ID || !process.env.GRAPH_CLIENT_SECRET) {
+    return NextResponse.json({ error: "Messagerie Microsoft non configurée — variables GRAPH_* manquantes." }, { status: 503 });
+  }
+
   try {
     await sendMail({ from: body.from, to: body.to, subject: body.subject, body: body.message });
     return NextResponse.json({ success: true });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: "Erreur Graph API", detail }, { status: 502 });
+    console.error("[api/mail/send]", detail);
+    return NextResponse.json({ error: detail }, { status: 502 });
   }
 }
