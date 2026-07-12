@@ -140,6 +140,8 @@ export async function createEvent(formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/evenements");
+  revalidatePath("/espace-membres/agenda");
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 
@@ -172,6 +174,8 @@ export async function updateEvent(id: string, formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/evenements");
+  revalidatePath("/espace-membres/agenda");
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 
@@ -183,6 +187,8 @@ export async function deleteEvent(id: string) {
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/evenements");
+  revalidatePath("/espace-membres/agenda");
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 

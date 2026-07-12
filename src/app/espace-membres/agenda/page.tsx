@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EventCard } from "./AgendaClient";
+import { EventsManagerClient } from "./EventsManagerClient";
 
 export default async function AgendaPage() {
   const supabase = createClient();
@@ -10,11 +11,16 @@ export default async function AgendaPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, groups")
     .eq("id", user.id)
     .single();
 
   const isAdmin = ["admin", "pasteur"].includes(profile?.role ?? "");
+  const canManage =
+    isAdmin ||
+    (profile?.groups as string[] | null ?? []).includes("communication") ||
+    (profile?.groups as string[] | null ?? []).includes("media") ||
+    (profile?.groups as string[] | null ?? []).includes("support");
   const today   = new Date().toISOString().split("T")[0];
   const past30  = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -46,7 +52,7 @@ export default async function AgendaPage() {
 
     const [rsvpCounts, attendCounts] = await Promise.all([
       supabase.from("event_rsvp").select("event_id, status").in("event_id", ids),
-      isAdmin
+      canManage
         ? supabase.from("event_attendance")
             .select("event_id, user_id, profiles!event_attendance_user_id_fkey(first_name, last_name)")
             .in("event_id", ids)
@@ -61,7 +67,7 @@ export default async function AgendaPage() {
 
     for (const a of attendCounts.data ?? []) {
       attendMap[a.event_id] = (attendMap[a.event_id] ?? 0) + 1;
-      if (isAdmin) {
+      if (canManage) {
         if (!attendeesMap[a.event_id]) attendeesMap[a.event_id] = [];
         const p = (a as { profiles?: { first_name: string | null; last_name: string | null } | null }).profiles;
         attendeesMap[a.event_id].push({
@@ -90,6 +96,9 @@ export default async function AgendaPage() {
         <p className="text-sm text-arc-text2 mt-0.5">Événements à venir — confirme ta présence</p>
       </div>
 
+      {/* ── Gestion des événements (admins/managers) ── */}
+      <EventsManagerClient canManage={canManage} />
+
       {/* ── Événements à venir ── */}
       {Object.keys(grouped).length === 0 && past.length === 0 && (
         <div className="bg-white border border-arc-border rounded-2xl py-16 text-center text-arc-text3 text-sm">
@@ -111,7 +120,7 @@ export default async function AgendaPage() {
                 myCheckedIn={myAttendMap[ev.id] ?? null}
                 isPast={false}
                 isToday={ev.date === today}
-                isAdmin={isAdmin}
+                isAdmin={canManage}
                 attendees={attendeesMap[ev.id] ?? []}
               />
             ))}
@@ -135,7 +144,7 @@ export default async function AgendaPage() {
                 attendCount={attendMap[ev.id] ?? 0}
                 myCheckedIn={myAttendMap[ev.id] ?? null}
                 isPast={true}
-                isAdmin={isAdmin}
+                isAdmin={canManage}
                 attendees={attendeesMap[ev.id] ?? []}
               />
             ))}

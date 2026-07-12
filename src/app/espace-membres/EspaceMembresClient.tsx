@@ -10,6 +10,7 @@ import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia } from "@/lib/actions/cms";
+import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -267,8 +268,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [showGS, setShowGS] = useState(false);
   const [showGD, setShowGD] = useState(false);
   const [showNewPrayer, setShowNewPrayer] = useState(false);
-  const [showAddEvent, setShowAddEvent] = useState(false);
-  const [showSalle, setShowSalle]       = useState(false);
+const [showSalle, setShowSalle]       = useState(false);
   const [showMP, setShowMP]           = useState(false);
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
   const [testimonialContent, setTestimonialContent]   = useState("");
@@ -1793,7 +1793,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>🏢 Réserver une salle</button>
-                {canAdmin && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowAddEvent(true)}>+ Ajouter un événement</button>}
+                {canAdmin && <a href="/espace-membres/agenda" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>📅 Gérer les événements</a>}
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:20}}>
@@ -1875,7 +1875,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   </div>
                 )}
                 {canAdmin && (
-                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:8}} onClick={()=>setShowAddEvent(true)}>+ Ajouter un événement</button>
+                  <a href="/espace-membres/agenda" className="em-btn em-btn-primary" style={{width:"100%",marginTop:8,display:"block",textAlign:"center",textDecoration:"none"}}>📅 Gérer les événements</a>
                 )}
               </div>
             </div>
@@ -3482,12 +3482,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               )}
               {majInfoTab==="events" && (
                 <div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                    <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Événements publics</div>
-                    <a href="/admin/evenements" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les événements →</a>
-                  </div>
-                  <p style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Les événements marqués &ldquo;publiés&rdquo; et &ldquo;public&rdquo; apparaissent automatiquement sur le site vitrine et dans la bannière défilante. Ils apparaissent aussi dans l&apos;onglet Bannière.</p>
-                  <a href="/admin/evenements" className="em-btn em-btn-primary" style={{width:"100%",display:"block",textAlign:"center",textDecoration:"none"}}>📅 Ouvrir la gestion des événements</a>
+                  <EventsManagerClient canManage={canAdmin} />
                 </div>
               )}
               {majInfoTab==="infos" && (
@@ -4284,42 +4279,6 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Motif</label>
               <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" />
               <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowSalle(false);setToast("✅ Salle réservée ! Confirmation envoyée par email.");}}>Confirmer la réservation</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Ajouter un événement ── */}
-      {showAddEvent && canAdmin && (
-        <div className="em-overlay" onClick={()=>setShowAddEvent(false)}>
-          <div className="em-modal" onClick={e=>e.stopPropagation()}>
-            <div className="em-modal-hdr">
-              <span className="em-modal-title">📅 Ajouter un événement</span>
-              <button className="em-modal-close" onClick={()=>setShowAddEvent(false)}>✕</button>
-            </div>
-            <div className="em-modal-body">
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Titre</label>
-              <input className="em-input" style={{marginBottom:10}} placeholder="Nom de l&apos;événement" />
-              <div style={{display:"flex",gap:10,marginBottom:10}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
-                  <input type="date" className="em-input" />
-                </div>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure</label>
-                  <input type="time" className="em-input" defaultValue="09:30" />
-                </div>
-              </div>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Type</label>
-              <select className="em-select" style={{marginBottom:10}}>
-                <option>⛪ Culte (gratuit)</option>
-                <option>🎵 Concert (ticket gratuit requis)</option>
-                <option>💛 Événement payant</option>
-                <option>🤝 Réunion interne</option>
-              </select>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Lieu</label>
-              <input className="em-input" style={{marginBottom:14}} defaultValue="Av. Charles-Naine 39, La Chaux-de-Fonds" />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowAddEvent(false);setToast("✅ Événement ajouté à l'agenda et au site vitrine !");}}>Publier l&apos;événement</button>
             </div>
           </div>
         </div>
