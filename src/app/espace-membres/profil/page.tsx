@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { updateProfile } from "@/lib/actions/membres";
 import { uploadMemberAvatar } from "@/lib/actions/cms";
 import AvatarUpload from "@/components/membres/AvatarUpload";
@@ -42,6 +43,9 @@ export default async function ProfilPage() {
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Espace Membres
+      </Link>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Mon profil</h1>
         <p className="text-sm text-arc-text2 mt-0.5">Gérer mes informations personnelles</p>

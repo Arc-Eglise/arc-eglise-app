@@ -6,12 +6,14 @@ import { ExternalLink } from "lucide-react";
 const DEFAULTS: Record<string, string> = {
   contact_address:  "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds, Suisse",
   contact_email:    "contact@arc-eglise.ch",
-  contact_horaires: "Dimanche 09h30 & 17h00\nMercredi 19h00 — Prière & Parole",
   contact_map_url:  "https://maps.google.com/?q=Av+Charles-Naine+39+La+Chaux-de-Fonds",
   social_facebook:  "https://www.facebook.com/ARCEgliseCDF",
   social_instagram: "https://www.instagram.com/arc.eglise",
   social_youtube:   "https://www.youtube.com/@ARCEglise",
   social_whatsapp:  "https://wa.me/41000000000",
+  culte_1_label:    "Dimanche 09h30 — Culte principal",
+  culte_2_label:    "Dimanche 17h00 — Culte du soir",
+  culte_3_label:    "Mercredi 19h00 — Prière & Parole",
 };
 
 const SOCIAL_META: Record<string, { color: string; icon: React.JSX.Element }> = {
@@ -65,10 +67,14 @@ export default async function ContactSection() {
     // fallback to defaults
   }
 
+  const horairesSync = [s.culte_1_label, s.culte_2_label, s.culte_3_label]
+    .filter(Boolean)
+    .join("\n");
+
   const INFOS = [
     { icon: "nous-trouver" as const, label: "Adresse",            value: s.contact_address },
     { icon: "mail" as const,         label: "Email",              value: s.contact_email },
-    { icon: "agenda" as const,       label: "Horaires des cultes", value: s.contact_horaires },
+    { icon: "agenda" as const,       label: "Horaires des cultes", value: horairesSync },
   ];
 
   const SOCIALS = [

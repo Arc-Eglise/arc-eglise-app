@@ -86,6 +86,9 @@ export default async function PresencesPage({
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Espace Membres
+      </Link>
       {/* En-tête */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>

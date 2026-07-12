@@ -47,6 +47,9 @@ export default async function CrmPage() {
 
   return (
     <div>
+      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← Espace Membres
+      </Link>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">CRM Pastoral</h1>
         <p className="text-sm text-arc-text2 mt-0.5">{all.length} membres enregistrés</p>

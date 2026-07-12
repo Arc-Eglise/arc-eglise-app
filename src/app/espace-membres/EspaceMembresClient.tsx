@@ -9,7 +9,7 @@ import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVers
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
-import { saveVitrinePhoto, updateSiteSettings } from "@/lib/actions/cms";
+import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia } from "@/lib/actions/cms";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -270,6 +270,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showSalle, setShowSalle]       = useState(false);
   const [showMP, setShowMP]           = useState(false);
+  const [showTestimonialForm, setShowTestimonialForm] = useState(false);
+  const [testimonialContent, setTestimonialContent]   = useState("");
+  const [testimonialName,    setTestimonialName]       = useState("");
+  const [testimonialRole,    setTestimonialRole]       = useState("");
+  const [testimonialSaving,  setTestimonialSaving]     = useState(false);
+  const [mpMediaUploading, setMpMediaUploading] = useState(false);
   const [showVitrinePhoto, setShowVitrinePhoto] = useState(false);
   const [vitrinePhotoFile, setVitrinePhotoFile] = useState<File|null>(null);
   const [vitrinePhotoUrl, setVitrinePhotoUrl]   = useState("");
@@ -1414,6 +1420,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ── Témoignage (tous les membres validés) ── */}
+            {canPost && (
+              <div className="em-card" style={{marginTop:18}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:6,color:"#1e2464"}}>✍️ Partager mon témoignage</div>
+                <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>
+                  Votre témoignage sera relu et publié sur le site après validation par l&apos;équipe.
+                </div>
+                <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowTestimonialForm(true)}>
+                  ✍️ Soumettre un témoignage
+                </button>
               </div>
             )}
           </div>
@@ -2594,21 +2613,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
               {/* CRM */}
               {adminTab==="crm" && (
-                <div>
-                  <div className="em-kanban">
-                    {CRM_COLS.map(col=>(
-                      <div key={col.title} className="em-k-col">
-                        <div className="em-k-title" style={{color:col.color}}>{col.title}</div>
-                        {col.cards.map(c=>(
-                          <div key={c.name} className="em-k-card">
-                            <div style={{fontWeight:600,color:"#1e2464"}}>{c.name}</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{c.note}</div>
-                          </div>
-                        ))}
-                        <button className="em-btn em-btn-ghost em-btn-sm" style={{width:"100%",marginTop:6}}>+ Ajouter</button>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{textAlign:"center",padding:"32px 16px"}}>
+                  <div style={{fontSize:44,marginBottom:12}}>🗂️</div>
+                  <div style={{fontWeight:700,fontSize:15,color:"#1e2464",marginBottom:8}}>CRM Pastoral</div>
+                  <p style={{fontSize:12,color:"#8890aa",marginBottom:20,maxWidth:380,margin:"0 auto 20px"}}>Gérez les membres, les notes pastorales, les tags et les suivis depuis le CRM complet.</p>
+                  <a href="/espace-membres/crm" className="em-btn em-btn-primary" style={{textDecoration:"none",display:"inline-block",marginBottom:10}}>
+                    Ouvrir le CRM Pastoral →
+                  </a>
+                  <div style={{fontSize:11,color:"#8890aa",marginTop:6}}>Membres en attente de validation · Notes pastorales · Tags · Groupes</div>
                 </div>
               )}
 
@@ -2925,6 +2937,61 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         </div>
       )}
 
+      {/* Soumettre témoignage */}
+      {showTestimonialForm && (
+        <div className="em-overlay" onClick={()=>setShowTestimonialForm(false)}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">✍️ Soumettre mon témoignage</span>
+              <button className="em-modal-close" onClick={()=>setShowTestimonialForm(false)}>✕</button>
+            </div>
+            <div className="em-modal-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{padding:"10px 14px",background:"#eff6ff",borderRadius:10,fontSize:12,color:"#1e40af",lineHeight:1.5}}>
+                📋 Votre témoignage sera examiné par l&apos;équipe avant publication sur le site vitrine.
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:4}}>Nom affiché (optionnel)</label>
+                <input className="em-input" placeholder="Prénom et initiale, ex : Marie K." value={testimonialName} onChange={e=>setTestimonialName(e.target.value)} />
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:4}}>Rôle / Titre (optionnel)</label>
+                <input className="em-input" placeholder="Membre depuis 2020, ex-responsable jeunesse…" value={testimonialRole} onChange={e=>setTestimonialRole(e.target.value)} />
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:4}}>Mon témoignage * (min. 20 caractères)</label>
+                <textarea className="em-textarea" rows={6} placeholder="Partagez ce que Dieu a fait dans votre vie…" value={testimonialContent} onChange={e=>setTestimonialContent(e.target.value)} />
+                <div style={{fontSize:11,color:testimonialContent.length < 20 ? "#dc2626" : "#22c55e",marginTop:3,textAlign:"right"}}>
+                  {testimonialContent.length} / min 20 caractères
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button
+                  className="em-btn em-btn-primary"
+                  style={{flex:1,justifyContent:"center",opacity:testimonialSaving||testimonialContent.length<20?0.6:1}}
+                  disabled={testimonialSaving || testimonialContent.length < 20}
+                  onClick={async()=>{
+                    setTestimonialSaving(true);
+                    const fd = new FormData();
+                    fd.set("content",     testimonialContent);
+                    fd.set("author_name", testimonialName);
+                    fd.set("author_role", testimonialRole);
+                    const res = await submitMemberTestimonial(fd);
+                    setTestimonialSaving(false);
+                    if (res?.error) { setToast(`❌ ${res.error}`); return; }
+                    setTestimonialContent(""); setTestimonialName(""); setTestimonialRole("");
+                    setShowTestimonialForm(false);
+                    setToast("✅ Témoignage soumis — il sera publié après validation.");
+                  }}
+                >
+                  {testimonialSaving ? "Envoi…" : "📤 Soumettre"}
+                </button>
+                <button className="em-btn em-btn-outline" onClick={()=>setShowTestimonialForm(false)}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Gestion Stream (admin) */}
       {showGS && canAdmin && (
         <div className="em-overlay" onClick={()=>setShowGS(false)}>
@@ -3232,7 +3299,29 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     {/* Image / Vidéo */}
                     <div style={{marginBottom:14}}>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🖼 Média (image / vidéo)</div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>URL de l&apos;image ou photo (remplace le fond coloré)</label>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Importer depuis l&apos;ordinateur / téléphone</label>
+                      <input type="file" accept="image/*,video/*" disabled={mpMediaUploading}
+                        style={{display:"block",width:"100%",fontSize:12,marginBottom:8,cursor:"pointer"}}
+                        onChange={async(e)=>{
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setMpMediaUploading(true);
+                          const fd = new FormData();
+                          fd.set("file", file);
+                          fd.set("cardId", String(mpCard));
+                          const res = await savePlatformCardMedia(fd);
+                          setMpMediaUploading(false);
+                          if (res?.url) {
+                            setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,image_url:res.url}:x));
+                            setToast("🖼 Image importée !");
+                          } else {
+                            setToast(`❌ ${res?.error ?? "Erreur upload"}`);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                      {mpMediaUploading && <div style={{fontSize:11,color:"#8890aa",marginBottom:6}}>⏳ Upload en cours…</div>}
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Ou URL de l&apos;image / photo</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.image_url} placeholder="https://... ou laisser vide" onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,image_url:e.target.value}:x))} />
                       <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>URL mini-vidéo YouTube (optionnel)</label>
                       <input className="em-input" style={{marginBottom:4,width:"100%"}} value={card.video} placeholder="https://youtu.be/..." onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,video:e.target.value}:x))} />

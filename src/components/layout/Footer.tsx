@@ -76,7 +76,8 @@ export default async function Footer() {
       .select("key, value")
       .in("key", [
         "social_facebook", "social_instagram", "social_youtube", "social_whatsapp",
-        "contact_address", "contact_email", "contact_horaires",
+        "contact_address", "contact_email",
+        "culte_1_label", "culte_2_label", "culte_3_label",
       ]);
     for (const row of data ?? []) s[row.key] = row.value;
   } catch {
@@ -87,9 +88,13 @@ export default async function Footer() {
     .map((d) => ({ key: d.key, label: d.label, href: s[d.key] ?? d.fallback, color: d.color }))
     .filter((soc) => soc.href.trim() !== "");
 
-  const address  = s.contact_address  ?? "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds";
-  const email    = s.contact_email    ?? "contact@arc-eglise.ch";
-  const horaires = s.contact_horaires ?? "Dimanche 09h30 & 17h00\nMercredi 19h00 — Prière";
+  const address  = s.contact_address ?? "Av. Charles-Naine 39\n2300 La Chaux-de-Fonds";
+  const email    = s.contact_email   ?? "contact@arc-eglise.ch";
+  const horaires = [
+    s.culte_1_label ?? "Dimanche 09h30 — Culte principal",
+    s.culte_2_label ?? "Dimanche 17h00 — Culte du soir",
+    s.culte_3_label ?? "Mercredi 19h00 — Prière",
+  ].join("\n");
 
   const [line1, line2]   = address.split("\n");
   const horaireLines     = horaires.split("\n");

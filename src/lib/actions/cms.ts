@@ -117,20 +117,57 @@ export async function createEvent(formData: FormData) {
   const tagsRaw = formData.get("tags") as string;
   const tags = tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
 
+  const recType = (formData.get("recurrence_type") as string) || "none";
+
   const { error } = await supabase.from("events").insert({
-    title:        formData.get("title")       as string,
-    description:  formData.get("description") as string || null,
-    date:         formData.get("date")        as string,
-    time_start:   formData.get("time_start")  as string,
-    time_end:     formData.get("time_end")    as string || null,
-    location:     formData.get("location")    as string,
-    capacity:     formData.get("capacity")    ? Number(formData.get("capacity")) : null,
-    price_chf:    formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
+    title:               formData.get("title")       as string,
+    description:         formData.get("description") as string || null,
+    date:                formData.get("date")        as string,
+    time_start:          formData.get("time_start")  as string,
+    time_end:            formData.get("time_end")    as string || null,
+    location:            formData.get("location")    as string,
+    capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
+    price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
     tags,
-    is_public:    formData.get("is_public")    !== "off",
-    is_published: formData.get("is_published") !== "off",
-    created_by:   userId,
+    is_public:           formData.get("is_public")    !== "off",
+    is_published:        formData.get("is_published") !== "off",
+    recurrence_type:     recType,
+    recurrence_interval: recType !== "none" ? (Number(formData.get("recurrence_interval")) || 1) : 1,
+    recurrence_end_date: recType !== "none" && recType !== "indefinite" ? (formData.get("recurrence_end_date") as string || null) : null,
+    created_by:          userId,
   });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/evenements");
+  return { success: true };
+}
+
+export async function updateEvent(id: string, formData: FormData) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
+
+  const tagsRaw = formData.get("tags") as string;
+  const tags = tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
+  const recType = (formData.get("recurrence_type") as string) || "none";
+
+  const { error } = await supabase.from("events").update({
+    title:               formData.get("title")       as string,
+    description:         formData.get("description") as string || null,
+    date:                formData.get("date")        as string,
+    time_start:          formData.get("time_start")  as string,
+    time_end:            formData.get("time_end")    as string || null,
+    location:            formData.get("location")    as string,
+    capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
+    price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
+    tags,
+    is_public:           formData.get("is_public")    !== "off",
+    is_published:        formData.get("is_published") !== "off",
+    recurrence_type:     recType,
+    recurrence_interval: recType !== "none" ? (Number(formData.get("recurrence_interval")) || 1) : 1,
+    recurrence_end_date: recType !== "none" && recType !== "indefinite" ? (formData.get("recurrence_end_date") as string || null) : null,
+  }).eq("id", id);
 
   if (error) return { error: error.message };
   revalidatePath("/");
@@ -300,12 +337,99 @@ export async function createTestimonial(formData: FormData) {
 export async function deleteTestimonial(id: string) {
   const cms = await getCmsUser();
   if (!cms.ok) return { error: cms.error };
-  const { supabase } = cms;
+  const { supabase, profile } = cms;
+  const canDelete =
+    ["admin", "pasteur"].includes(profile.role as string) ||
+    (profile.groups as string[] | null)?.includes("communication") ||
+    (profile.groups as string[] | null)?.includes("support");
+  if (!canDelete) return { error: "Non autorisé — réservé à Pasteur, Communication, Support ou Admin" };
   const { error } = await supabase.from("testimonials").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/temoignages");
   return { success: true };
+}
+
+export async function validateTestimonial(id: string) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const admin = createAdminClient();
+  const { error } = await admin.from("testimonials")
+    .update({ status: "approved", is_published: true })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/temoignages");
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function rejectTestimonial(id: string) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const admin = createAdminClient();
+  const { error } = await admin.from("testimonials")
+    .update({ status: "rejected", is_published: false })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/temoignages");
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function submitMemberTestimonial(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, validated, first_name, last_name")
+    .eq("id", user.id)
+    .single();
+
+  const isAllowed =
+    profile?.role === "admin" || profile?.role === "pasteur" ||
+    (profile?.role === "membre" && profile?.validated === true);
+  if (!isAllowed) return { error: "Accès réservé aux membres validés" };
+
+  const content = ((formData.get("content") as string) ?? "").trim();
+  if (content.length < 20) return { error: "Le témoignage est trop court (minimum 20 caractères)" };
+
+  const authorName = ((formData.get("author_name") as string) ?? "").trim() ||
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Membre";
+  const authorRole = ((formData.get("author_role") as string) ?? "").trim() || null;
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("testimonials").insert({
+    author_name:  authorName,
+    author_role:  authorRole,
+    content,
+    sort_order:   999,
+    is_published: false,
+    status:       "pending",
+    submitted_by: user.id,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+export async function savePlatformCardMedia(formData: FormData) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Aucun fichier sélectionné" };
+  if (file.size > 10 * 1024 * 1024) return { error: "Fichier trop grand (max 10 Mo)" };
+
+  const cardId  = (formData.get("cardId") as string) || "0";
+  const ext     = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const url     = await uploadToStorage("media", `plateformes/card-${cardId}-${Date.now()}.${ext}`, file);
+  if (!url) return { error: "Erreur lors de l'upload" };
+
+  return { success: true, url };
 }
 
 export async function toggleTestimonialPublished(id: string, published: boolean) {
