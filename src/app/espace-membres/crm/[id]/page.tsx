@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
+import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
+import { GroupsEditorClient } from "@/components/crm/GroupsEditorClient";
 import CrmTagsEditor from "../CrmTagsEditor";
 
 const STAGES: { key: string; label: string; color: string }[] = [
@@ -26,9 +28,6 @@ const GROUP_EMOJIS: Record<string,string> = {
   pasteur:"👑",chorale:"🎵",media:"🎬",social:"🤝",sanitaire:"🏥",finance:"💰",
   support:"🛠️",jeunesse:"⚡",femmes:"🌸",ecodim:"📚",suivi:"🕊️",communication:"📣",
 };
-const ROLES_ALL  = ["admin", "pasteur", "membre", "visiteur"] as const;
-const ROLES_PASTEUR = ["membre", "visiteur"] as const;
-
 const ROLE_STYLE: Record<string, string> = {
   admin:    "text-red-700 bg-red-50 border-red-200",
   pasteur:  "text-purple-700 bg-purple-50 border-purple-200",
@@ -125,15 +124,15 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     await updateMemberValidation(params.id, formData.get("action") === "validate");
   }
 
-  async function handleSetRole(formData: FormData): Promise<void> {
+  async function handleSetRole(_: unknown, formData: FormData) {
     "use server";
-    await updateMemberRole(params.id, formData.get("role") as string);
+    return await updateMemberRole(params.id, formData.get("role") as string);
   }
 
-  async function handleUpdateGroups(formData: FormData): Promise<void> {
+  async function handleUpdateGroups(_: unknown, formData: FormData) {
     "use server";
     const selected = ALL_GROUPS.filter((g) => formData.get(g) === "on");
-    await updateMemberGroups(params.id, selected);
+    return await updateMemberGroups(params.id, selected);
   }
 
   async function handleAssignManager(formData: FormData): Promise<void> {
@@ -230,52 +229,20 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           {/* Changement de rôle */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-3">Rôle</h2>
-            <form action={handleSetRole} className="flex gap-2">
-              <select
-                name="role"
-                defaultValue={member.role}
-                className="flex-1 px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white"
-              >
-                {(callerIsAdmin ? ROLES_ALL : ROLES_PASTEUR).map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors flex-shrink-0"
-              >
-                OK
-              </button>
-            </form>
-            {!callerIsAdmin && (
-              <p className="text-[11px] text-arc-text3 mt-1.5">Seul l&apos;admin peut attribuer pasteur / admin.</p>
-            )}
+            <RoleSelectorClient
+              action={handleSetRole}
+              currentRole={member.role}
+              callerIsAdmin={callerIsAdmin}
+            />
           </div>
 
           {/* Fonctions */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-3">Fonctions</h2>
-            <form action={handleUpdateGroups} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {ALL_GROUPS.map((g) => (
-                  <label key={g} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-arc-bg transition-colors">
-                    <input
-                      type="checkbox"
-                      name={g}
-                      defaultChecked={(member.groups ?? []).includes(g)}
-                      className="accent-arc-navy"
-                    />
-                    <span className="text-sm text-arc-navy capitalize">{g}</span>
-                  </label>
-                ))}
-              </div>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
-              >
-                Enregistrer les fonctions
-              </button>
-            </form>
+            <GroupsEditorClient
+              action={handleUpdateGroups}
+              currentGroups={(member.groups as string[]) ?? []}
+            />
           </div>
 
           {/* Managers de fonctions */}

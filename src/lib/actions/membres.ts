@@ -476,23 +476,32 @@ export async function updateMemberRole(memberId: string, newRole: string) {
     me?.role === "pasteur" ||
     (me?.groups as string[] | null)?.includes("support");
   if (!callerIsPrivileged) return { error: "Non autorisé" };
-  if (newRole === "admin" && !callerIsAdmin) return { error: "Seul l'admin peut attribuer le rôle admin" };
+  if ((newRole === "admin" || newRole === "pasteur") && !callerIsAdmin) {
+    return { error: "Seul l'admin peut attribuer le rôle admin ou pasteur" };
+  }
 
   const admin = createAdminClient();
 
-  // Récupérer le profil cible pour l'email
+  // Récupérer le profil cible (rôle actuel + email pour notification)
   const { data: target } = await admin
     .from("profiles")
-    .select("email, first_name")
+    .select("email, first_name, role, groups")
     .eq("id", memberId)
     .single();
 
   const updatePayload: Record<string, unknown> = { role: newRole };
+
+  // Règle RBAC : rôle pasteur → ajouter la fonction pasteur dans groups[]
+  // Rétrogradation depuis pasteur → retirer la fonction pasteur de groups[]
+  const existingGroups = (target?.groups as string[]) ?? [];
   if (newRole === "pasteur") {
-    const { data: cur } = await admin.from("profiles").select("groups").eq("id", memberId).single();
-    const existing = (cur?.groups as string[]) ?? [];
-    if (!existing.includes("pasteur")) updatePayload.groups = [...existing, "pasteur"];
+    if (!existingGroups.includes("pasteur")) {
+      updatePayload.groups = [...existingGroups, "pasteur"];
+    }
+  } else if (existingGroups.includes("pasteur")) {
+    updatePayload.groups = existingGroups.filter(g => g !== "pasteur");
   }
+
   const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
@@ -513,6 +522,8 @@ export async function updateMemberRole(memberId: string, newRole: string) {
     });
   } catch { /* table pas encore créée */ }
 
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  revalidatePath("/espace-membres/crm");
   revalidatePath("/espace-membres");
   return { success: true };
 }

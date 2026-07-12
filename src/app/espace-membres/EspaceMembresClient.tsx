@@ -301,6 +301,12 @@ const [showSalle, setShowSalle]       = useState(false);
   // MajInfo — données réelles depuis Supabase
   const [majInfoAddress,   setMajInfoAddress]   = useState("");
   const [majInfoEmail,     setMajInfoEmail]      = useState("");
+  const [majInfoFacebook,     setMajInfoFacebook]     = useState("");
+  const [majInfoInstagram,    setMajInfoInstagram]    = useState("");
+  const [majInfoYoutube,      setMajInfoYoutube]      = useState("");
+  const [majInfoWhatsapp,     setMajInfoWhatsapp]     = useState("");
+  const [majInfoZoom,         setMajInfoZoom]         = useState("");
+  const [majInfoCustomLinks,  setMajInfoCustomLinks]  = useState<{label:string;url:string}[]>([]);
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
   const [majInfoCulte1,    setMajInfoCulte1]    = useState("");
   const [majInfoCulte2,    setMajInfoCulte2]    = useState("");
@@ -459,11 +465,12 @@ const [showSalle, setShowSalle]       = useState(false);
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
   const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("communication");
   const canVitrinePhoto  = isAdmin || role === "pasteur" || (profile?.groups ?? []).includes("communication") || (profile?.groups ?? []).includes("media");
-  // Peut gérer la bannière et les contenus vitrine (media / communication / support / admin / pasteur)
+  // Peut gérer la bannière et le site vitrine (admin / pasteur / communication / support / media)
   const canBanner = isAdmin || isPasteur ||
-    (profile?.groups ?? []).includes("media") ||
     (profile?.groups ?? []).includes("communication") ||
-    (profile?.groups ?? []).includes("support");
+    (profile?.groups ?? []).includes("support") ||
+    (profile?.groups ?? []).includes("media");
+  const canMajSite = canBanner;
 
   /* ── Guard session-only (quand "rester connecté" était désactivé) ── */
   useEffect(() => {
@@ -649,6 +656,7 @@ const [showSalle, setShowSalle]       = useState(false);
       try {
         const { data } = await supabase.from("site_settings").select("key,value").in("key", [
           "contact_address","contact_email","contact_horaires",
+          "social_facebook","social_instagram","social_youtube","social_whatsapp","social_zoom","social_custom_links",
           "culte_1_label","culte_2_label","culte_3_label",
           "verset_reference","verset_du_jour","verset_mode","verset_auto_interval","verset_manuel_expires_at",
           "verset_theme","verset_theme_interval",
@@ -657,6 +665,14 @@ const [showSalle, setShowSalle]       = useState(false);
         for (const row of data ?? []) vals[row.key] = row.value;
         if (vals.contact_address)    setMajInfoAddress(vals.contact_address);
         if (vals.contact_email)      setMajInfoEmail(vals.contact_email);
+        if (vals.social_facebook)     setMajInfoFacebook(vals.social_facebook);
+        if (vals.social_instagram)    setMajInfoInstagram(vals.social_instagram);
+        if (vals.social_youtube)      setMajInfoYoutube(vals.social_youtube);
+        if (vals.social_whatsapp)     setMajInfoWhatsapp(vals.social_whatsapp);
+        if (vals.social_zoom)         setMajInfoZoom(vals.social_zoom);
+        if (vals.social_custom_links) {
+          try { setMajInfoCustomLinks(JSON.parse(vals.social_custom_links)); } catch { /* ignore */ }
+        }
         if (vals.contact_horaires)   setMajInfoCulte(vals.contact_horaires);
         if (vals.culte_1_label)      setMajInfoCulte1(vals.culte_1_label);
         if (vals.culte_2_label)      setMajInfoCulte2(vals.culte_2_label);
@@ -879,6 +895,12 @@ const [showSalle, setShowSalle]       = useState(false);
     const fd = new FormData();
     fd.set("contact_address",  majInfoAddress);
     fd.set("contact_email",    majInfoEmail);
+    fd.set("social_facebook",     majInfoFacebook);
+    fd.set("social_instagram",    majInfoInstagram);
+    fd.set("social_youtube",      majInfoYoutube);
+    fd.set("social_whatsapp",     majInfoWhatsapp);
+    fd.set("social_zoom",         majInfoZoom);
+    fd.set("social_custom_links", JSON.stringify(majInfoCustomLinks.filter(l => l.label.trim() || l.url.trim())));
     fd.set("contact_horaires", majInfoCulte);
     fd.set("culte_1_label",    majInfoCulte1);
     fd.set("culte_2_label",    majInfoCulte2);
@@ -1428,6 +1450,15 @@ const [showSalle, setShowSalle]       = useState(false);
                       onClick={()=>setShowMP(true)}
                     >
                       Maj Plateformes
+                    </button>
+                  )}
+                  {canMajSite && (
+                    <button
+                      className="em-btn em-btn-sm"
+                      style={{background:"linear-gradient(135deg,#0f766e,#14b8a6)",color:"white"}}
+                      onClick={()=>{setMajInfoTab("infos");setShowMajInfo(true);}}
+                    >
+                      🔗 Réseaux sociaux
                     </button>
                   )}
                 </div>
@@ -2492,8 +2523,8 @@ const [showSalle, setShowSalle]       = useState(false);
                       📣 Bannière
                     </button>
                   )}
-                  {canAdmin && (
-                    <button className="em-btn em-btn-primary em-btn-sm" style={{display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMajInfo(true)}>
+                  {canMajSite && (
+                    <button className="em-btn em-btn-primary em-btn-sm" style={{display:"flex",alignItems:"center",gap:6}} onClick={()=>{if(!canAdmin)setMajInfoTab("infos");setShowMajInfo(true);}}>
                       🌐 Maj site vitrine
                     </button>
                   )}
@@ -3467,7 +3498,7 @@ const [showSalle, setShowSalle]       = useState(false);
       )}
 
       {/* ── Maj site vitrine ── */}
-      {showMajInfo && canAdmin && (
+      {showMajInfo && canMajSite && (
         <div style={{position:"fixed",inset:0,background:"rgba(10,13,42,.82)",backdropFilter:"blur(6px)",zIndex:4400,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:12,overflowY:"auto"}} onClick={()=>setShowMajInfo(false)}>
           <div className="em-modal" style={{maxWidth:760,width:"100%"}} onClick={e=>e.stopPropagation()}>
             <div className="em-modal-hdr">
@@ -3477,7 +3508,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-modal-body">
               <div style={{fontSize:11,color:"#8890aa",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
               <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(30,36,100,.1)",marginBottom:16,overflowX:"auto"}}>
-                {([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as ["sermons"|"events"|"infos"|"verset"|"equipe"|"theme",string][]).map(([t,l]) => (
+                {(([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as ["sermons"|"events"|"infos"|"verset"|"equipe"|"theme",string][]).filter(([t]) => canAdmin || t === "infos")).map(([t,l]) => (
                   <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8890aa",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                 ))}
               </div>
@@ -3522,6 +3553,75 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                   <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email de contact</label>
                   <input className="em-input" style={{marginBottom:14}} value={majInfoEmail} onChange={e=>setMajInfoEmail(e.target.value)} placeholder="contact@arc-eglise.ch" />
+
+                  {/* Réseaux sociaux */}
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Réseaux sociaux</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                    <div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Facebook</label>
+                      <input className="em-input" value={majInfoFacebook} onChange={e=>setMajInfoFacebook(e.target.value)} placeholder="https://www.facebook.com/..." />
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Instagram</label>
+                      <input className="em-input" value={majInfoInstagram} onChange={e=>setMajInfoInstagram(e.target.value)} placeholder="https://www.instagram.com/..." />
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>YouTube</label>
+                      <input className="em-input" value={majInfoYoutube} onChange={e=>setMajInfoYoutube(e.target.value)} placeholder="https://www.youtube.com/@..." />
+                    </div>
+                    <div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>WhatsApp</label>
+                      <input className="em-input" value={majInfoWhatsapp} onChange={e=>setMajInfoWhatsapp(e.target.value)} placeholder="https://wa.me/41..." />
+                    </div>
+                    <div style={{gridColumn:"1/-1"}}>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Zoom (lien de réunion)</label>
+                      <input className="em-input" value={majInfoZoom} onChange={e=>setMajInfoZoom(e.target.value)} placeholder="https://zoom.us/j/..." />
+                    </div>
+                  </div>
+
+                  {/* Liens personnalisés */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,marginTop:14}}>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa"}}>Liens personnalisés ({majInfoCustomLinks.length}/10)</div>
+                    {majInfoCustomLinks.length < 10 && (
+                      <button
+                        type="button"
+                        className="em-btn em-btn-sm"
+                        style={{fontSize:11,padding:"4px 10px"}}
+                        onClick={()=>setMajInfoCustomLinks(prev=>[...prev,{label:"",url:""}])}
+                      >+ Ajouter</button>
+                    )}
+                  </div>
+                  {majInfoCustomLinks.length === 0 && (
+                    <div style={{fontSize:12,color:"#b0b5cc",marginBottom:12,padding:"10px 12px",background:"#f7f8fc",borderRadius:8}}>
+                      Aucun lien personnalisé. Cliquez sur « + Ajouter » pour en créer un.
+                    </div>
+                  )}
+                  {majInfoCustomLinks.map((cl, i) => (
+                    <div key={i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
+                      <input
+                        className="em-input"
+                        style={{flex:"0 0 120px",minWidth:0}}
+                        value={cl.label}
+                        onChange={e=>setMajInfoCustomLinks(prev=>prev.map((x,j)=>j===i?{...x,label:e.target.value}:x))}
+                        placeholder="Libellé"
+                        maxLength={30}
+                      />
+                      <input
+                        className="em-input"
+                        style={{flex:1,minWidth:0}}
+                        value={cl.url}
+                        onChange={e=>setMajInfoCustomLinks(prev=>prev.map((x,j)=>j===i?{...x,url:e.target.value}:x))}
+                        placeholder="https://..."
+                      />
+                      <button
+                        type="button"
+                        onClick={()=>setMajInfoCustomLinks(prev=>prev.filter((_,j)=>j!==i))}
+                        style={{flexShrink:0,background:"#fee2e2",color:"#b91c1c",border:"none",borderRadius:6,width:28,height:28,cursor:"pointer",fontSize:14,display:"grid",placeItems:"center"}}
+                        title="Supprimer"
+                      >×</button>
+                    </div>
+                  ))}
+                  <div style={{marginBottom:14}}/>
                   <button
                     className="em-btn em-btn-primary"
                     style={{width:"100%",opacity:majInfoSaving?0.6:1}}
