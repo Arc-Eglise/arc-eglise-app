@@ -297,9 +297,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
   const [majInfoVersetRef,      setMajInfoVersetRef]      = useState("");
   const [majInfoVersetTxt,      setMajInfoVersetTxt]      = useState("");
-  const [majInfoVersetMode,     setMajInfoVersetMode]     = useState<"auto"|"manuel">("auto");
-  const [majInfoVersetInterval, setMajInfoVersetInterval] = useState<"24"|"48">("24");
-  const [majInfoSaving,         setMajInfoSaving]         = useState(false);
+  const [majInfoVersetMode,       setMajInfoVersetMode]       = useState<"auto"|"manuel">("auto");
+  const [majInfoVersetInterval,   setMajInfoVersetInterval]   = useState<"24"|"48">("24");
+  const [majInfoVersetExpireDays, setMajInfoVersetExpireDays] = useState(3);
+  const [majInfoVersetExpiresAt,  setMajInfoVersetExpiresAt]  = useState<string|null>(null);
+  const [majInfoSaving,           setMajInfoSaving]           = useState(false);
   // Bannière d'annonce
   const [showBanniere,          setShowBanniere]          = useState(false);
   const [banniereEnabled,       setBanniereEnabled]       = useState(true);
@@ -635,7 +637,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       try {
         const { data } = await supabase.from("site_settings").select("key,value").in("key", [
           "contact_address","contact_email","contact_horaires",
-          "verset_reference","verset_du_jour","verset_mode","verset_auto_interval",
+          "verset_reference","verset_du_jour","verset_mode","verset_auto_interval","verset_manuel_expires_at",
         ]);
         const vals: Record<string,string> = {};
         for (const row of data ?? []) vals[row.key] = row.value;
@@ -648,6 +650,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         else setMajInfoVersetMode("auto");
         if (vals.verset_auto_interval === "48") setMajInfoVersetInterval("48");
         else setMajInfoVersetInterval("24");
+        setMajInfoVersetExpiresAt(vals.verset_manuel_expires_at ?? null);
       } catch { /* silencieux */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -872,10 +875,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     if (majInfoVersetMode === "manuel") {
       fd.set("verset_reference", majInfoVersetRef);
       fd.set("verset_du_jour",   majInfoVersetTxt);
+      // Date d'expiration = aujourd'hui + N jours à minuit
+      const exp = new Date();
+      exp.setDate(exp.getDate() + majInfoVersetExpireDays);
+      exp.setHours(0, 0, 0, 0);
+      fd.set("verset_manuel_expires_at", exp.toISOString());
     }
     const result = await updateSiteSettings(fd);
     setMajInfoSaving(false);
     if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
+    if (majInfoVersetMode === "manuel") {
+      const exp2 = new Date();
+      exp2.setDate(exp2.getDate() + majInfoVersetExpireDays);
+      exp2.setHours(0, 0, 0, 0);
+      setMajInfoVersetExpiresAt(exp2.toISOString());
+    }
     setToast("✅ Verset du jour mis à jour sur le site !");
   }
 
@@ -3497,11 +3511,50 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       <textarea
                         className="em-input"
                         rows={3}
-                        style={{marginBottom:0,resize:"vertical"}}
+                        style={{marginBottom:14,resize:"vertical"}}
                         value={majInfoVersetTxt}
                         onChange={e=>setMajInfoVersetTxt(e.target.value)}
                         placeholder="Car Dieu a tant aimé le monde…"
                       />
+
+                      {/* ── Durée d'affichage ── */}
+                      <div style={{background:"#f7f8fc",borderRadius:12,padding:"12px 14px",border:"1.5px solid #e2e5f0"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>
+                          ⏱ Durée d&apos;affichage (max 10 jours)
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:10}}>
+                          {[1,2,3,4,5,6,7,8,9,10].map(d=>(
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={()=>setMajInfoVersetExpireDays(d)}
+                              style={{
+                                padding:"7px 4px",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:13,transition:"all .15s",
+                                border: majInfoVersetExpireDays===d ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                                background: majInfoVersetExpireDays===d ? "#1e2464" : "#fff",
+                                color: majInfoVersetExpireDays===d ? "#fff" : "#1e2464",
+                              }}
+                            >{d}j</button>
+                          ))}
+                        </div>
+                        <div style={{fontSize:11,color:"#1e2464",fontWeight:600}}>
+                          Ce verset sera affiché pendant <strong>{majInfoVersetExpireDays} jour{majInfoVersetExpireDays>1?"s":""}</strong>, puis le mode automatique reprendra.
+                        </div>
+                        {/* Expiration actuelle en base */}
+                        {majInfoVersetExpiresAt && (() => {
+                          const msLeft = new Date(majInfoVersetExpiresAt).getTime() - Date.now();
+                          const dLeft  = Math.ceil(msLeft / 86400000);
+                          return dLeft > 0 ? (
+                            <div style={{marginTop:8,fontSize:11,color:"#059669",fontWeight:600}}>
+                              ✅ Verset actuel en ligne — expire dans {dLeft} jour{dLeft>1?"s":""} ({new Date(majInfoVersetExpiresAt).toLocaleDateString("fr-CH",{day:"numeric",month:"long"})})
+                            </div>
+                          ) : (
+                            <div style={{marginTop:8,fontSize:11,color:"#dc2626",fontWeight:600}}>
+                              ⚠️ Verset expiré — le mode automatique est actif sur le site
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
 

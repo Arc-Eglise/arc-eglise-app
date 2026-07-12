@@ -20,7 +20,7 @@ export default async function AnnouncementBar() {
         .select("key, value")
         .in("key", [
           "culte_1_label", "culte_2_label", "culte_3_label",
-          "verset_reference", "verset_mode", "verset_auto_interval",
+          "verset_reference", "verset_mode", "verset_auto_interval", "verset_manuel_expires_at",
           "announcement_enabled",
           "announcement_welcome",
           "announcement_show_schedules",
@@ -57,15 +57,20 @@ export default async function AnnouncementBar() {
       }
     }
 
-    // Verset du jour — mode auto ou manuel
+    // Verset du jour — mode auto ou manuel (avec expiration automatique)
     if (s.announcement_show_verset !== "false") {
+      const interval = (s.verset_auto_interval === "48" ? "48" : "24") as "24" | "48";
       const mode = s.verset_mode ?? "auto";
-      if (mode === "auto") {
-        const interval = (s.verset_auto_interval === "48" ? "48" : "24") as "24" | "48";
+      const isManuelExpired = s.verset_manuel_expires_at
+        ? new Date(s.verset_manuel_expires_at) < new Date()
+        : true;
+
+      if (mode === "manuel" && !isManuelExpired && s.verset_reference) {
+        items.push(`Verset du jour : ${s.verset_reference}`);
+      } else {
+        // mode auto, ou manuel expiré → rotation automatique
         const v = getAutoVerset(interval);
         items.push(`« ${v.text} » — ${v.ref}`);
-      } else if (s.verset_reference) {
-        items.push(`Verset du jour : ${s.verset_reference}`);
       }
     }
 
