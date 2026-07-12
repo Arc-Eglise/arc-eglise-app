@@ -572,3 +572,25 @@ export async function uploadMemberAvatar(formData: FormData) {
   revalidatePath("/espace-membres");
   return { success: true };
 }
+
+// ── THEME OVERRIDE ─────────────────────────────────────────────
+
+export async function saveThemeOverride(formData: FormData) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
+
+  const color = (formData.get("theme_accent_color") as string || "").trim();
+  const until = (formData.get("theme_accent_until") as string || "").trim();
+
+  const { error } = await supabase.from("site_settings").upsert([
+    { key: "theme_accent_color", value: color },
+    { key: "theme_accent_until", value: until },
+  ], { onConflict: "key" });
+
+  if (error) return { error: error.message };
+  revalidatePath("/");
+  revalidatePath("/admin/site");
+  revalidatePath("/espace-membres");
+  return { success: true };
+}

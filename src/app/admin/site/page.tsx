@@ -1,6 +1,7 @@
 import { createClient }       from "@/lib/supabase/server";
 import { updateSiteSettings } from "@/lib/actions/cms";
 import { redirect }           from "next/navigation";
+import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 
 async function handleUpdate(formData: FormData): Promise<void> {
   "use server";
@@ -21,6 +22,7 @@ const KEYS = [
   "announcement_enabled", "announcement_welcome",
   "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
   "verset_mode", "verset_auto_interval", "verset_theme", "verset_theme_interval",
+  "theme_accent_color", "theme_accent_until",
 ] as const;
 
 export default async function AdminSitePage({
@@ -58,6 +60,12 @@ export default async function AdminSitePage({
       )}
 
       <div className="flex flex-col gap-6">
+
+        {/* ── Thème de couleur ── */}
+        <ThemeOverridePicker
+          currentColor={v("theme_accent_color")}
+          currentUntil={v("theme_accent_until")}
+        />
 
         {/* ── Accueil ── */}
         <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">

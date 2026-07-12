@@ -11,6 +11,7 @@ import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, save
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
+import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -296,7 +297,7 @@ const [showSalle, setShowSalle]       = useState(false);
   });
   const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
   const [mpCard, setMpCard]   = useState(0);
-  const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
+  const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe"|"theme">("sermons");
   // MajInfo — données réelles depuis Supabase
   const [majInfoAddress,   setMajInfoAddress]   = useState("");
   const [majInfoEmail,     setMajInfoEmail]      = useState("");
@@ -3466,7 +3467,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-modal-body">
               <div style={{fontSize:11,color:"#8890aa",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
               <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(30,36,100,.1)",marginBottom:16,overflowX:"auto"}}>
-                {([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"]] as ["sermons"|"events"|"infos"|"verset"|"equipe",string][]).map(([t,l]) => (
+                {([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as ["sermons"|"events"|"infos"|"verset"|"equipe"|"theme",string][]).map(([t,l]) => (
                   <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8890aa",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                 ))}
               </div>
@@ -3732,6 +3733,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                   <p style={{fontSize:12,color:"#8890aa"}}>Ajoutez, modifiez ou supprimez les membres de l&apos;équipe pastorale visibles sur le site.</p>
                   <a href="/espace-membres/equipe" className="em-btn em-btn-primary" style={{width:"100%",marginTop:12,display:"block",textAlign:"center",textDecoration:"none"}}>✏️ Ouvrir la gestion d&apos;équipe</a>
+                </div>
+              )}
+              {majInfoTab==="theme" && (
+                <div>
+                  <ThemeOverridePicker selfLoad />
                 </div>
               )}
             </div>
