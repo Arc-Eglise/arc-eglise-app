@@ -331,12 +331,14 @@ const ALLOWED_SETTINGS = [
   "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
   "stats_nations", "stats_touches",
   "about_photo_url", "about_photo_caption",
+  // Bannière d'annonce (personnalisable par media/communication/support/admin)
+  "announcement_enabled", "announcement_welcome",
+  "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {
   const cms = await getCmsUser();
   if (!cms.ok) return { error: cms.error };
-  const { supabase } = cms;
 
   const upserts = ALLOWED_SETTINGS
     .filter((key) => formData.has(key))
@@ -344,13 +346,17 @@ export async function updateSiteSettings(formData: FormData) {
 
   if (!upserts.length) return { error: "Aucun champ" };
 
-  const { error } = await supabase
+  // adminClient pour contourner la RLS (réservée admin/pasteur en écriture)
+  // L'autorisation métier est vérifiée par getCmsUser() ci-dessus
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("site_settings")
     .upsert(upserts, { onConflict: "key" });
 
   if (error) return { error: error.message };
   revalidatePath("/");
   revalidatePath("/admin/site");
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 

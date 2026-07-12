@@ -18,6 +18,8 @@ const KEYS = [
   "votre_impact_intro",
   "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
   "stats_nations", "stats_touches",
+  "announcement_enabled", "announcement_welcome",
+  "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
 ] as const;
 
 export default async function AdminSitePage({
@@ -134,6 +136,41 @@ export default async function AdminSitePage({
           <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">💛 Votre impact</h2>
           <p className="text-xs text-arc-text3 mb-4">Introduction de la section &ldquo;Votre impact&rdquo; (dons).</p>
           <Field name="votre_impact_intro" label="Texte d'introduction" defaultValue={v("votre_impact_intro")} textarea />
+          <SaveBtn />
+        </form>
+
+        {/* ── Bannière d'annonce ── */}
+        <form action={handleUpdate} className="bg-white rounded-2xl border border-arc-border p-6">
+          <h2 className="font-bold text-arc-navy mb-1 flex items-center gap-2">📣 Bannière d&apos;annonce (défilante)</h2>
+          <p className="text-xs text-arc-text3 mb-4">
+            Bande défilante tout en haut du site vitrine. Le message de bienvenue et les éléments affichés sont entièrement personnalisables.
+            Accessible également depuis l&apos;Espace Membres (Média · Communication · Support · Admin).
+          </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-arc-bg border border-arc-border">
+              <label className="text-sm font-semibold text-arc-navy" htmlFor="announcement_enabled">Afficher la bannière</label>
+              <select name="announcement_enabled" id="announcement_enabled" defaultValue={v("announcement_enabled") || "true"} className="px-3 py-1.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white">
+                <option value="true">Oui — bannière visible</option>
+                <option value="false">Non — bannière masquée</option>
+              </select>
+            </div>
+            <Field name="announcement_welcome" label="Message de bienvenue" placeholder="Bienvenue à l'ARC — venez tels que vous êtes" defaultValue={v("announcement_welcome")} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {([
+                ["announcement_show_schedules","Horaires des cultes"],
+                ["announcement_show_events",   "Prochains événements"],
+                ["announcement_show_verset",   "Verset du jour"],
+              ] as [string,string][]).map(([k,l]) => (
+                <div key={k} className="flex items-center justify-between p-3 rounded-xl bg-arc-bg border border-arc-border">
+                  <label className="text-xs font-semibold text-arc-navy" htmlFor={k}>{l}</label>
+                  <select name={k} id={k} defaultValue={v(k) || "true"} className="px-2 py-1 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white">
+                    <option value="true">Affiché</option>
+                    <option value="false">Masqué</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
           <SaveBtn />
         </form>
 

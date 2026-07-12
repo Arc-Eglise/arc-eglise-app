@@ -8,7 +8,7 @@ import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
-import { saveVitrinePhoto } from "@/lib/actions/cms";
+import { saveVitrinePhoto, updateSiteSettings } from "@/lib/actions/cms";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -324,6 +324,21 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
   const [mpCard, setMpCard]   = useState(0);
   const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe">("sermons");
+  // MajInfo — données réelles depuis Supabase
+  const [majInfoAddress,   setMajInfoAddress]   = useState("");
+  const [majInfoEmail,     setMajInfoEmail]      = useState("");
+  const [majInfoCulte,     setMajInfoCulte]      = useState("");
+  const [majInfoVersetRef, setMajInfoVersetRef]  = useState("");
+  const [majInfoVersetTxt, setMajInfoVersetTxt]  = useState("");
+  const [majInfoSaving,    setMajInfoSaving]     = useState(false);
+  // Bannière d'annonce
+  const [showBanniere,          setShowBanniere]          = useState(false);
+  const [banniereEnabled,       setBanniereEnabled]       = useState(true);
+  const [banniereWelcome,       setBanniereWelcome]       = useState("");
+  const [banniereShowSchedules, setBanniereShowSchedules] = useState(true);
+  const [banniereShowEvents,    setBanniereShowEvents]    = useState(true);
+  const [banniereShowVerset,    setBanniereShowVerset]    = useState(true);
+  const [banniereSaving,        setBanniereSaving]        = useState(false);
   const [settingsSection, setSettingsSection] = useState<"notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite">("notifs");
   const [pwdCurrent, setPwdCurrent]       = useState("");
   const [pwdNew, setPwdNew]               = useState("");
@@ -456,6 +471,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const canPost     = profile?.validated || ["admin","pasteur"].includes(role) || profile?.groups?.includes("support");
   const canMajPlateforme = isAdmin || (profile?.groups ?? []).includes("communication");
   const canVitrinePhoto  = isAdmin || role === "pasteur" || (profile?.groups ?? []).includes("communication") || (profile?.groups ?? []).includes("media");
+  // Peut gérer la bannière et les contenus vitrine (media / communication / support / admin / pasteur)
+  const canBanner = isAdmin || isPasteur ||
+    (profile?.groups ?? []).includes("media") ||
+    (profile?.groups ?? []).includes("communication") ||
+    (profile?.groups ?? []).includes("support");
 
   /* ── Guard session-only (quand "rester connecté" était désactivé) ── */
   useEffect(() => {
@@ -613,6 +633,48 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMP]);
 
+  /* ── Chargement des paramètres bannière ─────────────────── */
+  useEffect(() => {
+    if (!showBanniere) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("site_settings").select("key,value").in("key", [
+          "announcement_enabled","announcement_welcome",
+          "announcement_show_schedules","announcement_show_events","announcement_show_verset",
+        ]);
+        const vals: Record<string,string> = {};
+        for (const row of data ?? []) vals[row.key] = row.value;
+        if ("announcement_enabled"        in vals) setBanniereEnabled(vals.announcement_enabled !== "false");
+        if ("announcement_welcome"        in vals) setBanniereWelcome(vals.announcement_welcome);
+        if ("announcement_show_schedules" in vals) setBanniereShowSchedules(vals.announcement_show_schedules !== "false");
+        if ("announcement_show_events"    in vals) setBanniereShowEvents(vals.announcement_show_events !== "false");
+        if ("announcement_show_verset"    in vals) setBanniereShowVerset(vals.announcement_show_verset !== "false");
+      } catch { /* silencieux */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBanniere]);
+
+  /* ── Chargement des données réelles pour MajInfo (infos + verset) ── */
+  useEffect(() => {
+    if (!showMajInfo) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from("site_settings").select("key,value").in("key", [
+          "contact_address","contact_email","contact_horaires",
+          "verset_reference","verset_du_jour",
+        ]);
+        const vals: Record<string,string> = {};
+        for (const row of data ?? []) vals[row.key] = row.value;
+        if (vals.contact_address)  setMajInfoAddress(vals.contact_address);
+        if (vals.contact_email)    setMajInfoEmail(vals.contact_email);
+        if (vals.contact_horaires) setMajInfoCulte(vals.contact_horaires);
+        if (vals.verset_reference) setMajInfoVersetRef(vals.verset_reference);
+        if (vals.verset_du_jour)   setMajInfoVersetTxt(vals.verset_du_jour);
+      } catch { /* silencieux */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMajInfo]);
+
   /* ── Chargement des droits sauvegardés (GD modal) ──────────── */
   useEffect(() => {
     if (!showGD) return;
@@ -757,6 +819,47 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     const next = Math.min((rpProgress[planId] ?? 0) + 1, totalDays);
     const { error } = await supabase.from("reading_plan_progress").update({ current_day: next, updated_at: new Date().toISOString() }).eq("plan_id", planId).eq("user_id", userId);
     if (!error) setRpProgress(p => ({ ...p, [planId]: next }));
+  }
+
+  /* ── Sauvegarde bannière ─────────────────────────────────── */
+  async function saveBanniere() {
+    setBanniereSaving(true);
+    const fd = new FormData();
+    fd.set("announcement_enabled",        banniereEnabled ? "true" : "false");
+    fd.set("announcement_welcome",        banniereWelcome);
+    fd.set("announcement_show_schedules", banniereShowSchedules ? "true" : "false");
+    fd.set("announcement_show_events",    banniereShowEvents    ? "true" : "false");
+    fd.set("announcement_show_verset",    banniereShowVerset    ? "true" : "false");
+    const result = await updateSiteSettings(fd);
+    setBanniereSaving(false);
+    if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
+    setShowBanniere(false);
+    setToast("✅ Bannière mise à jour — visible immédiatement sur arc-eglise.ch");
+  }
+
+  /* ── Sauvegarde infos de contact (MajInfo > Infos) ──────── */
+  async function saveMajInfoContact() {
+    setMajInfoSaving(true);
+    const fd = new FormData();
+    fd.set("contact_address",  majInfoAddress);
+    fd.set("contact_email",    majInfoEmail);
+    fd.set("contact_horaires", majInfoCulte);
+    const result = await updateSiteSettings(fd);
+    setMajInfoSaving(false);
+    if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
+    setToast("✅ Informations de contact mises à jour sur le site !");
+  }
+
+  /* ── Sauvegarde verset du jour (MajInfo > Verset) ───────── */
+  async function saveMajInfoVerset() {
+    setMajInfoSaving(true);
+    const fd = new FormData();
+    fd.set("verset_reference", majInfoVersetRef);
+    fd.set("verset_du_jour",   majInfoVersetTxt);
+    const result = await updateSiteSettings(fd);
+    setMajInfoSaving(false);
+    if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
+    setToast("✅ Verset du jour mis à jour sur le site !");
   }
 
   async function handleChangePassword() {
@@ -1238,6 +1341,40 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                 {Object.keys(rpProgress).length === 0 && <div style={{color:"#8890aa",fontSize:12}}>Aucun plan actif</div>}
               </div>
             </div>
+
+            {/* ── Accès rapide site vitrine (media / communication / support) ── */}
+            {canBanner && !canAdmin && (
+              <div className="em-card" style={{marginTop:18}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:12,color:"#1e2464"}}>🌐 Gestion du site vitrine</div>
+                <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Modifier le contenu visible sur arc-eglise.ch</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button
+                    className="em-btn em-btn-primary em-btn-sm"
+                    onClick={()=>{setBanniereEnabled(true);setBanniereWelcome("");setShowBanniere(true);}}
+                  >
+                    📣 Bannière d&apos;annonce
+                  </button>
+                  {canVitrinePhoto && (
+                    <button
+                      className="em-btn em-btn-sm"
+                      style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",color:"white"}}
+                      onClick={()=>setShowVitrinePhoto(true)}
+                    >
+                      Photo vitrine
+                    </button>
+                  )}
+                  {canMajPlateforme && (
+                    <button
+                      className="em-btn em-btn-sm"
+                      style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}}
+                      onClick={()=>setShowMP(true)}
+                    >
+                      Maj Plateformes
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── MESSAGERIE ──────────────────────────────────── */}
@@ -2275,6 +2412,15 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       🗂️ Gestion CRM
                     </button>
                   )}
+                  {canBanner && (
+                    <button
+                      className="em-btn em-btn-sm"
+                      style={{background:"linear-gradient(135deg,#1e2464,#2d3a8e)",color:"white",display:"flex",alignItems:"center",gap:6}}
+                      onClick={()=>setShowBanniere(true)}
+                    >
+                      📣 Bannière
+                    </button>
+                  )}
                   {canAdmin && (
                     <button className="em-btn em-btn-primary em-btn-sm" style={{display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMajInfo(true)}>
                       🌐 Maj site vitrine
@@ -3178,8 +3324,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Sermons sur le site vitrine</div>
                     <a href="/admin/sermons" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les sermons →</a>
                   </div>
-                  <p style={{fontSize:12,color:"#8890aa"}}>Gérez vos sermons depuis le panneau d&apos;administration. Les modifications seront publiées automatiquement sur le site vitrine.</p>
-                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Site vitrine mis à jour — Sermons publiés !");}}>📤 Publier les modifications</button>
+                  <p style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Les sermons publiés apparaissent automatiquement sur le site vitrine. Cliquez sur le bouton ci-dessus pour ajouter, modifier ou supprimer des sermons.</p>
+                  <a href="/admin/sermons" className="em-btn em-btn-primary" style={{width:"100%",display:"block",textAlign:"center",textDecoration:"none"}}>📺 Ouvrir la gestion des sermons</a>
                 </div>
               )}
               {majInfoTab==="events" && (
@@ -3188,41 +3334,59 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                     <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Événements publics</div>
                     <a href="/admin/evenements" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les événements →</a>
                   </div>
-                  <p style={{fontSize:12,color:"#8890aa"}}>Les événements publiés dans l&apos;agenda apparaissent automatiquement sur le site vitrine.</p>
-                  <button className="em-btn em-btn-primary" style={{width:"100%",marginTop:12}} onClick={()=>{setShowMajInfo(false);setToast("✅ Événements mis à jour sur le site !");}}>📤 Synchroniser le site</button>
+                  <p style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Les événements marqués &ldquo;publiés&rdquo; et &ldquo;public&rdquo; apparaissent automatiquement sur le site vitrine et dans la bannière défilante. Ils apparaissent aussi dans l&apos;onglet Bannière.</p>
+                  <a href="/admin/evenements" className="em-btn em-btn-primary" style={{width:"100%",display:"block",textAlign:"center",textDecoration:"none"}}>📅 Ouvrir la gestion des événements</a>
                 </div>
               )}
               {majInfoTab==="infos" && (
                 <div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Ces informations apparaissent dans la section Contact du site.</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
                     <div style={{flex:1}}>
                       <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Adresse</label>
-                      <input className="em-input" defaultValue="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" />
+                      <textarea className="em-input" rows={2} value={majInfoAddress} onChange={e=>setMajInfoAddress(e.target.value)} placeholder="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" style={{resize:"vertical"}} />
                     </div>
                     <div style={{flex:1}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Heure du culte</label>
-                      <input className="em-input" defaultValue="Dimanche 09h30" />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaires (carte contact)</label>
+                      <textarea className="em-input" rows={2} value={majInfoCulte} onChange={e=>setMajInfoCulte(e.target.value)} placeholder="Dimanche 09h30 & 17h00" style={{resize:"vertical"}} />
                     </div>
                   </div>
                   <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email de contact</label>
-                  <input className="em-input" style={{marginBottom:12}} defaultValue="contact@arc-eglise.ch" />
-                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Informations du site mises à jour !");}}>📤 Publier</button>
+                  <input className="em-input" style={{marginBottom:14}} value={majInfoEmail} onChange={e=>setMajInfoEmail(e.target.value)} placeholder="contact@arc-eglise.ch" />
+                  <button
+                    className="em-btn em-btn-primary"
+                    style={{width:"100%",opacity:majInfoSaving?0.6:1}}
+                    disabled={majInfoSaving}
+                    onClick={saveMajInfoContact}
+                  >{majInfoSaving?"Enregistrement…":"📤 Publier les informations"}</button>
                 </div>
               )}
               {majInfoTab==="verset" && (
                 <div>
-                  <div style={{display:"flex",gap:10,marginBottom:14}}>
-                    {[["🤖","Automatique","API.Bible"],["📖","Thématique","Par série"],["✍️","Manuel","Pasteur choisit"]].map(([ico,lbl,sub]) => (
-                      <div key={lbl} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid rgba(30,36,100,.12)",background:"#f7f8fc",textAlign:"center",cursor:"pointer"}} onClick={()=>setToast(`Mode verset : ${lbl}`)}>
-                        <div style={{fontSize:24,marginBottom:4}}>{ico}</div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>{lbl}</div>
-                        <div style={{fontSize:10,color:"#8890aa"}}>{sub}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Verset actuel</label>
-                  <input className="em-input" style={{marginBottom:12}} defaultValue="Jérémie 29:11 — Car je connais les projets que j'ai formés sur vous…" />
-                  <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowMajInfo(false);setToast("✅ Verset du jour mis à jour sur le site !");}}>📤 Publier le verset</button>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Le verset s&apos;affiche dans la bannière défilante et sur la page d&apos;accueil du site.</div>
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Référence (ex : Jean 3:16)</label>
+                  <input
+                    className="em-input"
+                    style={{marginBottom:10}}
+                    value={majInfoVersetRef}
+                    onChange={e=>setMajInfoVersetRef(e.target.value)}
+                    placeholder="Jean 3:16"
+                  />
+                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte complet du verset</label>
+                  <textarea
+                    className="em-input"
+                    rows={3}
+                    style={{marginBottom:14,resize:"vertical"}}
+                    value={majInfoVersetTxt}
+                    onChange={e=>setMajInfoVersetTxt(e.target.value)}
+                    placeholder="Car Dieu a tant aimé le monde…"
+                  />
+                  <button
+                    className="em-btn em-btn-primary"
+                    style={{width:"100%",opacity:majInfoSaving?0.6:1}}
+                    disabled={majInfoSaving}
+                    onClick={saveMajInfoVerset}
+                  >{majInfoSaving?"Enregistrement…":"📤 Publier le verset"}</button>
                 </div>
               )}
               {majInfoTab==="equipe" && (
@@ -3235,6 +3399,75 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <a href="/espace-membres/equipe" className="em-btn em-btn-primary" style={{width:"100%",marginTop:12,display:"block",textAlign:"center",textDecoration:"none"}}>✏️ Ouvrir la gestion d&apos;équipe</a>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bannière d'annonce modal ── */}
+      {showBanniere && canBanner && (
+        <div className="em-overlay" onClick={()=>setShowBanniere(false)}>
+          <div className="em-modal" style={{maxWidth:580}} onClick={e=>e.stopPropagation()}>
+            <div className="em-modal-hdr">
+              <span className="em-modal-title">📣 Bannière d&apos;annonce — arc-eglise.ch</span>
+              <button className="em-modal-close" onClick={()=>setShowBanniere(false)}>✕</button>
+            </div>
+            <div className="em-modal-body">
+              <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>
+                La bannière défile tout en haut du site vitrine. Modifications visibles immédiatement.
+              </div>
+
+              {/* Activation globale */}
+              <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,fontWeight:700,color:"#1e2464",padding:"10px 12px",background:"#f7f8fc",borderRadius:10,border:"1.5px solid rgba(30,36,100,.12)",marginBottom:16,cursor:"pointer"}}>
+                <span>Afficher la bannière sur le site</span>
+                <input type="checkbox" checked={banniereEnabled} onChange={e=>setBanniereEnabled(e.target.checked)} style={{width:18,height:18,cursor:"pointer"}} />
+              </label>
+
+              {/* Message de bienvenue */}
+              <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",display:"block",marginBottom:4}}>Message de bienvenue</label>
+              <input
+                className="em-input"
+                style={{marginBottom:16}}
+                value={banniereWelcome}
+                onChange={e=>setBanniereWelcome(e.target.value)}
+                placeholder="Bienvenue à l'ARC — venez tels que vous êtes"
+              />
+
+              {/* Éléments affichés */}
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:10}}>Éléments affichés</div>
+
+              <div style={{display:"flex",flexDirection:"column",gap:0,border:"1.5px solid rgba(30,36,100,.1)",borderRadius:10,overflow:"hidden",marginBottom:18}}>
+                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.07)",cursor:"pointer",gap:12}}>
+                  <div>
+                    <div style={{fontWeight:600,color:"#1a1d3a"}}>Horaires des cultes</div>
+                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Dimanche 09h30 / 17h00 · Mercredi 19h00 (depuis Paramètres site)</div>
+                  </div>
+                  <input type="checkbox" checked={banniereShowSchedules} onChange={e=>setBanniereShowSchedules(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
+                </label>
+                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.07)",cursor:"pointer",gap:12}}>
+                  <div>
+                    <div style={{fontWeight:600,color:"#1a1d3a"}}>Prochains événements</div>
+                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Événements publiés dans l&apos;agenda public (3 max)</div>
+                  </div>
+                  <input type="checkbox" checked={banniereShowEvents} onChange={e=>setBanniereShowEvents(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
+                </label>
+                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",cursor:"pointer",gap:12}}>
+                  <div>
+                    <div style={{fontWeight:600,color:"#1a1d3a"}}>Verset du jour</div>
+                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Référence biblique configurée dans Paramètres site</div>
+                  </div>
+                  <input type="checkbox" checked={banniereShowVerset} onChange={e=>setBanniereShowVerset(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
+                </label>
+              </div>
+
+              <button
+                className="em-btn em-btn-primary"
+                style={{width:"100%",opacity:banniereSaving?0.6:1}}
+                disabled={banniereSaving}
+                onClick={saveBanniere}
+              >
+                {banniereSaving ? "Enregistrement…" : "📤 Publier les modifications"}
+              </button>
             </div>
           </div>
         </div>
