@@ -302,6 +302,9 @@ const [showSalle, setShowSalle]       = useState(false);
   const [majInfoAddress,   setMajInfoAddress]   = useState("");
   const [majInfoEmail,     setMajInfoEmail]      = useState("");
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
+  const [majInfoCulte1,    setMajInfoCulte1]    = useState("");
+  const [majInfoCulte2,    setMajInfoCulte2]    = useState("");
+  const [majInfoCulte3,    setMajInfoCulte3]    = useState("");
   const [majInfoVersetRef,      setMajInfoVersetRef]      = useState("");
   const [majInfoVersetTxt,      setMajInfoVersetTxt]      = useState("");
   const [majInfoVersetMode,          setMajInfoVersetMode]          = useState<"auto"|"thematique"|"manuel">("auto");
@@ -646,6 +649,7 @@ const [showSalle, setShowSalle]       = useState(false);
       try {
         const { data } = await supabase.from("site_settings").select("key,value").in("key", [
           "contact_address","contact_email","contact_horaires",
+          "culte_1_label","culte_2_label","culte_3_label",
           "verset_reference","verset_du_jour","verset_mode","verset_auto_interval","verset_manuel_expires_at",
           "verset_theme","verset_theme_interval",
         ]);
@@ -654,6 +658,9 @@ const [showSalle, setShowSalle]       = useState(false);
         if (vals.contact_address)    setMajInfoAddress(vals.contact_address);
         if (vals.contact_email)      setMajInfoEmail(vals.contact_email);
         if (vals.contact_horaires)   setMajInfoCulte(vals.contact_horaires);
+        if (vals.culte_1_label)      setMajInfoCulte1(vals.culte_1_label);
+        if (vals.culte_2_label)      setMajInfoCulte2(vals.culte_2_label);
+        if (vals.culte_3_label)      setMajInfoCulte3(vals.culte_3_label);
         if (vals.verset_reference)   setMajInfoVersetRef(vals.verset_reference);
         if (vals.verset_du_jour)     setMajInfoVersetTxt(vals.verset_du_jour);
         if (vals.verset_mode === "manuel") setMajInfoVersetMode("manuel");
@@ -873,6 +880,9 @@ const [showSalle, setShowSalle]       = useState(false);
     fd.set("contact_address",  majInfoAddress);
     fd.set("contact_email",    majInfoEmail);
     fd.set("contact_horaires", majInfoCulte);
+    fd.set("culte_1_label",    majInfoCulte1);
+    fd.set("culte_2_label",    majInfoCulte2);
+    fd.set("culte_3_label",    majInfoCulte3);
     const result = await updateSiteSettings(fd);
     setMajInfoSaving(false);
     if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
@@ -3488,14 +3498,25 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
               {majInfoTab==="infos" && (
                 <div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Ces informations apparaissent dans la section Contact du site.</div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Ces informations apparaissent sur le site vitrine et dans la bannière défilante.</div>
+
+                  {/* Horaires des cultes — source bannière + vitrine */}
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Horaires des cultes (bannière + vitrine)</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+                    <input className="em-input" value={majInfoCulte1} onChange={e=>setMajInfoCulte1(e.target.value)} placeholder="Ex : Dimanche 09h30 — Culte principal" />
+                    <input className="em-input" value={majInfoCulte2} onChange={e=>setMajInfoCulte2(e.target.value)} placeholder="Ex : Dimanche 17h00 — Culte du soir" />
+                    <input className="em-input" value={majInfoCulte3} onChange={e=>setMajInfoCulte3(e.target.value)} placeholder="Ex : Mercredi 19h00 — Prière & Parole" />
+                  </div>
+
+                  {/* Infos contact */}
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Informations de contact</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
                     <div style={{flex:1}}>
                       <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Adresse</label>
                       <textarea className="em-input" rows={2} value={majInfoAddress} onChange={e=>setMajInfoAddress(e.target.value)} placeholder="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" style={{resize:"vertical"}} />
                     </div>
                     <div style={{flex:1}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaires (carte contact)</label>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaires résumés (carte contact)</label>
                       <textarea className="em-input" rows={2} value={majInfoCulte} onChange={e=>setMajInfoCulte(e.target.value)} placeholder="Dimanche 09h30 & 17h00" style={{resize:"vertical"}} />
                     </div>
                   </div>
@@ -3942,7 +3963,9 @@ const [showSalle, setShowSalle]       = useState(false);
                 <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.07)",cursor:"pointer",gap:12}}>
                   <div>
                     <div style={{fontWeight:600,color:"#1a1d3a"}}>Horaires des cultes</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Dimanche 09h30 / 17h00 · Mercredi 19h00 (depuis Paramètres site)</div>
+                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>
+                      {[majInfoCulte1, majInfoCulte2, majInfoCulte3].filter(Boolean).join(" · ") || "À configurer dans l'onglet Infos"}
+                    </div>
                   </div>
                   <input type="checkbox" checked={banniereShowSchedules} onChange={e=>setBanniereShowSchedules(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
                 </label>

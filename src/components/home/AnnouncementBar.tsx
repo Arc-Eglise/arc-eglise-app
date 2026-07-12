@@ -36,9 +36,9 @@ export default async function AnnouncementBar() {
 
     const items: string[] = [];
 
-    // Message de bienvenue personnalisable
-    const welcome = s.announcement_welcome?.trim() || "Bienvenue à l'ARC";
-    items.push(welcome);
+    // Message de bienvenue — uniquement si configuré (pas de fallback codé en dur)
+    const welcome = s.announcement_welcome?.trim();
+    if (welcome) items.push(welcome);
 
     // Horaires des cultes depuis site_settings
     if (s.announcement_show_schedules !== "false") {
