@@ -1,7 +1,7 @@
 import {
   Crown, Video, Music2, Flame, Flower2,
   HeartHandshake, Stethoscope, BookOpen, Bird,
-  Megaphone, Wrench,
+  Megaphone, Wrench, Coins,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -114,6 +114,15 @@ export const GROUPS: GroupDef[] = [
     border: "border-slate-200",
     hex:    "#334155",
     hexBg:  "#f1f5f9",
+  },
+  {
+    name:   "Finance",
+    Icon:   Coins,
+    color:  "text-amber-700",
+    bg:     "bg-amber-50",
+    border: "border-amber-200",
+    hex:    "#b45309",
+    hexBg:  "#fef3c7",
   },
 ];
 

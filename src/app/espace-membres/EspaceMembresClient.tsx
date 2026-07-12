@@ -6,7 +6,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings } from "@/lib/actions/cms";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
@@ -34,7 +34,7 @@ interface Profile {
 }
 interface Evt { id:string; title:string; date:string; time_start:string|null; location:string|null; }
 interface Prayer { id:string; user_id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles?:{first_name:string|null;last_name:string|null}|null; }
-interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; created_at:string; }
+interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; managed_groups:string[]|null; created_at:string; }
 
 export interface EMClientProps {
   profile:        Profile|null;
@@ -395,6 +395,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [adminTab, setAdminTab]   = useState<ATab>("membres");
   const [expandedMember, setExpandedMember] = useState<string|null>(null);
 
+  /* Group management modal */
+  const [selectedGroupSlug, setSelectedGroupSlug] = useState<string|null>(null);
+  const [groupDetailSaving, setGroupDetailSaving] = useState(false);
+  const [groupAddMemberId, setGroupAddMemberId]   = useState("");
+
   /* Messagerie */
   const [msgChan, setMsgChan]     = useState("général");
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
@@ -581,7 +586,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   }, [panel]);
 
   useEffect(() => {
-    if (panel === "admin" && adminTab === "membres" && members.length === 0) loadMembers();
+    if (panel === "admin" && (adminTab === "membres" || adminTab === "groupes" || adminTab === "visiteurs") && members.length === 0) loadMembers();
   }, [panel, adminTab]);
 
   useEffect(() => {
@@ -761,9 +766,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     setMLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, role, validated, phone, groups, created_at")
+      .select("id, first_name, last_name, email, role, validated, phone, groups, managed_groups, created_at")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(500);
     setMembers((data ?? []) as Member[]);
     setMLoading(false);
   }
@@ -819,6 +824,41 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     const next = Math.min((rpProgress[planId] ?? 0) + 1, totalDays);
     const { error } = await supabase.from("reading_plan_progress").update({ current_day: next, updated_at: new Date().toISOString() }).eq("plan_id", planId).eq("user_id", userId);
     if (!error) setRpProgress(p => ({ ...p, [planId]: next }));
+  }
+
+  /* ── Gestion des groupes ─────────────────────────────────── */
+  async function handleGroupAddMember(memberId: string, slug: string) {
+    if (!memberId) return;
+    setGroupDetailSaving(true);
+    const res = await addMemberToGroup(memberId, slug);
+    if (res?.error) setToast(`❌ ${res.error}`);
+    else { setToast("✅ Membre ajouté au groupe"); await loadMembers(); }
+    setGroupDetailSaving(false);
+    setGroupAddMemberId("");
+  }
+
+  async function handleGroupRemoveMember(memberId: string, slug: string) {
+    setGroupDetailSaving(true);
+    const res = await removeMemberFromGroup(memberId, slug);
+    if (res?.error) setToast(`❌ ${res.error}`);
+    else { setToast("✅ Membre retiré du groupe"); await loadMembers(); }
+    setGroupDetailSaving(false);
+  }
+
+  async function handleGroupAssignManager(memberId: string, slug: string) {
+    setGroupDetailSaving(true);
+    const res = await assignGroupManager(memberId, slug);
+    if (res?.error) setToast(`❌ ${res.error}`);
+    else { setToast("✅ Manager désigné"); await loadMembers(); }
+    setGroupDetailSaving(false);
+  }
+
+  async function handleGroupRevokeManager(memberId: string, slug: string) {
+    setGroupDetailSaving(true);
+    const res = await revokeGroupManager(memberId, slug);
+    if (res?.error) setToast(`❌ ${res.error}`);
+    else { setToast("✅ Manager révoqué"); await loadMembers(); }
+    setGroupDetailSaving(false);
   }
 
   /* ── Sauvegarde bannière ─────────────────────────────────── */
@@ -2481,21 +2521,43 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
 
               {/* Groupes */}
               {adminTab==="groupes" && (
-                <div className="em-g3">
-                  {GROUPES.map(g=>{
-                    const gDef = getGroup(g.name);
-                    const Icon = gDef.Icon;
-                    return (
-                    <div key={g.name} className="em-card-sm em-card-hover" style={{cursor:"pointer"}}>
-                      <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,background:g.hexBg,border:`1px solid ${g.hex}30`}}>
-                        <Icon size={20} strokeWidth={2} color={g.hex} />
-                      </div>
-                      <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{g.name}</div>
-                      <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{g.count} membres</div>
-                      <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,width:"100%"}}>Gérer</button>
+                <div>
+                  {mLoading ? (
+                    <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des groupes…</div>
+                  ) : (
+                    <div className="em-g3">
+                      {GROUPES.map(g => {
+                        const gDef      = getGroup(g.name);
+                        const Icon      = gDef.Icon;
+                        const count     = members.filter(m => (m.groups ?? []).includes(g.slug)).length;
+                        const mgrCount  = members.filter(m => (m.managed_groups ?? []).includes(g.slug)).length;
+                        return (
+                          <div key={g.slug} className="em-card-sm" style={{display:"flex",flexDirection:"column"}}>
+                            <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,background:g.hexBg,border:`1px solid ${g.hex}30`,flexShrink:0}}>
+                              <Icon size={20} strokeWidth={2} color={g.hex} />
+                            </div>
+                            <div style={{fontWeight:700,fontSize:13,color:"#1e2464",flex:1}}>{g.name}</div>
+                            <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>
+                              <span style={{fontWeight:600,color:count>0?"#1e2464":"#8890aa"}}>{count}</span> membre{count !== 1 ? "s" : ""}
+                            </div>
+                            {mgrCount > 0 && (
+                              <div style={{fontSize:11,color:"#C9A227",marginTop:2}}>👑 {mgrCount} manager{mgrCount > 1 ? "s" : ""}</div>
+                            )}
+                            <button
+                              className="em-btn em-btn-outline em-btn-sm"
+                              style={{marginTop:10,width:"100%"}}
+                              onClick={() => { setSelectedGroupSlug(g.slug); setGroupAddMemberId(""); }}
+                            >
+                              Gérer
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                    );
-                  })}
+                  )}
+                  <div style={{marginTop:12,fontSize:12,color:"#8890aa",textAlign:"right"}}>
+                    {members.length > 0 && `${members.length} profils chargés`}
+                  </div>
                 </div>
               )}
 
@@ -3403,6 +3465,167 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
           </div>
         </div>
       )}
+
+      {/* ── Group management modal ── */}
+      {selectedGroupSlug && canAdmin && (() => {
+        const gInfo     = GROUPES.find(x => x.slug === selectedGroupSlug);
+        const gDef      = getGroup(gInfo?.name ?? selectedGroupSlug);
+        const GIcon     = gDef.Icon;
+        const groupMembers  = members.filter(m => (m.groups        ?? []).includes(selectedGroupSlug));
+        const groupManagers = members.filter(m => (m.managed_groups ?? []).includes(selectedGroupSlug));
+        const groupManagerIds = new Set(groupManagers.map(m => m.id));
+        const nonMembers    = members.filter(m =>
+          !(m.groups ?? []).includes(selectedGroupSlug) &&
+          m.validated &&
+          !["admin","pasteur"].includes(m.role)
+        );
+        const mgrCount = groupManagers.length;
+        const label    = gInfo?.name ?? selectedGroupSlug;
+
+        return (
+          <div className="em-overlay" onClick={() => setSelectedGroupSlug(null)}>
+            <div className="em-modal" style={{maxWidth:680}} onClick={e => e.stopPropagation()}>
+              <div className="em-modal-hdr">
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:gInfo?.hexBg ?? "#f7f8fc",border:`1px solid ${gInfo?.hex ?? "#ccc"}30`,flexShrink:0}}>
+                    <GIcon size={18} strokeWidth={2} color={gInfo?.hex ?? "#8890aa"} />
+                  </div>
+                  <span className="em-modal-title">{label} — {groupMembers.length} membre{groupMembers.length !== 1 ? "s" : ""}</span>
+                </div>
+                <button className="em-modal-close" onClick={() => setSelectedGroupSlug(null)}>✕</button>
+              </div>
+              <div className="em-modal-body" style={{maxHeight:"70vh",overflowY:"auto"}}>
+
+                {/* ── Managers ── */}
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                    👑 Managers ({mgrCount}/2)
+                  </div>
+                  {groupManagers.length === 0 ? (
+                    <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Aucun manager désigné pour ce groupe.</div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {groupManagers.map(mgr => (
+                        <div key={mgr.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:10,background:"#fffbeb",border:"1.5px solid #fde68a"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{width:32,height:32,borderRadius:"50%",background:"#b45309",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11,fontWeight:700,flexShrink:0}}>
+                              {((mgr.first_name?.[0] ?? "") + (mgr.last_name?.[0] ?? "")).toUpperCase() || "?"}
+                            </div>
+                            <div>
+                              <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{[mgr.first_name,mgr.last_name].filter(Boolean).join(" ") || mgr.email}</div>
+                              <div style={{fontSize:11,color:"#b45309",fontWeight:600}}>👑 Manager</div>
+                            </div>
+                          </div>
+                          <button
+                            className="em-btn em-btn-sm"
+                            style={{background:"transparent",color:"#dc2626",border:"1px solid #fca5a5",fontSize:11,opacity:groupDetailSaving?0.5:1}}
+                            disabled={groupDetailSaving}
+                            onClick={() => handleGroupRevokeManager(mgr.id, selectedGroupSlug)}
+                          >
+                            Révoquer
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Membres du groupe ── */}
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                    Membres ({groupMembers.length})
+                  </div>
+                  {groupMembers.length === 0 ? (
+                    <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Aucun membre dans ce groupe.</div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {groupMembers.map(m => {
+                        const isMgr      = groupManagerIds.has(m.id);
+                        const canPromote = !isMgr && mgrCount < 2;
+                        return (
+                          <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",borderRadius:10,background:"#f7f8fc",border:"1px solid rgba(30,36,100,.08)"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{width:30,height:30,borderRadius:"50%",background:"#1e2464",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:10,fontWeight:700,flexShrink:0}}>
+                                {((m.first_name?.[0] ?? "") + (m.last_name?.[0] ?? "")).toUpperCase() || "?"}
+                              </div>
+                              <div>
+                                <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{[m.first_name,m.last_name].filter(Boolean).join(" ") || "—"}</div>
+                                <div style={{fontSize:11,color:"#8890aa"}}>{m.role}{isMgr ? " · 👑 Manager" : ""}</div>
+                              </div>
+                            </div>
+                            <div style={{display:"flex",gap:6,flexShrink:0}}>
+                              {isMgr ? (
+                                <button
+                                  className="em-btn em-btn-sm"
+                                  style={{background:"transparent",color:"#b45309",border:"1px solid #fde68a",fontSize:11,opacity:groupDetailSaving?0.5:1}}
+                                  disabled={groupDetailSaving}
+                                  onClick={() => handleGroupRevokeManager(m.id, selectedGroupSlug)}
+                                >
+                                  Révoquer manager
+                                </button>
+                              ) : (
+                                <button
+                                  className="em-btn em-btn-sm"
+                                  style={{background:"transparent",color:canPromote?"#1e2464":"#c4c9d8",border:`1px solid ${canPromote?"rgba(30,36,100,.2)":"#e2e5ef"}`,fontSize:11,opacity:groupDetailSaving?0.5:1,cursor:canPromote?"pointer":"not-allowed"}}
+                                  disabled={!canPromote || groupDetailSaving}
+                                  onClick={() => canPromote && handleGroupAssignManager(m.id, selectedGroupSlug)}
+                                  title={mgrCount >= 2 ? "Limite de 2 managers atteinte" : "Nommer manager"}
+                                >
+                                  {mgrCount >= 2 ? "Max. managers" : "Nommer manager"}
+                                </button>
+                              )}
+                              <button
+                                className="em-btn em-btn-sm"
+                                style={{background:"transparent",color:"#dc2626",border:"1px solid #fca5a5",fontSize:11,opacity:groupDetailSaving?0.5:1}}
+                                disabled={groupDetailSaving}
+                                onClick={() => handleGroupRemoveMember(m.id, selectedGroupSlug)}
+                              >
+                                Retirer
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Ajouter un membre ── */}
+                {nonMembers.length > 0 && (
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                      Ajouter un membre
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <select
+                        className="em-select"
+                        style={{flex:1}}
+                        value={groupAddMemberId}
+                        onChange={e => setGroupAddMemberId(e.target.value)}
+                      >
+                        <option value="">— Choisir un membre à ajouter —</option>
+                        {nonMembers.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {[m.first_name,m.last_name].filter(Boolean).join(" ") || m.email}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="em-btn em-btn-primary em-btn-sm"
+                        disabled={!groupAddMemberId || groupDetailSaving}
+                        style={{opacity:(!groupAddMemberId || groupDetailSaving)?0.5:1,flexShrink:0}}
+                        onClick={() => handleGroupAddMember(groupAddMemberId, selectedGroupSlug)}
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Bannière d'annonce modal ── */}
       {showBanniere && canBanner && (
