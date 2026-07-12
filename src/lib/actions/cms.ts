@@ -334,6 +334,8 @@ const ALLOWED_SETTINGS = [
   // Bannière d'annonce (personnalisable par media/communication/support/admin)
   "announcement_enabled", "announcement_welcome",
   "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
+  // Mode du verset du jour
+  "verset_mode", "verset_auto_interval",
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {

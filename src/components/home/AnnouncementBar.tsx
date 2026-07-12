@@ -1,4 +1,5 @@
 import { createClient }     from "@/lib/supabase/server";
+import { getAutoVerset }    from "@/lib/verses";
 import AnnouncementMarquee  from "./AnnouncementMarquee";
 
 export default async function AnnouncementBar() {
@@ -19,7 +20,7 @@ export default async function AnnouncementBar() {
         .select("key, value")
         .in("key", [
           "culte_1_label", "culte_2_label", "culte_3_label",
-          "verset_reference",
+          "verset_reference", "verset_mode", "verset_auto_interval",
           "announcement_enabled",
           "announcement_welcome",
           "announcement_show_schedules",
@@ -56,9 +57,16 @@ export default async function AnnouncementBar() {
       }
     }
 
-    // Verset du jour
-    if (s.announcement_show_verset !== "false" && s.verset_reference) {
-      items.push(`Verset du jour : ${s.verset_reference}`);
+    // Verset du jour — mode auto ou manuel
+    if (s.announcement_show_verset !== "false") {
+      const mode = s.verset_mode ?? "auto";
+      if (mode === "auto") {
+        const interval = (s.verset_auto_interval === "48" ? "48" : "24") as "24" | "48";
+        const v = getAutoVerset(interval);
+        items.push(`« ${v.text} » — ${v.ref}`);
+      } else if (s.verset_reference) {
+        items.push(`Verset du jour : ${s.verset_reference}`);
+      }
     }
 
     if (items.length === 0) return null;

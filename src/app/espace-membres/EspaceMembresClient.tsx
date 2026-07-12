@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
+import { DAILY_VERSES, getAutoVerset } from "@/lib/verses";
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
@@ -73,41 +74,7 @@ const TRANS = [
   {code:"YLT",   label:"Young's Literal Translation"},
   {code:"ASV",   label:"American Standard Version"},
 ];
-const DAILY_VERSES = [
-  {text:"Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.",ref:"Jean 3:16"},
-  {text:"Je suis le chemin, la vérité et la vie. Nul ne vient au Père que par moi.",ref:"Jean 14:6"},
-  {text:"Toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein.",ref:"Romains 8:28"},
-  {text:"Je puis tout par celui qui me fortifie.",ref:"Philippiens 4:13"},
-  {text:"L'Éternel est mon berger : je ne manquerai de rien.",ref:"Psaume 23:1"},
-  {text:"Ayez confiance en l'Éternel de tout votre cœur, et ne vous appuyez pas sur votre intelligence.",ref:"Proverbes 3:5"},
-  {text:"C'est par la grâce que vous êtes sauvés, par le moyen de la foi. Et cela ne vient pas de vous, c'est le don de Dieu.",ref:"Éphésiens 2:8"},
-  {text:"Venez à moi, vous tous qui êtes fatigués et chargés, et je vous donnerai du repos.",ref:"Matthieu 11:28"},
-  {text:"Que la paix de Dieu, qui surpasse toute intelligence, garde vos cœurs et vos pensées en Jésus-Christ.",ref:"Philippiens 4:7"},
-  {text:"Cherchez premièrement le royaume et la justice de Dieu ; et toutes ces choses vous seront données par-dessus.",ref:"Matthieu 6:33"},
-  {text:"Si nous confessons nos péchés, il est fidèle et juste pour nous les pardonner et pour nous purifier.",ref:"1 Jean 1:9"},
-  {text:"L'Éternel est ma lumière et mon salut : de qui aurais-je crainte ?",ref:"Psaume 27:1"},
-  {text:"Car je connais les projets que j'ai formés sur vous : projets de paix et non de malheur, afin de vous donner un avenir et de l'espérance.",ref:"Jérémie 29:11"},
-  {text:"Ne crains point, car je suis avec toi ; ne promène pas des regards inquiets, car je suis ton Dieu.",ref:"Ésaïe 41:10"},
-  {text:"Que votre lumière luise ainsi devant les hommes, afin qu'ils voient vos bonnes œuvres et glorifient votre Père.",ref:"Matthieu 5:16"},
-  {text:"Il donne de la force à celui qui est fatigué, et il augmente la vigueur de celui qui est sans forces.",ref:"Ésaïe 40:29"},
-  {text:"Dieu est notre refuge et notre force, un secours qui ne manque jamais dans la détresse.",ref:"Psaume 46:2"},
-  {text:"L'amour est patient, il est plein de bonté ; l'amour n'est point envieux, il ne se vante point.",ref:"1 Corinthiens 13:4"},
-  {text:"Soyez forts et courageux ! Ne soyez pas effrayés, car l'Éternel ton Dieu est avec toi dans tout ce que tu entreprendras.",ref:"Josué 1:9"},
-  {text:"Réjouissez-vous toujours dans le Seigneur ; je le répète, réjouissez-vous.",ref:"Philippiens 4:4"},
-  {text:"Toute l'Écriture est inspirée de Dieu et utile pour enseigner, pour convaincre, pour corriger, pour instruire dans la justice.",ref:"2 Timothée 3:16"},
-  {text:"Tu aimeras le Seigneur ton Dieu de tout ton cœur, de toute ton âme et de toute ta pensée.",ref:"Matthieu 22:37"},
-  {text:"La foi est une ferme assurance des choses qu'on espère, une démonstration de celles qu'on ne voit pas.",ref:"Hébreux 11:1"},
-  {text:"L'Éternel te gardera de tout mal ; il gardera ton âme.",ref:"Psaume 121:7"},
-  {text:"Celui qui demeure sous l'abri du Très-Haut repose à l'ombre du Tout-Puissant.",ref:"Psaume 91:1"},
-  {text:"Moi, je suis la résurrection et la vie. Celui qui croit en moi vivra, quand même il serait mort.",ref:"Jean 11:25"},
-  {text:"Car nous sommes son ouvrage, ayant été créés en Jésus-Christ pour de bonnes œuvres.",ref:"Éphésiens 2:10"},
-  {text:"Remets ton sort à l'Éternel, mets en lui ta confiance, et il agira.",ref:"Psaume 37:5"},
-  {text:"Je te loue de ce que je suis une créature si merveilleuse. Tes œuvres sont admirables.",ref:"Psaume 139:14"},
-  {text:"Heureux les artisans de paix, car ils seront appelés fils de Dieu.",ref:"Matthieu 5:9"},
-];
-const _dow = new Date();
-const _doy = Math.floor((_dow.getTime() - new Date(_dow.getFullYear(),0,0).getTime())/86400000);
-const VERSET = DAILY_VERSES[_doy % DAILY_VERSES.length];
+const VERSET = getAutoVerset("24");
 const THEO_CATS = [
   { id:"conf", title:"Confessions de Foi", icon:"📜", items:[
     {id:"westminster",title:"Confession de Westminster (1646)",sub:"Document fondateur du calvinisme presbytérien",
@@ -328,9 +295,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [majInfoAddress,   setMajInfoAddress]   = useState("");
   const [majInfoEmail,     setMajInfoEmail]      = useState("");
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
-  const [majInfoVersetRef, setMajInfoVersetRef]  = useState("");
-  const [majInfoVersetTxt, setMajInfoVersetTxt]  = useState("");
-  const [majInfoSaving,    setMajInfoSaving]     = useState(false);
+  const [majInfoVersetRef,      setMajInfoVersetRef]      = useState("");
+  const [majInfoVersetTxt,      setMajInfoVersetTxt]      = useState("");
+  const [majInfoVersetMode,     setMajInfoVersetMode]     = useState<"auto"|"manuel">("auto");
+  const [majInfoVersetInterval, setMajInfoVersetInterval] = useState<"24"|"48">("24");
+  const [majInfoSaving,         setMajInfoSaving]         = useState(false);
   // Bannière d'annonce
   const [showBanniere,          setShowBanniere]          = useState(false);
   const [banniereEnabled,       setBanniereEnabled]       = useState(true);
@@ -666,15 +635,19 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
       try {
         const { data } = await supabase.from("site_settings").select("key,value").in("key", [
           "contact_address","contact_email","contact_horaires",
-          "verset_reference","verset_du_jour",
+          "verset_reference","verset_du_jour","verset_mode","verset_auto_interval",
         ]);
         const vals: Record<string,string> = {};
         for (const row of data ?? []) vals[row.key] = row.value;
-        if (vals.contact_address)  setMajInfoAddress(vals.contact_address);
-        if (vals.contact_email)    setMajInfoEmail(vals.contact_email);
-        if (vals.contact_horaires) setMajInfoCulte(vals.contact_horaires);
-        if (vals.verset_reference) setMajInfoVersetRef(vals.verset_reference);
-        if (vals.verset_du_jour)   setMajInfoVersetTxt(vals.verset_du_jour);
+        if (vals.contact_address)    setMajInfoAddress(vals.contact_address);
+        if (vals.contact_email)      setMajInfoEmail(vals.contact_email);
+        if (vals.contact_horaires)   setMajInfoCulte(vals.contact_horaires);
+        if (vals.verset_reference)   setMajInfoVersetRef(vals.verset_reference);
+        if (vals.verset_du_jour)     setMajInfoVersetTxt(vals.verset_du_jour);
+        if (vals.verset_mode === "manuel") setMajInfoVersetMode("manuel");
+        else setMajInfoVersetMode("auto");
+        if (vals.verset_auto_interval === "48") setMajInfoVersetInterval("48");
+        else setMajInfoVersetInterval("24");
       } catch { /* silencieux */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -894,8 +867,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   async function saveMajInfoVerset() {
     setMajInfoSaving(true);
     const fd = new FormData();
-    fd.set("verset_reference", majInfoVersetRef);
-    fd.set("verset_du_jour",   majInfoVersetTxt);
+    fd.set("verset_mode",          majInfoVersetMode);
+    fd.set("verset_auto_interval", majInfoVersetInterval);
+    if (majInfoVersetMode === "manuel") {
+      fd.set("verset_reference", majInfoVersetRef);
+      fd.set("verset_du_jour",   majInfoVersetTxt);
+    }
     const result = await updateSiteSettings(fd);
     setMajInfoSaving(false);
     if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
@@ -3425,30 +3402,115 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
               )}
               {majInfoTab==="verset" && (
                 <div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Le verset s&apos;affiche dans la bannière défilante et sur la page d&apos;accueil du site.</div>
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Référence (ex : Jean 3:16)</label>
-                  <input
-                    className="em-input"
-                    style={{marginBottom:10}}
-                    value={majInfoVersetRef}
-                    onChange={e=>setMajInfoVersetRef(e.target.value)}
-                    placeholder="Jean 3:16"
-                  />
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte complet du verset</label>
-                  <textarea
-                    className="em-input"
-                    rows={3}
-                    style={{marginBottom:14,resize:"vertical"}}
-                    value={majInfoVersetTxt}
-                    onChange={e=>setMajInfoVersetTxt(e.target.value)}
-                    placeholder="Car Dieu a tant aimé le monde…"
-                  />
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Le verset s&apos;affiche dans la bannière défilante du site. Choisissez le mode d&apos;affichage.</div>
+
+                  {/* ── Sélecteur de mode ── */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+                    {/* Automatique */}
+                    <button
+                      type="button"
+                      onClick={()=>setMajInfoVersetMode("auto")}
+                      style={{
+                        padding:"12px 10px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
+                        border: majInfoVersetMode==="auto" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                        background: majInfoVersetMode==="auto" ? "#eff1fa" : "#f7f8fc",
+                      }}
+                    >
+                      <div style={{fontSize:20,marginBottom:4}}>🤖</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>Automatique</div>
+                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Verset aléatoire — change automatiquement à 0h00</div>
+                    </button>
+
+                    {/* Manuel */}
+                    <button
+                      type="button"
+                      onClick={()=>setMajInfoVersetMode("manuel")}
+                      style={{
+                        padding:"12px 10px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
+                        border: majInfoVersetMode==="manuel" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                        background: majInfoVersetMode==="manuel" ? "#eff1fa" : "#f7f8fc",
+                      }}
+                    >
+                      <div style={{fontSize:20,marginBottom:4}}>✍️</div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>Manuel</div>
+                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Le pasteur choisit le verset affiché</div>
+                    </button>
+                  </div>
+
+                  {/* ── Options selon le mode ── */}
+                  {majInfoVersetMode==="auto" && (
+                    <div style={{background:"#f7f8fc",borderRadius:12,padding:"14px 14px 10px",marginBottom:14,border:"1.5px solid #e2e5f0"}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Fréquence de changement</div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                        <button
+                          type="button"
+                          onClick={()=>setMajInfoVersetInterval("24")}
+                          style={{
+                            padding:"10px 8px",borderRadius:10,cursor:"pointer",transition:"all .15s",
+                            border: majInfoVersetInterval==="24" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                            background: majInfoVersetInterval==="24" ? "#1e2464" : "#fff",
+                            color: majInfoVersetInterval==="24" ? "#fff" : "#1e2464",
+                            fontWeight:700,fontSize:13,
+                          }}
+                        >
+                          🔄 Toutes les 24h
+                        </button>
+                        <button
+                          type="button"
+                          onClick={()=>setMajInfoVersetInterval("48")}
+                          style={{
+                            padding:"10px 8px",borderRadius:10,cursor:"pointer",transition:"all .15s",
+                            border: majInfoVersetInterval==="48" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                            background: majInfoVersetInterval==="48" ? "#1e2464" : "#fff",
+                            color: majInfoVersetInterval==="48" ? "#fff" : "#1e2464",
+                            fontWeight:700,fontSize:13,
+                          }}
+                        >
+                          🔄 Toutes les 48h
+                        </button>
+                      </div>
+                      {/* Aperçu du verset du jour */}
+                      {(() => {
+                        const preview = getAutoVerset(majInfoVersetInterval);
+                        return (
+                          <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
+                            <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui</div>
+                            <div style={{fontSize:12,color:"#1e2464",fontStyle:"italic",lineHeight:1.5}}>« {preview.text} »</div>
+                            <div style={{fontSize:11,color:"#8890aa",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {majInfoVersetMode==="manuel" && (
+                    <div style={{marginBottom:14}}>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Référence (ex : Jean 3:16)</label>
+                      <input
+                        className="em-input"
+                        style={{marginBottom:10}}
+                        value={majInfoVersetRef}
+                        onChange={e=>setMajInfoVersetRef(e.target.value)}
+                        placeholder="Jean 3:16"
+                      />
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte complet du verset</label>
+                      <textarea
+                        className="em-input"
+                        rows={3}
+                        style={{marginBottom:0,resize:"vertical"}}
+                        value={majInfoVersetTxt}
+                        onChange={e=>setMajInfoVersetTxt(e.target.value)}
+                        placeholder="Car Dieu a tant aimé le monde…"
+                      />
+                    </div>
+                  )}
+
                   <button
                     className="em-btn em-btn-primary"
                     style={{width:"100%",opacity:majInfoSaving?0.6:1}}
                     disabled={majInfoSaving}
                     onClick={saveMajInfoVerset}
-                  >{majInfoSaving?"Enregistrement…":"📤 Publier le verset"}</button>
+                  >{majInfoSaving?"Enregistrement…":"📤 Publier"}</button>
                 </div>
               )}
               {majInfoTab==="equipe" && (
