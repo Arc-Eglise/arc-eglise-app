@@ -20,7 +20,7 @@ const KEYS = [
   "stats_nations", "stats_touches",
   "announcement_enabled", "announcement_welcome",
   "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
-  "verset_mode", "verset_auto_interval", "verset_theme",
+  "verset_mode", "verset_auto_interval", "verset_theme", "verset_theme_interval",
 ] as const;
 
 export default async function AdminSitePage({

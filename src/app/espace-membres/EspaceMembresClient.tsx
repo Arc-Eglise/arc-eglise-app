@@ -297,11 +297,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
   const [majInfoVersetRef,      setMajInfoVersetRef]      = useState("");
   const [majInfoVersetTxt,      setMajInfoVersetTxt]      = useState("");
-  const [majInfoVersetMode,       setMajInfoVersetMode]       = useState<"auto"|"thematique"|"manuel">("auto");
-  const [majInfoVersetInterval,   setMajInfoVersetInterval]   = useState<"24"|"48">("24");
-  const [majInfoVersetTheme,      setMajInfoVersetTheme]      = useState("foi");
-  const [majInfoVersetExpireDays, setMajInfoVersetExpireDays] = useState(3);
-  const [majInfoVersetExpiresAt,  setMajInfoVersetExpiresAt]  = useState<string|null>(null);
+  const [majInfoVersetMode,          setMajInfoVersetMode]          = useState<"auto"|"thematique"|"manuel">("auto");
+  const [majInfoVersetInterval,      setMajInfoVersetInterval]      = useState<"24"|"48">("24");
+  const [majInfoVersetTheme,         setMajInfoVersetTheme]         = useState("foi");
+  const [majInfoVersetThemeInterval, setMajInfoVersetThemeInterval] = useState(24);
+  const [majInfoVersetExpireDays,    setMajInfoVersetExpireDays]    = useState(3);
+  const [majInfoVersetExpiresAt,     setMajInfoVersetExpiresAt]     = useState<string|null>(null);
   const [majInfoSaving,           setMajInfoSaving]           = useState(false);
   // Bannière d'annonce
   const [showBanniere,          setShowBanniere]          = useState(false);
@@ -639,6 +640,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         const { data } = await supabase.from("site_settings").select("key,value").in("key", [
           "contact_address","contact_email","contact_horaires",
           "verset_reference","verset_du_jour","verset_mode","verset_auto_interval","verset_manuel_expires_at",
+          "verset_theme","verset_theme_interval",
         ]);
         const vals: Record<string,string> = {};
         for (const row of data ?? []) vals[row.key] = row.value;
@@ -653,6 +655,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         if (vals.verset_auto_interval === "48") setMajInfoVersetInterval("48");
         else setMajInfoVersetInterval("24");
         if (vals.verset_theme) setMajInfoVersetTheme(vals.verset_theme);
+        if (vals.verset_theme_interval) setMajInfoVersetThemeInterval(Math.max(1, Math.min(24, parseInt(vals.verset_theme_interval, 10) || 24)));
         setMajInfoVersetExpiresAt(vals.verset_manuel_expires_at ?? null);
       } catch { /* silencieux */ }
     })();
@@ -876,7 +879,8 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     fd.set("verset_mode",          majInfoVersetMode);
     fd.set("verset_auto_interval", majInfoVersetInterval);
     if (majInfoVersetMode === "thematique") {
-      fd.set("verset_theme", majInfoVersetTheme);
+      fd.set("verset_theme",          majInfoVersetTheme);
+      fd.set("verset_theme_interval", String(majInfoVersetThemeInterval));
     }
     if (majInfoVersetMode === "manuel") {
       fd.set("verset_reference", majInfoVersetRef);
@@ -3540,14 +3544,22 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                           </button>
                         ))}
                       </div>
-                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Fréquence de changement</div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-                        <button type="button" onClick={()=>setMajInfoVersetInterval("24")} style={{padding:"8px",borderRadius:10,cursor:"pointer",transition:"all .15s",border:majInfoVersetInterval==="24"?"2px solid #1e2464":"1.5px solid #e2e5f0",background:majInfoVersetInterval==="24"?"#1e2464":"#fff",color:majInfoVersetInterval==="24"?"#fff":"#1e2464",fontWeight:700,fontSize:13}}>🔄 Toutes les 24h</button>
-                        <button type="button" onClick={()=>setMajInfoVersetInterval("48")} style={{padding:"8px",borderRadius:10,cursor:"pointer",transition:"all .15s",border:majInfoVersetInterval==="48"?"2px solid #1e2464":"1.5px solid #e2e5f0",background:majInfoVersetInterval==="48"?"#1e2464":"#fff",color:majInfoVersetInterval==="48"?"#fff":"#1e2464",fontWeight:700,fontSize:13}}>🔄 Toutes les 48h</button>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Intervalle de changement</div>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                        <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>Changer toutes les</span>
+                        <select
+                          value={majInfoVersetThemeInterval}
+                          onChange={e=>setMajInfoVersetThemeInterval(Number(e.target.value))}
+                          style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid #e2e5f0",background:"#fff",color:"#1e2464",fontWeight:700,fontSize:13,cursor:"pointer",flex:1}}
+                        >
+                          {Array.from({length:24},(_,i)=>i+1).map(h=>(
+                            <option key={h} value={h}>{h}h</option>
+                          ))}
+                        </select>
                       </div>
                       {/* Aperçu */}
                       {(() => {
-                        const preview = getThemedVerset(majInfoVersetTheme, majInfoVersetInterval);
+                        const preview = getThemedVerset(majInfoVersetTheme, majInfoVersetThemeInterval);
                         return (
                           <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
                             <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui ({VERSE_THEMES.find(t=>t.id===majInfoVersetTheme)?.label})</div>
