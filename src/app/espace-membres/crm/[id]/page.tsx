@@ -3,11 +3,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups } from "@/lib/actions/membres";
+import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import CrmTagsEditor from "../CrmTagsEditor";
 
 const ALL_GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const GROUP_LABELS_LOCAL: Record<string,string> = {
+  pasteur:"Pasteur",chorale:"Chorale",media:"Équipe Média",social:"Social & Hospitalité",
+  sanitaire:"Sanitaire",finance:"Finance",support:"Support",jeunesse:"La Jeunesse",
+  femmes:"Groupe des Femmes",ecodim:"Écodim",suivi:"Suivi d'âmes",communication:"Communication",
+};
+const GROUP_EMOJIS: Record<string,string> = {
+  pasteur:"👑",chorale:"🎵",media:"🎬",social:"🤝",sanitaire:"🏥",finance:"💰",
+  support:"🛠️",jeunesse:"⚡",femmes:"🌸",ecodim:"📚",suivi:"🕊️",communication:"📣",
+};
 const ROLES_ALL  = ["admin", "pasteur", "membre", "visiteur"] as const;
 const ROLES_PASTEUR = ["membre", "visiteur"] as const;
 
@@ -41,11 +50,20 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
   const { data: member } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, role, validated, groups, avatar_url, country, crm_tags, created_at, email")
+    .select("id, first_name, last_name, role, validated, groups, managed_groups, avatar_url, country, crm_tags, created_at, email")
     .eq("id", params.id)
     .single();
 
   if (!member) notFound();
+
+  // Compte de managers par groupe (pour la limite de 2)
+  const { data: allManagersData } = await admin.from("profiles").select("id, managed_groups");
+  const managerCountByGroup: Record<string, number> = {};
+  for (const p of allManagersData ?? []) {
+    for (const g of (p.managed_groups as string[] ?? [])) {
+      managerCountByGroup[g] = (managerCountByGroup[g] ?? 0) + 1;
+    }
+  }
 
   // Fetch notes, attendance, prayer stats + ban status in parallel
   const [notesRes, attendRes, prayerRes, rsvpRes, authData] = await Promise.all([
@@ -107,6 +125,16 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     "use server";
     const selected = ALL_GROUPS.filter((g) => formData.get(g) === "on");
     await updateMemberGroups(params.id, selected);
+  }
+
+  async function handleAssignManager(formData: FormData): Promise<void> {
+    "use server";
+    await assignGroupManager(formData.get("targetId") as string, formData.get("groupName") as string);
+  }
+
+  async function handleRevokeManager(formData: FormData): Promise<void> {
+    "use server";
+    await revokeGroupManager(formData.get("targetId") as string, formData.get("groupName") as string);
   }
 
   return (
@@ -233,6 +261,61 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               </button>
             </form>
           </div>
+
+          {/* Managers de fonctions */}
+          {(member.groups ?? []).length > 0 && (
+            <div className="bg-white border border-arc-border rounded-2xl p-5">
+              <h2 className="font-bold text-arc-navy mb-1">👑 Manager de fonctions</h2>
+              <p className="text-xs text-arc-text3 mb-3">
+                Un manager peut ajouter/retirer des membres de son groupe et a un rôle de modération. Max 2 managers par groupe.
+              </p>
+              <div className="space-y-2">
+                {(member.groups as string[]).map(g => {
+                  const count  = managerCountByGroup[g] ?? 0;
+                  const isMgr  = (member.managed_groups as string[] ?? []).includes(g);
+                  const canAdd = !isMgr && count < 2;
+                  return (
+                    <div key={g} className="flex items-center justify-between p-2.5 rounded-xl bg-arc-bg">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-arc-navy">
+                          {GROUP_EMOJIS[g] ?? "📌"} {GROUP_LABELS_LOCAL[g] ?? g}
+                        </span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${count >= 2 ? "bg-red-50 text-red-600 border-red-200" : "bg-arc-blueBg text-arc-blue border-arc-blue/20"}`}>
+                          {count}/2 manager{count !== 1 ? "s" : ""}
+                        </span>
+                        {isMgr && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            Manager actuel
+                          </span>
+                        )}
+                      </div>
+                      {isMgr ? (
+                        <form action={handleRevokeManager}>
+                          <input type="hidden" name="targetId"   value={member.id} />
+                          <input type="hidden" name="groupName"  value={g} />
+                          <button type="submit" className="text-[11px] px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-semibold">
+                            Révoquer
+                          </button>
+                        </form>
+                      ) : (
+                        <form action={handleAssignManager}>
+                          <input type="hidden" name="targetId"   value={member.id} />
+                          <input type="hidden" name="groupName"  value={g} />
+                          <button
+                            type="submit"
+                            disabled={!canAdd}
+                            className={`text-[11px] px-3 py-1.5 rounded-lg font-semibold transition-colors ${canAdd ? "bg-arc-navy text-white hover:bg-arc-navy2 cursor-pointer" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                          >
+                            {count >= 2 ? "Complet (2/2)" : "Nommer manager"}
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Tags CRM */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">

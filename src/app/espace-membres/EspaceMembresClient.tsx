@@ -30,7 +30,7 @@ type MsgTab = "msgs"|"files"|"pins"|"tasks";
 interface Profile {
   id:string; first_name:string|null; last_name:string|null;
   email:string; role:string; validated:boolean;
-  groups:string[]|null; avatar_url:string|null;
+  groups:string[]|null; managed_groups:string[]|null; avatar_url:string|null;
 }
 interface Evt { id:string; title:string; date:string; time_start:string|null; location:string|null; }
 interface Prayer { id:string; user_id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles?:{first_name:string|null;last_name:string|null}|null; }
@@ -448,6 +448,7 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const isAdmin     = role === "admin";
   const isPasteur   = role === "pasteur";
   const canAdmin    = isAdmin || isPasteur;
+  const isManager   = (profile?.managed_groups?.length ?? 0) > 0;
   const displayName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email
     : "Membre";
@@ -900,6 +901,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     ]},
     { section:"Gestion", items:[
       ...(DONS_ENABLED ? [{ id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" as IconName }] : []),
+      ...(isManager ? [
+        { id:"gestion-groupe", lbl:"Mon Groupe", ico:"👥", Icon:UserCheck, arcIcon:"contacts" as IconName, href:"/espace-membres/gestion-groupe" },
+      ] : []),
       ...(canAdmin ? [
         { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
         { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings,  arcIcon:"parametres" as IconName },

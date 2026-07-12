@@ -9,6 +9,7 @@ type GMsg = {
   subject: string;
   from: { emailAddress: { name: string; address: string } };
   toRecipients?: { emailAddress: { name: string; address: string } }[];
+  replyTo?: { emailAddress: { name: string; address: string } }[];
   receivedDateTime: string;
   isRead: boolean;
   bodyPreview: string;
@@ -40,8 +41,11 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
   const [detail,      setDetail]      = useState<GMsg | null>(null);
   const [detLoading,  setDetLoading]  = useState(false);
 
-  const [replyOpen,   setReplyOpen]   = useState(false);
-  const [replyText,   setReplyText]   = useState("");
+  const [replyOpen,    setReplyOpen]    = useState(false);
+  const [replyText,    setReplyText]    = useState("");
+  const [replyFrom,    setReplyFrom]    = useState("");
+  const [replyToAddr,  setReplyToAddr]  = useState("");
+  const [replyCc,      setReplyCc]      = useState("");
   const [replySending, setReplySending] = useState(false);
 
   const [fwdOpen,     setFwdOpen]     = useState(false);
@@ -51,6 +55,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
 
   const [newOpen,     setNewOpen]     = useState(false);
   const [newTo,       setNewTo]       = useState("");
+  const [newCc,       setNewCc]       = useState("");
   const [newSubject,  setNewSubject]  = useState("");
   const [newBody,     setNewBody]     = useState("");
   const [newSending,  setNewSending]  = useState(false);
@@ -118,14 +123,25 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
     if (!replyText.trim() || !selected || !selectedBox) return;
     setReplySending(true);
     try {
+      const cc = replyCc.trim()
+        ? replyCc.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
       const res = await fetch("/api/mail/reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ box: selectedBox, id: selected.id, comment: replyText }),
+        body: JSON.stringify({
+          box: selectedBox,
+          id: selected.id,
+          comment: replyText,
+          fromBox: replyFrom !== selectedBox ? replyFrom : undefined,
+          toAddress: replyToAddr || undefined,
+          cc: cc.length > 0 ? cc : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur");
       setReplyText("");
+      setReplyCc("");
       setReplyOpen(false);
       showToast("✅ Réponse envoyée");
     } catch (e) {
@@ -159,14 +175,17 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
     if (!newTo || !newSubject || !newBody || !selectedBox) return;
     setNewSending(true);
     try {
+      const cc = newCc.trim()
+        ? newCc.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
       const res = await fetch("/api/mail/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from: selectedBox, to: newTo, subject: newSubject, message: newBody }),
+        body: JSON.stringify({ from: selectedBox, to: newTo, subject: newSubject, message: newBody, cc: cc.length > 0 ? cc : undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur");
-      setNewTo(""); setNewSubject(""); setNewBody(""); setNewOpen(false);
+      setNewTo(""); setNewCc(""); setNewSubject(""); setNewBody(""); setNewOpen(false);
       showToast("✅ Message envoyé");
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : "Erreur"}`);
@@ -335,7 +354,19 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                 </div>
                 {/* Actions */}
                 <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
-                  <button onClick={() => { setReplyOpen(r=>!r); setFwdOpen(false); }} style={btnSm(navy)}>
+                  <button onClick={() => {
+                    if (!replyOpen) {
+                      setReplyFrom(selectedBox ?? "");
+                      setReplyToAddr(
+                        detail?.replyTo?.[0]?.emailAddress?.address ??
+                        detail?.from?.emailAddress?.address ??
+                        selected?.from?.emailAddress?.address ?? ""
+                      );
+                      setReplyCc("");
+                    }
+                    setReplyOpen(r => !r);
+                    setFwdOpen(false);
+                  }} style={btnSm(navy)}>
                     ↩ Répondre
                   </button>
                   <button onClick={() => { setFwdOpen(r=>!r); setReplyOpen(false); }} style={btnSm(blue)}>
@@ -363,7 +394,23 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               {/* Répondre */}
               {replyOpen && (
                 <div style={{borderTop:`1px solid ${border}`,padding:14,background:bg}}>
-                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:6}}>↩ Répondre</div>
+                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:8}}>↩ Répondre</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+                    <div>
+                      <label style={labelSt}>De</label>
+                      <select value={replyFrom} onChange={e=>setReplyFrom(e.target.value)} style={inputSt}>
+                        {authorizedMailboxes.map(b => (
+                          <option key={b} value={b}>{getMailboxLabel(b)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelSt}>À</label>
+                      <input type="text" value={replyToAddr} onChange={e=>setReplyToAddr(e.target.value)} placeholder="destinataire@exemple.com" style={inputSt} />
+                    </div>
+                  </div>
+                  <label style={labelSt}>CC (facultatif — séparer par des virgules)</label>
+                  <input type="text" value={replyCc} onChange={e=>setReplyCc(e.target.value)} placeholder="copie@exemple.com, autreBoite@arc-eglise.ch" style={{...inputSt,marginBottom:6}} />
                   <textarea
                     rows={4} value={replyText} onChange={e=>setReplyText(e.target.value)}
                     placeholder="Votre réponse…"
@@ -373,7 +420,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                     <button onClick={sendReply} disabled={replySending||!replyText.trim()} style={btnPrimary(replySending)}>
                       {replySending?"Envoi…":"Envoyer"}
                     </button>
-                    <button onClick={()=>{setReplyOpen(false);setReplyText("");}} style={btnGhost()}>Annuler</button>
+                    <button onClick={()=>{setReplyOpen(false);setReplyText("");setReplyCc("");}} style={btnGhost()}>Annuler</button>
                   </div>
                 </div>
               )}
@@ -423,6 +470,9 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
             <label style={labelSt}>À (destinataire)</label>
             <input type="email" value={newTo} onChange={e=>setNewTo(e.target.value)} placeholder="email@exemple.com" style={inputSt} />
 
+            <label style={labelSt}>CC (facultatif — séparer par des virgules)</label>
+            <input type="text" value={newCc} onChange={e=>setNewCc(e.target.value)} placeholder="copie@exemple.com, autreBoite@arc-eglise.ch" style={inputSt} />
+
             <label style={labelSt}>Objet</label>
             <input type="text" value={newSubject} onChange={e=>setNewSubject(e.target.value)} placeholder="Objet du message" style={inputSt} />
 
@@ -431,7 +481,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               style={{...inputSt,resize:"vertical" as const,height:120}} />
 
             <div style={{display:"flex",gap:8,marginTop:12,justifyContent:"flex-end"}}>
-              <button onClick={()=>{setNewOpen(false);setNewTo("");setNewSubject("");setNewBody("");}} style={btnGhost()}>Annuler</button>
+              <button onClick={()=>{setNewOpen(false);setNewTo("");setNewCc("");setNewSubject("");setNewBody("");}} style={btnGhost()}>Annuler</button>
               <button onClick={sendNew} disabled={newSending||!newTo||!newSubject||!newBody} style={btnPrimary(newSending)}>
                 {newSending?"Envoi…":"Envoyer"}
               </button>

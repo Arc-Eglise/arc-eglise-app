@@ -31,8 +31,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Messagerie Microsoft non configurée — variables GRAPH_* manquantes." }, { status: 503 });
   }
 
+  const cc: string[] = Array.isArray(body.cc)
+    ? (body.cc as unknown[]).filter((s): s is string => typeof s === "string" && !!s.trim()).map((s) => s.trim())
+    : [];
+
   try {
-    await sendMail({ from: body.from, to: body.to, subject: body.subject, body: body.message });
+    await sendMail({ from: body.from, to: body.to, subject: body.subject, body: body.message, cc: cc.length > 0 ? cc : undefined });
     return NextResponse.json({ success: true });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Erreur inconnue";

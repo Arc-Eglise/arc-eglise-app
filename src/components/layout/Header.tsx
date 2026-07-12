@@ -30,7 +30,7 @@ export default function Header() {
   const [scrolled,     setScrolled]     = useState(false);
   const [menuOpen,     setMenuOpen]     = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, profile, loading, signOut, displayName } = useUser();
+  const { user, profile, loading, signOut, displayName, isMembre } = useUser();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -97,7 +97,7 @@ export default function Header() {
               </button>
             </li>
           ))}
-          {user && (
+          {isMembre && (
             <li>
               <Link href="/espace-membres" className="arc-link text-[14.5px] font-semibold text-arc-green hover:text-green-700 transition-colors">
                 + Mon espace
@@ -164,10 +164,12 @@ export default function Header() {
                       <div className="text-sm font-bold text-arc-navy">{displayName}</div>
                       <div className="text-[11px] text-arc-text3">{profile?.email}</div>
                     </div>
-                    <Link href="/espace-membres" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
-                      <Home size={14} />
-                      Mon espace membres
-                    </Link>
+                    {isMembre && (
+                      <Link href="/espace-membres" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
+                        <Home size={14} />
+                        Mon espace membres
+                      </Link>
+                    )}
                     {role === "admin" && (
                       <Link href="/admin" className="flex items-center gap-2.5 px-4 py-3 text-sm text-arc-text2 hover:bg-arc-bg hover:text-arc-navy transition-colors">
                         <Settings size={14} />
@@ -220,9 +222,11 @@ export default function Header() {
           <div className="pt-4 flex flex-col gap-2">
             {user ? (
               <>
-                <Link href="/espace-membres" className="w-full py-3 rounded-full bg-arc-navy text-white text-[14px] font-semibold text-center" style={{ boxShadow: "0 8px 22px rgba(30,36,100,.28)" }}>
-                  Mon espace membres
-                </Link>
+                {isMembre && (
+                  <Link href="/espace-membres" className="w-full py-3 rounded-full bg-arc-navy text-white text-[14px] font-semibold text-center" style={{ boxShadow: "0 8px 22px rgba(30,36,100,.28)" }}>
+                    Mon espace membres
+                  </Link>
+                )}
                 <button onClick={signOut} className="w-full py-3 rounded-full border border-arc-red text-arc-red text-[14px] font-semibold hover:bg-red-50 transition-colors">
                   Déconnexion
                 </button>

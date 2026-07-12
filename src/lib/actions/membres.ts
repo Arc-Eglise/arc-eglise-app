@@ -587,11 +587,19 @@ export async function updateMemberGroups(memberId: string, groups: string[]) {
 
   const { data: target } = await admin
     .from("profiles")
-    .select("email, first_name")
+    .select("email, first_name, managed_groups")
     .eq("id", memberId)
     .single();
 
-  const { error } = await admin.from("profiles").update({ groups }).eq("id", memberId);
+  // Nettoyer managed_groups si un groupe géré est retiré des groups
+  const currentManaged = (target?.managed_groups as string[]) ?? [];
+  const cleanedManaged = currentManaged.filter(g => groups.includes(g));
+  const updatePayload: Record<string, unknown> = { groups };
+  if (cleanedManaged.length !== currentManaged.length) {
+    updatePayload.managed_groups = cleanedManaged;
+  }
+
+  const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
   // Notification email (best-effort)
@@ -635,5 +643,122 @@ export async function inviteMember(email: string, firstName: string, lastName: s
     return { error: `Lien généré mais email non envoyé : ${(e as Error).message}` };
   }
 
+  return { success: true };
+}
+
+// ── Gestion des managers de groupes ──────────────────────────────
+
+const VALID_GROUPS = new Set(["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"]);
+const MAX_MANAGERS_PER_GROUP = 2;
+
+/** Vérifie si l'appelant peut gérer les managers du groupe donné */
+async function assertManagerOf(supabase: ReturnType<typeof createClient>, groupName: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: me } = await supabase.from("profiles").select("role, managed_groups").eq("id", user.id).single();
+  const isPrivileged = me?.role === "admin" || me?.role === "pasteur";
+  const isManagerOfGroup = (me?.managed_groups as string[] ?? []).includes(groupName);
+  if (!isPrivileged && !isManagerOfGroup) return null;
+  return user;
+}
+
+export async function assignGroupManager(targetMemberId: string, groupName: string) {
+  if (!VALID_GROUPS.has(groupName)) return { error: "Groupe invalide" };
+
+  const supabase = createClient();
+  const caller = await assertManagerOf(supabase, groupName);
+  if (!caller) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("profiles")
+    .select("groups, managed_groups").eq("id", targetMemberId).single();
+  if (!target) return { error: "Membre introuvable" };
+
+  const targetGroups   = (target.groups         as string[]) ?? [];
+  const targetManaged  = (target.managed_groups  as string[]) ?? [];
+
+  if (!targetGroups.includes(groupName))   return { error: "Ce membre n'appartient pas à ce groupe" };
+  if (targetManaged.includes(groupName))   return { success: true }; // déjà manager
+
+  const { data: existing } = await admin.from("profiles").select("id").contains("managed_groups", [groupName]);
+  if ((existing?.length ?? 0) >= MAX_MANAGERS_PER_GROUP)
+    return { error: `Ce groupe a déjà ${MAX_MANAGERS_PER_GROUP} managers (maximum atteint)` };
+
+  const { error } = await admin.from("profiles")
+    .update({ managed_groups: [...targetManaged, groupName] })
+    .eq("id", targetMemberId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/espace-membres/crm/${targetMemberId}`);
+  revalidatePath("/espace-membres/gestion-groupe");
+  return { success: true };
+}
+
+export async function revokeGroupManager(targetMemberId: string, groupName: string) {
+  if (!VALID_GROUPS.has(groupName)) return { error: "Groupe invalide" };
+
+  const supabase = createClient();
+  const caller = await assertManagerOf(supabase, groupName);
+  if (!caller) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("profiles").select("managed_groups").eq("id", targetMemberId).single();
+  if (!target) return { error: "Membre introuvable" };
+
+  const current = (target.managed_groups as string[]) ?? [];
+  const { error } = await admin.from("profiles")
+    .update({ managed_groups: current.filter(g => g !== groupName) })
+    .eq("id", targetMemberId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/espace-membres/crm/${targetMemberId}`);
+  revalidatePath("/espace-membres/gestion-groupe");
+  return { success: true };
+}
+
+export async function addMemberToGroup(targetMemberId: string, groupName: string) {
+  if (!VALID_GROUPS.has(groupName)) return { error: "Groupe invalide" };
+
+  const supabase = createClient();
+  const caller = await assertManagerOf(supabase, groupName);
+  if (!caller) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("profiles").select("groups").eq("id", targetMemberId).single();
+  if (!target) return { error: "Membre introuvable" };
+
+  const current = (target.groups as string[]) ?? [];
+  if (current.includes(groupName)) return { success: true };
+
+  const { error } = await admin.from("profiles")
+    .update({ groups: [...current, groupName] })
+    .eq("id", targetMemberId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/espace-membres/gestion-groupe");
+  return { success: true };
+}
+
+export async function removeMemberFromGroup(targetMemberId: string, groupName: string) {
+  if (!VALID_GROUPS.has(groupName)) return { error: "Groupe invalide" };
+
+  const supabase = createClient();
+  const caller = await assertManagerOf(supabase, groupName);
+  if (!caller) return { error: "Non autorisé" };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("profiles")
+    .select("groups, managed_groups").eq("id", targetMemberId).single();
+  if (!target) return { error: "Membre introuvable" };
+
+  const updGroups   = ((target.groups         as string[]) ?? []).filter(g => g !== groupName);
+  const updManaged  = ((target.managed_groups  as string[]) ?? []).filter(g => g !== groupName);
+
+  const { error } = await admin.from("profiles")
+    .update({ groups: updGroups, managed_groups: updManaged })
+    .eq("id", targetMemberId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/espace-membres/gestion-groupe");
   return { success: true };
 }

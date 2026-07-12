@@ -18,7 +18,7 @@ export default async function EspaceMembresPage() {
     { data: events },
   ] = await Promise.all([
     supabase.from("profiles")
-      .select("id, first_name, last_name, email, role, validated, groups, avatar_url")
+      .select("id, first_name, last_name, email, role, validated, groups, managed_groups, avatar_url")
       .eq("id", user.id)
       .single(),
     supabase.from("profiles")

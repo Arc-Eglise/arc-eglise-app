@@ -104,11 +104,13 @@ export async function replyToMessage(
   msgId: string,
   comment: string,
   toRecipients?: { emailAddress: { address: string; name?: string } }[],
+  ccRecipients?: { emailAddress: { address: string; name?: string } }[],
 ): Promise<void> {
   const payload: Record<string, unknown> = { comment };
-  if (toRecipients && toRecipients.length > 0) {
-    payload.message = { toRecipients };
-  }
+  const msgOverride: Record<string, unknown> = {};
+  if (toRecipients && toRecipients.length > 0) msgOverride.toRecipients = toRecipients;
+  if (ccRecipients && ccRecipients.length > 0) msgOverride.ccRecipients = ccRecipients;
+  if (Object.keys(msgOverride).length > 0) payload.message = msgOverride;
   await gfetch(`/users/${enc(mailbox)}/messages/${msgId}/reply`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -137,6 +139,7 @@ export async function sendMail(opts: {
   body: string;
   isHtml?: boolean;
   replyTo?: string;
+  cc?: string[];
 }): Promise<void> {
   const message: Record<string, unknown> = {
     subject: opts.subject,
@@ -145,6 +148,9 @@ export async function sendMail(opts: {
   };
   if (opts.replyTo) {
     message.replyTo = [{ emailAddress: { address: opts.replyTo } }];
+  }
+  if (opts.cc && opts.cc.length > 0) {
+    message.ccRecipients = opts.cc.map(a => ({ emailAddress: { address: a } }));
   }
   await gfetch(`/users/${enc(opts.from)}/sendMail`, {
     method: "POST",

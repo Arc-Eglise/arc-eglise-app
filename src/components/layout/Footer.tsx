@@ -32,6 +32,20 @@ export default async function Footer() {
   const supabase = createClient();
   const year = new Date().getFullYear();
 
+  // Vérifier si l'utilisateur est un membre validé (pour afficher les liens espace-membres)
+  let isMembre = false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: prof } = await supabase
+        .from("profiles").select("role, validated").eq("id", user.id).single();
+      isMembre =
+        prof?.role === "admin" ||
+        prof?.role === "pasteur" ||
+        (prof?.role === "membre" && prof?.validated === true);
+    }
+  } catch { /* pas d'impact si l'auth échoue */ }
+
   const s: Record<string, string> = {};
   try {
     const { data } = await supabase
@@ -133,24 +147,46 @@ export default async function Footer() {
             </div>
           </div>
 
-          {/* Communauté */}
-          <div>
-            <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#E6C763", fontWeight: 700, marginBottom: 18 }}>
-              Communauté
+          {/* Communauté — visible uniquement aux membres */}
+          {isMembre ? (
+            <div>
+              <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#E6C763", fontWeight: 700, marginBottom: 18 }}>
+                Communauté
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                {COMMUNITY.map((c) => (
+                  <a
+                    key={c.label}
+                    href={c.href}
+                    className="arc-footer-link"
+                    style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}
+                  >
+                    {c.label}
+                  </a>
+                ))}
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {COMMUNITY.map((c) => (
-                <a
-                  key={c.label}
-                  href={c.href}
-                  className="arc-footer-link"
-                  style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}
-                >
-                  {c.label}
+          ) : (
+            <div>
+              <div style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "#E6C763", fontWeight: 700, marginBottom: 18 }}>
+                Communauté
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                <a href="#contact" className="arc-footer-link" style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}>
+                  Nous rejoindre
                 </a>
-              ))}
+                <a href="#apropos" className="arc-footer-link" style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}>
+                  Qui sommes-nous
+                </a>
+                <a href="#evenements" className="arc-footer-link" style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}>
+                  Événements
+                </a>
+                <a href="/inscription" className="arc-footer-link" style={{ textDecoration: "none", color: "rgba(255,255,255,.7)", fontSize: 14 }}>
+                  Devenir membre
+                </a>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Contact */}
           <div>
