@@ -18,7 +18,19 @@ interface EventRow {
   price_chf: number;
   is_published: boolean;
   is_public: boolean;
+  recurrence_type: string | null;
+  recurrence_interval: number | null;
+  recurrence_end_date: string | null;
 }
+
+const REC_LABELS: Record<string, string> = {
+  none:       "Aucune",
+  daily:      "Quotidien",
+  weekly:     "Hebdomadaire",
+  monthly:    "Mensuel",
+  yearly:     "Annuel",
+  indefinite: "Indéfiniment",
+};
 
 const DEFAULT_LOCATION = "Av. Charles-Naine 39, La Chaux-de-Fonds";
 
@@ -34,6 +46,9 @@ interface FormState {
   price_chf: string;
   is_published: boolean;
   is_public: boolean;
+  recurrence_type: string;
+  recurrence_interval: string;
+  recurrence_end_date: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -48,6 +63,9 @@ const emptyForm = (): FormState => ({
   price_chf: "0",
   is_published: true,
   is_public: true,
+  recurrence_type: "none",
+  recurrence_interval: "1",
+  recurrence_end_date: "",
 });
 
 function formStateToFormData(f: FormState): FormData {
@@ -63,7 +81,12 @@ function formStateToFormData(f: FormState): FormData {
   fd.set("price_chf", f.price_chf || "0");
   if (!f.is_published) fd.set("is_published", "off");
   if (!f.is_public) fd.set("is_public", "off");
-  fd.set("recurrence_type", "none");
+  fd.set("recurrence_type", f.recurrence_type || "none");
+  if (f.recurrence_type !== "none") {
+    fd.set("recurrence_interval", f.recurrence_interval || "1");
+    if (f.recurrence_type !== "indefinite" && f.recurrence_end_date)
+      fd.set("recurrence_end_date", f.recurrence_end_date);
+  }
   return fd;
 }
 
@@ -80,6 +103,9 @@ function eventToFormState(ev: EventRow): FormState {
     price_chf: String(ev.price_chf ?? 0),
     is_published: ev.is_published,
     is_public: ev.is_public,
+    recurrence_type: ev.recurrence_type ?? "none",
+    recurrence_interval: String(ev.recurrence_interval ?? 1),
+    recurrence_end_date: ev.recurrence_end_date ?? "",
   };
 }
 
@@ -106,7 +132,7 @@ export function EventsManagerClient({ canManage }: Props) {
     const supabase = createClient();
     const { data } = await supabase
       .from("events")
-      .select("id, title, date, time_start, time_end, location, description, tags, capacity, price_chf, is_published, is_public")
+      .select("id, title, date, time_start, time_end, location, description, tags, capacity, price_chf, is_published, is_public, recurrence_type, recurrence_interval, recurrence_end_date")
       .order("date", { ascending: true });
     setEvents(data ?? []);
     setLoading(false);
@@ -321,6 +347,48 @@ export function EventsManagerClient({ canManage }: Props) {
             </Field>
           </div>
 
+          {/* ── Récurrence ── */}
+          <div className="border border-arc-border rounded-xl p-4 mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue mb-3">🔄 Récurrence</div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Field label="Type">
+                <select
+                  className={inputCls}
+                  value={form.recurrence_type}
+                  onChange={e => setForm(f => ({ ...f, recurrence_type: e.target.value }))}
+                >
+                  <option value="none">Aucune (événement unique)</option>
+                  <option value="daily">Quotidien</option>
+                  <option value="weekly">Hebdomadaire</option>
+                  <option value="monthly">Mensuel</option>
+                  <option value="yearly">Annuel</option>
+                  <option value="indefinite">Indéfiniment</option>
+                </select>
+              </Field>
+              {form.recurrence_type !== "none" && form.recurrence_type !== "indefinite" && (
+                <Field label="Tous les N…">
+                  <input
+                    type="number"
+                    min={1}
+                    className={inputCls}
+                    value={form.recurrence_interval}
+                    onChange={e => setForm(f => ({ ...f, recurrence_interval: e.target.value }))}
+                  />
+                </Field>
+              )}
+            </div>
+            {form.recurrence_type !== "none" && form.recurrence_type !== "indefinite" && (
+              <Field label="Date de fin (laisser vide = indéfini)">
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={form.recurrence_end_date}
+                  onChange={e => setForm(f => ({ ...f, recurrence_end_date: e.target.value }))}
+                />
+              </Field>
+            )}
+          </div>
+
           <div className="flex items-center gap-6 mb-4">
             <label className="flex items-center gap-2 text-sm text-arc-navy cursor-pointer">
               <input
@@ -393,6 +461,14 @@ export function EventsManagerClient({ canManage }: Props) {
                   )}
                   {!ev.is_public && (
                     <span className="text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full">interne</span>
+                  )}
+                  {ev.recurrence_type && ev.recurrence_type !== "none" && (
+                    <span className="text-xs bg-arc-blueBg text-arc-blue px-2 py-0.5 rounded-full">
+                      🔄 {REC_LABELS[ev.recurrence_type] ?? ev.recurrence_type}
+                      {ev.recurrence_type !== "indefinite" && (ev.recurrence_interval ?? 1) > 1
+                        ? ` ×${ev.recurrence_interval}`
+                        : ""}
+                    </span>
                   )}
                 </div>
                 <div className="text-xs text-arc-text2 mt-0.5">
