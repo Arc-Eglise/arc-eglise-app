@@ -1,6 +1,6 @@
-import { createClient }     from "@/lib/supabase/server";
-import { getAutoVerset }    from "@/lib/verses";
-import AnnouncementMarquee  from "./AnnouncementMarquee";
+import { createClient }              from "@/lib/supabase/server";
+import { getAutoVerset, getThemedVerset } from "@/lib/verses";
+import AnnouncementMarquee           from "./AnnouncementMarquee";
 
 export default async function AnnouncementBar() {
   const supabase = createClient();
@@ -20,7 +20,7 @@ export default async function AnnouncementBar() {
         .select("key, value")
         .in("key", [
           "culte_1_label", "culte_2_label", "culte_3_label",
-          "verset_reference", "verset_mode", "verset_auto_interval", "verset_manuel_expires_at",
+          "verset_reference", "verset_mode", "verset_auto_interval", "verset_manuel_expires_at", "verset_theme",
           "announcement_enabled",
           "announcement_welcome",
           "announcement_show_schedules",
@@ -67,8 +67,11 @@ export default async function AnnouncementBar() {
 
       if (mode === "manuel" && !isManuelExpired && s.verset_reference) {
         items.push(`Verset du jour : ${s.verset_reference}`);
+      } else if (mode === "thematique" && s.verset_theme) {
+        const v = getThemedVerset(s.verset_theme, interval);
+        items.push(`« ${v.text} » — ${v.ref}`);
       } else {
-        // mode auto, ou manuel expiré → rotation automatique
+        // mode auto, ou fallback → rotation automatique globale
         const v = getAutoVerset(interval);
         items.push(`« ${v.text} » — ${v.ref}`);
       }

@@ -1,5 +1,7 @@
+// ── Tous les versets (rotation automatique globale) ─────────────────────────
+
 export const DAILY_VERSES = [
-  // ── Existants (30) ──────────────────────────────────────────────────────────
+  // Existants
   {text:"Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.",ref:"Jean 3:16"},
   {text:"Je suis le chemin, la vérité et la vie. Nul ne vient au Père que par moi.",ref:"Jean 14:6"},
   {text:"Toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein.",ref:"Romains 8:28"},
@@ -30,8 +32,7 @@ export const DAILY_VERSES = [
   {text:"Remets ton sort à l'Éternel, mets en lui ta confiance, et il agira.",ref:"Psaume 37:5"},
   {text:"Je te loue de ce que je suis une créature si merveilleuse. Tes œuvres sont admirables.",ref:"Psaume 139:14"},
   {text:"Heureux les artisans de paix, car ils seront appelés fils de Dieu.",ref:"Matthieu 5:9"},
-
-  // ── Amour & Grâce ───────────────────────────────────────────────────────────
+  // Amour & Grâce
   {text:"Pour nous, nous l'aimons parce qu'il nous a aimés le premier.",ref:"1 Jean 4:19"},
   {text:"Mais Dieu prouve son amour envers nous, en ce que, lorsque nous étions encore des pécheurs, Christ est mort pour nous.",ref:"Romains 5:8"},
   {text:"Il n'y a pas de plus grand amour que de donner sa vie pour ses amis.",ref:"Jean 15:13"},
@@ -39,15 +40,13 @@ export const DAILY_VERSES = [
   {text:"Les bontés de l'Éternel ne sont pas épuisées, sa compassion ne s'est pas éteinte. Elle se renouvelle chaque matin. Ta fidélité est grande !",ref:"Lamentations 3:22-23"},
   {text:"Louez l'Éternel, car il est bon ! Car sa miséricorde dure à toujours.",ref:"Psaume 136:1"},
   {text:"Maintenant donc ces trois choses demeurent : la foi, l'espérance, l'amour ; mais la plus grande de ces choses, c'est l'amour.",ref:"1 Corinthiens 13:13"},
-
-  // ── Espérance & Confiance ────────────────────────────────────────────────────
+  // Espérance & Confiance
   {text:"Mais ceux qui se confient en l'Éternel renouvellent leur force. Ils prennent le vol comme les aigles ; ils courent et ne se lassent point, ils marchent et ne se fatiguent point.",ref:"Ésaïe 40:31"},
   {text:"Fais de l'Éternel tes délices, et il te donnera ce que ton cœur désire.",ref:"Psaume 37:4"},
   {text:"Ne vous inquiétez de rien ; mais en toutes choses faites connaître vos besoins à Dieu par des prières et des supplications, avec des actions de grâces.",ref:"Philippiens 4:6"},
   {text:"Je dis de l'Éternel : Il est mon refuge et ma forteresse, mon Dieu en qui je me confie.",ref:"Psaume 91:2"},
   {text:"Reconnais-le dans toutes tes voies, et il aplanira tes sentiers.",ref:"Proverbes 3:6"},
-
-  // ── Foi & Parole ─────────────────────────────────────────────────────────────
+  // Foi & Parole
   {text:"Or, sans la foi, il est impossible de lui être agréable ; car il faut que celui qui s'approche de Dieu croie que Dieu existe, et qu'il est le rémunérateur de ceux qui le cherchent.",ref:"Hébreux 11:6"},
   {text:"Car nous marchons par la foi et non par la vue.",ref:"2 Corinthiens 5:7"},
   {text:"Ainsi la foi vient de ce qu'on entend, et ce qu'on entend vient de la parole de Christ.",ref:"Romains 10:17"},
@@ -57,16 +56,15 @@ export const DAILY_VERSES = [
   {text:"Si vous aviez de la foi comme un grain de sénevé, vous diriez à cette montagne : Déplace-toi d'ici là, et elle se déplacerait ; rien ne vous serait impossible.",ref:"Matthieu 17:20"},
   {text:"Tout est possible à celui qui croit.",ref:"Marc 9:23"},
   {text:"Ne sois pas sage à tes propres yeux ; crains l'Éternel, et détourne-toi du mal.",ref:"Proverbes 3:7"},
-
-  // ── Prière & Louange ─────────────────────────────────────────────────────────
+  {text:"Si quelqu'un d'entre vous manque de sagesse, qu'il la demande à Dieu, qui donne à tous libéralement et sans reproche, et elle lui sera donnée.",ref:"Jacques 1:5"},
+  // Prière & Louange
   {text:"Demandez, et l'on vous donnera ; cherchez, et vous trouverez ; frappez, et l'on vous ouvrira.",ref:"Matthieu 7:7"},
   {text:"Sonde-moi, ô Dieu, et connais mon cœur ! Éprouve-moi et connais mes pensées ! Regarde si je suis sur une mauvaise voie, et conduis-moi sur la voie éternelle !",ref:"Psaume 139:23-24"},
   {text:"J'ai cherché l'Éternel, et il m'a répondu ; il m'a délivré de toutes mes frayeurs.",ref:"Psaume 34:4"},
   {text:"Soyez toujours joyeux. Priez sans cesse. Rendez grâces en toutes choses, car c'est à votre égard la volonté de Dieu en Jésus-Christ.",ref:"1 Thessaloniciens 5:16-18"},
   {text:"La prière fervente du juste a une grande efficace. Confessez vos péchés les uns aux autres, et priez les uns pour les autres, afin que vous soyez guéris.",ref:"Jacques 5:16"},
   {text:"Bénis l'Éternel, ô mon âme ! Que tout ce qui est en moi bénisse son saint nom !",ref:"Psaume 103:1"},
-
-  // ── Identité en Christ & Vie nouvelle ────────────────────────────────────────
+  // Identité en Christ & Vie nouvelle
   {text:"J'ai été crucifié avec Christ ; et si je vis, ce n'est plus moi qui vis, c'est Christ qui vit en moi ; si je vis maintenant dans la chair, je vis dans la foi au Fils de Dieu, qui m'a aimé et qui s'est livré lui-même pour moi.",ref:"Galates 2:20"},
   {text:"Si quelqu'un est en Christ, il est une nouvelle créature. Les choses anciennes sont passées ; voici, toutes choses sont devenues nouvelles.",ref:"2 Corinthiens 5:17"},
   {text:"Je vous exhorte donc, frères, par les compassions de Dieu, à offrir vos corps comme un sacrifice vivant, saint, agréable à Dieu, ce qui sera de votre part un culte raisonnable.",ref:"Romains 12:1"},
@@ -77,8 +75,7 @@ export const DAILY_VERSES = [
   {text:"Déchargez-vous sur lui de tous vos soucis, car lui-même prend soin de vous.",ref:"1 Pierre 5:7"},
   {text:"Je suis venu afin que les brebis aient la vie, et qu'elles l'aient en abondance.",ref:"Jean 10:10"},
   {text:"Si vous vous mettez en colère, ne péchez point ; que le soleil ne se couche pas sur votre colère.",ref:"Éphésiens 4:26"},
-
-  // ── Commandements & Sagesse morale ───────────────────────────────────────────
+  // Commandements & Sagesse morale
   {text:"Tu aimeras ton prochain comme toi-même. Je suis l'Éternel.",ref:"Lévitique 19:18"},
   {text:"On t'a fait connaître, ô homme, ce qui est bien ; et ce que l'Éternel demande de toi, c'est que tu pratiques la justice, que tu aimes la miséricorde, et que tu marches humblement avec ton Dieu.",ref:"Michée 6:8"},
   {text:"Garde ton cœur plus que toute autre chose, car de lui viennent les sources de la vie.",ref:"Proverbes 4:23"},
@@ -88,8 +85,7 @@ export const DAILY_VERSES = [
   {text:"Que tout homme soit prompt à écouter, lent à parler, lent à se mettre en colère.",ref:"Jacques 1:19"},
   {text:"Affectionnez-vous les uns aux autres avec amour fraternel ; rivalisez d'estime entre vous.",ref:"Romains 12:10"},
   {text:"Nous qui sommes forts, nous devons supporter les faiblesses de ceux qui ne le sont pas, et ne pas nous faire plaisir à nous-mêmes.",ref:"Romains 15:1"},
-
-  // ── Salut & Vie éternelle ────────────────────────────────────────────────────
+  // Salut & Vie éternelle
   {text:"Car le salaire du péché, c'est la mort ; mais le don gratuit de Dieu, c'est la vie éternelle en Jésus-Christ notre Seigneur.",ref:"Romains 6:23"},
   {text:"Si tu confesses de ta bouche le Seigneur Jésus, et si tu crois dans ton cœur que Dieu l'a ressuscité des morts, tu seras sauvé.",ref:"Romains 10:9"},
   {text:"Quiconque invoquera le nom du Seigneur sera sauvé.",ref:"Romains 10:13"},
@@ -98,8 +94,7 @@ export const DAILY_VERSES = [
   {text:"Il nous a sauvés, non à cause des œuvres de justice que nous aurions faites, mais selon sa miséricorde, par le bain de la régénération et le renouvellement du Saint-Esprit.",ref:"Tite 3:5"},
   {text:"Voici, je me tiens à la porte, et je frappe. Si quelqu'un entend ma voix et ouvre la porte, j'entrerai chez lui, je souperai avec lui, et lui avec moi.",ref:"Apocalypse 3:20"},
   {text:"Il essuiera toute larme de leurs yeux, et la mort ne sera plus, et il n'y aura plus ni deuil, ni cri, ni douleur, car les premières choses ont disparu.",ref:"Apocalypse 21:4"},
-
-  // ── Identité de Jésus-Christ & Esprit Saint ──────────────────────────────────
+  // Identité de Jésus-Christ & Esprit Saint
   {text:"Au commencement était la Parole, et la Parole était avec Dieu, et la Parole était Dieu.",ref:"Jean 1:1"},
   {text:"Et la Parole a été faite chair, et elle a habité parmi nous, pleine de grâce et de vérité.",ref:"Jean 1:14"},
   {text:"Il est l'image du Dieu invisible, le premier-né de toute la création.",ref:"Colossiens 1:15"},
@@ -110,8 +105,7 @@ export const DAILY_VERSES = [
   {text:"Et moi, je prierai le Père, et il vous donnera un autre consolateur, afin qu'il demeure éternellement avec vous.",ref:"Jean 14:16"},
   {text:"Marchez selon l'Esprit et vous n'accomplirez pas les désirs de la chair.",ref:"Galates 5:16"},
   {text:"Il y a diversité de dons, mais le même Esprit.",ref:"1 Corinthiens 12:4"},
-
-  // ── Révélation & Majesté de Dieu ─────────────────────────────────────────────
+  // Révélation & Majesté de Dieu
   {text:"Ô Éternel, notre Seigneur ! Que ton nom est magnifique sur toute la terre !",ref:"Psaume 8:2"},
   {text:"Les cieux racontent la gloire de Dieu, et l'étendue manifeste l'œuvre de ses mains.",ref:"Psaume 19:2"},
   {text:"L'Éternel est maître de la terre et de tout ce qu'elle renferme, du monde et de ceux qui l'habitent.",ref:"Psaume 24:1"},
@@ -122,16 +116,182 @@ export const DAILY_VERSES = [
   {text:"Car là où deux ou trois sont assemblés en mon nom, je suis au milieu d'eux.",ref:"Matthieu 18:20"},
   {text:"Allez, faites de toutes les nations des disciples, les baptisant au nom du Père, du Fils et du Saint-Esprit.",ref:"Matthieu 28:19"},
   {text:"Car c'est de lui, et par lui, et pour lui que sont toutes choses. À lui la gloire dans tous les siècles !",ref:"Romains 11:36"},
-
-  // ── Vie en communauté & Mission ──────────────────────────────────────────────
+  // Vie en communauté & Mission
   {text:"Ils persévéraient dans l'enseignement des apôtres, dans la communion des frères, dans la fraction du pain et dans les prières.",ref:"Actes 2:42"},
+  // Majesté & Fondements
+  {text:"Au commencement, Dieu créa les cieux et la terre.",ref:"Genèse 1:1"},
+  {text:"L'Éternel passa devant lui et s'écria : L'Éternel, l'Éternel, Dieu compatissant et bienveillant, lent à la colère, riche en bonté et en fidélité !",ref:"Exode 34:6"},
+  {text:"Écoute, Israël ! L'Éternel, notre Dieu, est le seul Éternel.",ref:"Deutéronome 6:4"},
+  {text:"Arrêtez, et sachez que je suis Dieu ! Je serai élevé parmi les nations, je serai élevé sur la terre.",ref:"Psaume 46:10"},
+  // Travail & Diligence
+  {text:"Quoi que vous fassiez, faites-le de bon cœur, comme pour le Seigneur et non pour des hommes.",ref:"Colossiens 3:23"},
 ];
 
-export function getAutoVerset(interval: "24" | "48" = "24") {
+// ── Définition des thèmes ────────────────────────────────────────────────────
+
+export interface VerseTheme {
+  id:    string;
+  label: string;
+  emoji: string;
+}
+
+export const VERSE_THEMES: VerseTheme[] = [
+  { id:"foi",             label:"La foi",                      emoji:"🙏" },
+  { id:"esperance",       label:"L'espérance",                 emoji:"🌅" },
+  { id:"priere",          label:"La prière",                   emoji:"🕊️" },
+  { id:"paix",            label:"La paix",                     emoji:"☮️" },
+  { id:"joie",            label:"La joie",                     emoji:"😊" },
+  { id:"famille",         label:"La famille & mariage",        emoji:"👨‍👩‍👧" },
+  { id:"amour",           label:"L'amour",                     emoji:"❤️" },
+  { id:"salut",           label:"La grâce & le salut",         emoji:"✝️" },
+  { id:"identite-christ", label:"L'identité en Christ",        emoji:"⭐" },
+  { id:"parole",          label:"La Parole de Dieu",           emoji:"📖" },
+  { id:"louange",         label:"La louange",                  emoji:"🎵" },
+  { id:"mission",         label:"La mission",                  emoji:"🌍" },
+  { id:"sagesse",         label:"La sagesse",                  emoji:"💡" },
+  { id:"saint-esprit",    label:"Le Saint-Esprit",             emoji:"🕊️" },
+  { id:"pardon",          label:"Le pardon",                   emoji:"🤍" },
+  { id:"enfants",         label:"Les enfants",                 emoji:"👶" },
+  { id:"travail",         label:"Le travail & la diligence",   emoji:"💪" },
+  { id:"argent",          label:"L'argent & la générosité",    emoji:"🌱" },
+  { id:"epreuves",        label:"Les épreuves",                emoji:"⚓" },
+];
+
+// ── Versets par thème (références) ──────────────────────────────────────────
+
+const VERSE_REFS_BY_THEME: Record<string, string[]> = {
+  foi: [
+    "Hébreux 11:1","Hébreux 11:6","Marc 9:23","Matthieu 17:20",
+    "2 Corinthiens 5:7","Romains 10:17","Jacques 1:5","Jacques 1:22",
+    "Proverbes 3:5","Proverbes 3:7","Jean 14:6","Proverbes 3:6",
+  ],
+  esperance: [
+    "Jérémie 29:11","Psaume 37:4","Psaume 37:5","Ésaïe 40:31","Ésaïe 40:29",
+    "Romains 8:28","Philippiens 4:13","Psaume 27:1","Psaume 121:7",
+    "Psaume 46:2","Romains 8:38-39","Ésaïe 41:10","Apocalypse 21:4",
+    "Lamentations 3:22-23","Psaume 91:1","Psaume 91:2",
+  ],
+  priere: [
+    "Matthieu 7:7","Philippiens 4:6","Philippiens 4:7","1 Jean 1:9",
+    "Psaume 139:23-24","Psaume 34:4","Jacques 5:16","Psaume 103:1",
+    "1 Thessaloniciens 5:16-18","Psaume 91:1","Psaume 91:2","Romains 8:28",
+    "Jacques 1:5",
+  ],
+  paix: [
+    "Philippiens 4:7","Ésaïe 41:10","Psaume 46:2","Matthieu 11:28",
+    "1 Pierre 5:7","Jean 14:16","Philippiens 4:4","Romains 12:12",
+    "Matthieu 5:9","Psaume 23:1","Psaume 27:1","Josué 1:9","Philippiens 4:6",
+  ],
+  joie: [
+    "Philippiens 4:4","1 Thessaloniciens 5:16-18","Psaume 103:1","Psaume 37:4",
+    "Luc 6:35","Romains 12:12","Psaume 136:1","Psaume 8:2","Psaume 19:2",
+    "Psaume 24:1","Matthieu 5:9","Jean 10:10","Lamentations 3:22-23",
+  ],
+  famille: [
+    "Proverbes 3:5","Proverbes 3:6","Proverbes 4:23","Luc 6:35",
+    "Matthieu 7:12","Romains 12:10","Lévitique 19:18","Éphésiens 4:26",
+    "1 Corinthiens 13:4","1 Corinthiens 13:13","Romains 15:1",
+    "Josué 1:9","Jacques 1:19","Éphésiens 2:10",
+  ],
+  amour: [
+    "Jean 3:16","1 Jean 4:19","Romains 5:8","Jean 15:13",
+    "Lamentations 3:22-23","Psaume 136:1","1 Corinthiens 13:4",
+    "1 Corinthiens 13:13","Matthieu 22:37","Lévitique 19:18",
+    "Jean 10:10","Romains 8:38-39","1 Jean 1:9","Luc 6:35",
+  ],
+  salut: [
+    "Éphésiens 2:8","Romains 6:23","Romains 10:9","Romains 10:13",
+    "Jean 11:25","Tite 3:5","Actes 4:12","Jean 10:28",
+    "Apocalypse 3:20","Apocalypse 21:4","Jean 3:16","Galates 2:20",
+    "2 Corinthiens 5:17","Hébreux 4:15","Ésaïe 53:5",
+  ],
+  "identite-christ": [
+    "Galates 2:20","2 Corinthiens 5:17","Jean 10:10","Éphésiens 2:10",
+    "Colossiens 1:15","Romains 12:1","Romains 12:2","Éphésiens 6:11",
+    "Colossiens 3:2","Galates 5:22-23","Galates 5:16","Psaume 139:14",
+    "Philippiens 2:5-7","Jean 14:6","Jean 11:25",
+  ],
+  parole: [
+    "Psaume 119:105","Matthieu 4:4","Matthieu 22:37","2 Timothée 3:16",
+    "Jacques 1:22","Hébreux 11:1","Romains 10:17","Jean 14:6",
+    "Jean 1:1","Jean 1:14","Hébreux 1:3","Proverbes 3:5",
+  ],
+  louange: [
+    "Psaume 103:1","Psaume 8:2","Psaume 19:2","Psaume 24:1",
+    "Ésaïe 6:3","Romains 11:36","Philippiens 4:4","Psaume 136:1",
+    "Psaume 139:14","Psaume 46:2","Psaume 37:4","Psaume 23:1",
+  ],
+  mission: [
+    "Matthieu 28:19","Actes 1:8","Matthieu 5:16","Matthieu 5:9",
+    "Actes 2:42","Romains 12:10","Jean 3:16","Actes 4:12",
+    "Matthieu 18:20","Lévitique 19:18","Luc 6:35","Michée 6:8",
+  ],
+  sagesse: [
+    "Proverbes 3:5","Proverbes 3:6","Proverbes 3:7","Proverbes 4:23",
+    "Jacques 1:5","Jacques 1:19","Michée 6:8","Matthieu 7:12",
+    "Ésaïe 55:8-9","Psaume 37:4","Romains 12:2","Éphésiens 4:26",
+    "Jacques 1:22",
+  ],
+  "saint-esprit": [
+    "Actes 1:8","Jean 14:16","Galates 5:22-23","Galates 5:16",
+    "1 Corinthiens 12:4","Romains 12:1","Romains 12:2","Éphésiens 6:11",
+    "Jean 14:6","Hébreux 4:15","Romains 8:28","Jean 3:16",
+  ],
+  pardon: [
+    "1 Jean 1:9","Romains 5:8","Ésaïe 53:5","Romains 6:23",
+    "Tite 3:5","Apocalypse 3:20","Exode 34:6","Jean 3:16",
+    "Psaume 103:1","Lamentations 3:22-23","Hébreux 4:15",
+    "2 Corinthiens 5:17","Galates 2:20",
+  ],
+  enfants: [
+    "Psaume 139:14","Matthieu 11:28","Psaume 23:1","Proverbes 3:5",
+    "Deutéronome 6:4","Éphésiens 2:10","Matthieu 5:9","Psaume 91:1",
+    "1 Jean 4:19","Jean 10:10","Josué 1:9","Proverbes 4:23",
+  ],
+  travail: [
+    "Colossiens 3:23","Matthieu 5:16","Philippiens 4:13","Éphésiens 2:10",
+    "Josué 1:9","Proverbes 3:6","Matthieu 6:33","Romains 12:1",
+    "Proverbes 4:23","Galates 5:22-23","Michée 6:8","Colossiens 3:2",
+  ],
+  argent: [
+    "Matthieu 6:33","Luc 6:35","Malachie 3:10","Proverbes 3:5",
+    "Proverbes 3:6","Éphésiens 2:10","Colossiens 3:23","Psaume 37:4",
+    "Jean 10:10","Romains 12:10","Michée 6:8",
+  ],
+  epreuves: [
+    "Romains 8:28","Philippiens 4:13","Ésaïe 41:10","Psaume 46:2",
+    "Psaume 46:10","Psaume 27:1","Hébreux 4:15","1 Pierre 5:7",
+    "Romains 8:38-39","Lamentations 3:22-23","Ésaïe 40:31","Ésaïe 40:29",
+    "Josué 1:9","Psaume 34:4","Matthieu 11:28",
+  ],
+};
+
+// Index rapide pour lookup par référence
+const VERSE_BY_REF: Record<string, typeof DAILY_VERSES[0]> = {};
+for (const v of DAILY_VERSES) VERSE_BY_REF[v.ref] = v;
+
+// Dictionnaire thème → versets
+export const THEMED_VERSES: Record<string, typeof DAILY_VERSES> = {};
+for (const [theme, refs] of Object.entries(VERSE_REFS_BY_THEME)) {
+  THEMED_VERSES[theme] = refs.map(r => VERSE_BY_REF[r]).filter(Boolean);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function dayIndex(interval: "24" | "48"): number {
   const now = new Date();
   const doy = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
-  const idx = interval === "48"
-    ? Math.floor(doy / 2) % DAILY_VERSES.length
-    : doy % DAILY_VERSES.length;
+  return interval === "48" ? Math.floor(doy / 2) : doy;
+}
+
+export function getAutoVerset(interval: "24" | "48" = "24") {
+  const idx = dayIndex(interval) % DAILY_VERSES.length;
   return DAILY_VERSES[idx];
+}
+
+export function getThemedVerset(theme: string, interval: "24" | "48" = "24") {
+  const verses = THEMED_VERSES[theme];
+  if (!verses || verses.length === 0) return getAutoVerset(interval);
+  const idx = dayIndex(interval) % verses.length;
+  return verses[idx];
 }

@@ -335,7 +335,7 @@ const ALLOWED_SETTINGS = [
   "announcement_enabled", "announcement_welcome",
   "announcement_show_schedules", "announcement_show_events", "announcement_show_verset",
   // Mode du verset du jour
-  "verset_mode", "verset_auto_interval", "verset_manuel_expires_at",
+  "verset_mode", "verset_auto_interval", "verset_manuel_expires_at", "verset_theme",
 ] as const;
 
 export async function updateSiteSettings(formData: FormData) {

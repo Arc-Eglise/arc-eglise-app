@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
-import { DAILY_VERSES, getAutoVerset } from "@/lib/verses";
+import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVerset } from "@/lib/verses";
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
@@ -297,8 +297,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [majInfoCulte,     setMajInfoCulte]      = useState("");
   const [majInfoVersetRef,      setMajInfoVersetRef]      = useState("");
   const [majInfoVersetTxt,      setMajInfoVersetTxt]      = useState("");
-  const [majInfoVersetMode,       setMajInfoVersetMode]       = useState<"auto"|"manuel">("auto");
+  const [majInfoVersetMode,       setMajInfoVersetMode]       = useState<"auto"|"thematique"|"manuel">("auto");
   const [majInfoVersetInterval,   setMajInfoVersetInterval]   = useState<"24"|"48">("24");
+  const [majInfoVersetTheme,      setMajInfoVersetTheme]      = useState("foi");
   const [majInfoVersetExpireDays, setMajInfoVersetExpireDays] = useState(3);
   const [majInfoVersetExpiresAt,  setMajInfoVersetExpiresAt]  = useState<string|null>(null);
   const [majInfoSaving,           setMajInfoSaving]           = useState(false);
@@ -647,9 +648,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
         if (vals.verset_reference)   setMajInfoVersetRef(vals.verset_reference);
         if (vals.verset_du_jour)     setMajInfoVersetTxt(vals.verset_du_jour);
         if (vals.verset_mode === "manuel") setMajInfoVersetMode("manuel");
+        else if (vals.verset_mode === "thematique") setMajInfoVersetMode("thematique");
         else setMajInfoVersetMode("auto");
         if (vals.verset_auto_interval === "48") setMajInfoVersetInterval("48");
         else setMajInfoVersetInterval("24");
+        if (vals.verset_theme) setMajInfoVersetTheme(vals.verset_theme);
         setMajInfoVersetExpiresAt(vals.verset_manuel_expires_at ?? null);
       } catch { /* silencieux */ }
     })();
@@ -872,6 +875,9 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
     const fd = new FormData();
     fd.set("verset_mode",          majInfoVersetMode);
     fd.set("verset_auto_interval", majInfoVersetInterval);
+    if (majInfoVersetMode === "thematique") {
+      fd.set("verset_theme", majInfoVersetTheme);
+    }
     if (majInfoVersetMode === "manuel") {
       fd.set("verset_reference", majInfoVersetRef);
       fd.set("verset_du_jour",   majInfoVersetTxt);
@@ -3419,20 +3425,35 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                   <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Le verset s&apos;affiche dans la bannière défilante du site. Choisissez le mode d&apos;affichage.</div>
 
                   {/* ── Sélecteur de mode ── */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
                     {/* Automatique */}
                     <button
                       type="button"
                       onClick={()=>setMajInfoVersetMode("auto")}
                       style={{
-                        padding:"12px 10px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
+                        padding:"12px 8px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
                         border: majInfoVersetMode==="auto" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
                         background: majInfoVersetMode==="auto" ? "#eff1fa" : "#f7f8fc",
                       }}
                     >
                       <div style={{fontSize:20,marginBottom:4}}>🤖</div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>Automatique</div>
-                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Verset aléatoire — change automatiquement à 0h00</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Automatique</div>
+                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Verset aléatoire — change à 0h00</div>
+                    </button>
+
+                    {/* Thématique */}
+                    <button
+                      type="button"
+                      onClick={()=>setMajInfoVersetMode("thematique")}
+                      style={{
+                        padding:"12px 8px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
+                        border: majInfoVersetMode==="thematique" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                        background: majInfoVersetMode==="thematique" ? "#eff1fa" : "#f7f8fc",
+                      }}
+                    >
+                      <div style={{fontSize:20,marginBottom:4}}>📚</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Thématique</div>
+                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Versets d&apos;un thème choisi</div>
                     </button>
 
                     {/* Manuel */}
@@ -3440,14 +3461,14 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                       type="button"
                       onClick={()=>setMajInfoVersetMode("manuel")}
                       style={{
-                        padding:"12px 10px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
+                        padding:"12px 8px",borderRadius:12,textAlign:"left",cursor:"pointer",transition:"all .15s",
                         border: majInfoVersetMode==="manuel" ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
                         background: majInfoVersetMode==="manuel" ? "#eff1fa" : "#f7f8fc",
                       }}
                     >
                       <div style={{fontSize:20,marginBottom:4}}>✍️</div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>Manuel</div>
-                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Le pasteur choisit le verset affiché</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Manuel</div>
+                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Le pasteur choisit le verset</div>
                     </button>
                   </div>
 
@@ -3489,6 +3510,47 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
                         return (
                           <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
                             <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui</div>
+                            <div style={{fontSize:12,color:"#1e2464",fontStyle:"italic",lineHeight:1.5}}>« {preview.text} »</div>
+                            <div style={{fontSize:11,color:"#8890aa",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {majInfoVersetMode==="thematique" && (
+                    <div style={{background:"#f7f8fc",borderRadius:12,padding:"14px 14px 10px",marginBottom:14,border:"1.5px solid #e2e5f0"}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Choisir un thème</div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
+                        {VERSE_THEMES.map(t=>(
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={()=>setMajInfoVersetTheme(t.id)}
+                            style={{
+                              padding:"8px 10px",borderRadius:10,cursor:"pointer",transition:"all .15s",textAlign:"left",
+                              border: majInfoVersetTheme===t.id ? "2px solid #1e2464" : "1.5px solid #e2e5f0",
+                              background: majInfoVersetTheme===t.id ? "#1e2464" : "#fff",
+                              color: majInfoVersetTheme===t.id ? "#fff" : "#1e2464",
+                              fontWeight:600,fontSize:12,
+                            }}
+                          >
+                            <span style={{marginRight:6}}>{t.emoji}</span>{t.label}
+                            <span style={{fontSize:10,opacity:.7,marginLeft:4}}>({THEMED_VERSES[t.id]?.length ?? 0})</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Fréquence de changement</div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                        <button type="button" onClick={()=>setMajInfoVersetInterval("24")} style={{padding:"8px",borderRadius:10,cursor:"pointer",transition:"all .15s",border:majInfoVersetInterval==="24"?"2px solid #1e2464":"1.5px solid #e2e5f0",background:majInfoVersetInterval==="24"?"#1e2464":"#fff",color:majInfoVersetInterval==="24"?"#fff":"#1e2464",fontWeight:700,fontSize:13}}>🔄 Toutes les 24h</button>
+                        <button type="button" onClick={()=>setMajInfoVersetInterval("48")} style={{padding:"8px",borderRadius:10,cursor:"pointer",transition:"all .15s",border:majInfoVersetInterval==="48"?"2px solid #1e2464":"1.5px solid #e2e5f0",background:majInfoVersetInterval==="48"?"#1e2464":"#fff",color:majInfoVersetInterval==="48"?"#fff":"#1e2464",fontWeight:700,fontSize:13}}>🔄 Toutes les 48h</button>
+                      </div>
+                      {/* Aperçu */}
+                      {(() => {
+                        const preview = getThemedVerset(majInfoVersetTheme, majInfoVersetInterval);
+                        return (
+                          <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
+                            <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui ({VERSE_THEMES.find(t=>t.id===majInfoVersetTheme)?.label})</div>
                             <div style={{fontSize:12,color:"#1e2464",fontStyle:"italic",lineHeight:1.5}}>« {preview.text} »</div>
                             <div style={{fontSize:11,color:"#8890aa",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
                           </div>
