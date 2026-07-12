@@ -340,18 +340,38 @@ export async function addMemberNote(formData: FormData) {
   const user = await assertAdmin(supabase);
   if (!user) return { error: "Non autorisé" };
 
-  const member_id = formData.get("member_id") as string;
-  const content   = (formData.get("content") as string)?.trim();
-  const type      = (formData.get("type") as string) || "general";
+  const member_id    = formData.get("member_id") as string;
+  const content      = (formData.get("content") as string)?.trim();
+  const type         = (formData.get("type") as string) || "general";
+  const followup_raw = (formData.get("followup_date") as string)?.trim();
+  const followup_date = followup_raw || null;
 
   if (!content) return { error: "Contenu requis" };
 
-  const { error } = await supabase.from("member_notes").insert({
-    member_id, author_id: user.id, content, type,
-  });
+  const row: Record<string, unknown> = { member_id, author_id: user.id, content, type };
+  if (followup_date) row.followup_date = followup_date;
+
+  const { error } = await supabase.from("member_notes").insert(row);
 
   if (error) return { error: error.message };
   revalidatePath(`/espace-membres/crm/${member_id}`);
+  revalidatePath("/espace-membres/crm");
+  return { success: true };
+}
+
+const PASTORAL_STAGES = ["visiteur","integration","actif","formation","responsable"] as const;
+
+export async function updatePastoralStage(memberId: string, stage: string) {
+  const supabase = createClient();
+  const user = await assertAdmin(supabase);
+  if (!user) return { error: "Non autorisé" };
+  if (!(PASTORAL_STAGES as readonly string[]).includes(stage)) return { error: "Étape invalide" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ pastoral_stage: stage }).eq("id", memberId);
+  if (error) return { error: error.message };
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  revalidatePath("/espace-membres/crm");
   return { success: true };
 }
 

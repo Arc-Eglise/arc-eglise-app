@@ -3,9 +3,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager } from "@/lib/actions/membres";
+import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import CrmTagsEditor from "../CrmTagsEditor";
+
+const STAGES: { key: string; label: string; color: string }[] = [
+  { key: "visiteur",    label: "Visiteur",     color: "text-gray-600 bg-gray-50 border-gray-200"       },
+  { key: "integration", label: "Intégration",  color: "text-amber-700 bg-amber-50 border-amber-200"    },
+  { key: "actif",       label: "Membre actif", color: "text-green-700 bg-green-50 border-green-200"    },
+  { key: "formation",   label: "Formation",    color: "text-blue-700 bg-blue-50 border-blue-200"       },
+  { key: "responsable", label: "Responsable",  color: "text-purple-700 bg-purple-50 border-purple-200" },
+];
+const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
 
 const ALL_GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 const GROUP_LABELS_LOCAL: Record<string,string> = {
@@ -50,7 +59,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
   const { data: member } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, role, validated, groups, managed_groups, avatar_url, country, crm_tags, created_at, email")
+    .select("id, first_name, last_name, role, validated, groups, managed_groups, avatar_url, country, crm_tags, created_at, email, pastoral_stage")
     .eq("id", params.id)
     .single();
 
@@ -68,7 +77,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   // Fetch notes, attendance, prayer stats + ban status in parallel
   const [notesRes, attendRes, prayerRes, rsvpRes, authData] = await Promise.all([
     supabase.from("member_notes")
-      .select("id, content, type, created_at, profiles!member_notes_author_id_fkey(first_name, last_name)")
+      .select("id, content, type, created_at, followup_date, profiles!member_notes_author_id_fkey(first_name, last_name)")
       .eq("member_id", params.id)
       .order("created_at", { ascending: false }),
     supabase.from("event_attendance")
@@ -136,6 +145,13 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     "use server";
     await revokeGroupManager(formData.get("targetId") as string, formData.get("groupName") as string);
   }
+
+  async function handleUpdateStage(formData: FormData): Promise<void> {
+    "use server";
+    await updatePastoralStage(params.id, formData.get("pastoral_stage") as string);
+  }
+
+  const currentStage = STAGE_MAP[(member.pastoral_stage as string | null) ?? "visiteur"] ?? STAGE_MAP["visiteur"];
 
   return (
     <div className="max-w-4xl">
@@ -317,6 +333,27 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
             </div>
           )}
 
+          {/* Suivi pastoral */}
+          <div className="bg-white border border-arc-border rounded-2xl p-5">
+            <h2 className="font-bold text-arc-navy mb-1">🕊️ Suivi pastoral</h2>
+            <p className="text-[11px] text-arc-text3 mb-3">Étape de progression dans la communauté</p>
+            <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border inline-flex items-center gap-2 mb-4 ${currentStage.color}`}>
+              <span>{currentStage.label}</span>
+            </div>
+            <form action={handleUpdateStage} className="flex gap-2">
+              <select name="pastoral_stage" defaultValue={member.pastoral_stage ?? "visiteur"}
+                className="flex-1 px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white">
+                {STAGES.map(s => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+              <button type="submit"
+                className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors flex-shrink-0">
+                OK
+              </button>
+            </form>
+          </div>
+
           {/* Tags CRM */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-3">🏷️ Tags pastoraux</h2>
@@ -330,10 +367,15 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
             {/* Ajouter une note */}
             <form action={handleAddNote} className="mb-5 space-y-2">
               <input type="hidden" name="member_id" value={member.id} />
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <select name="type" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
                   {NOTE_TYPES.map(t => <option key={t.val} value={t.val}>{t.label}</option>)}
                 </select>
+                <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
+                  <label className="text-[10px] font-bold text-arc-text3 whitespace-nowrap">Relance le :</label>
+                  <input type="date" name="followup_date"
+                    className="flex-1 px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy transition-colors bg-white" />
+                </div>
               </div>
               <textarea
                 name="content" required maxLength={2000} rows={3}
@@ -351,14 +393,24 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 <p className="text-sm text-arc-text3">Aucune note pour ce membre.</p>
               )}
               {notes.map(n => {
-                type NoteWithAuthor = typeof n & { profiles?: { first_name: string | null; last_name: string | null } | null };
+                type NoteWithAuthor = typeof n & {
+                  profiles?: { first_name: string | null; last_name: string | null } | null;
+                  followup_date?: string | null;
+                };
                 const note = n as NoteWithAuthor;
                 const authorName = [note.profiles?.first_name, note.profiles?.last_name].filter(Boolean).join(" ") || "Admin";
+                const hasRelance = !!note.followup_date;
+                const relancePast = hasRelance && new Date(note.followup_date! + "T00:00:00") < new Date();
                 return (
-                  <div key={n.id} className="bg-arc-bg rounded-xl p-3 relative group">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div key={n.id} className={`rounded-xl p-3 relative group ${hasRelance ? "bg-amber-50 border border-amber-200" : "bg-arc-bg"}`}>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-[10px] font-bold text-arc-blue uppercase tracking-wider">{n.type}</span>
                       <span className="text-[10px] text-arc-text3">· {authorName} · {new Date(n.created_at).toLocaleDateString("fr-CH")}</span>
+                      {hasRelance && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${relancePast ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                          🔔 {relancePast ? "En retard" : "Relance"} : {new Date(note.followup_date! + "T00:00:00").toLocaleDateString("fr-CH")}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-arc-navy leading-relaxed">{n.content}</p>
                     <form action={handleDeleteNote} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
