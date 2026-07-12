@@ -131,7 +131,7 @@ export default async function AdminEvenements({
           <h2 className="font-bold text-arc-navy mb-4">
             {editing ? `✏️ Modifier : ${editing.title}` : "Ajouter un événement"}
           </h2>
-          <form action={editing ? handleUpdate : handleCreate} className="flex flex-col gap-3">
+          <form action={editing ? handleUpdate : handleCreate} className="flex flex-col gap-3" encType="multipart/form-data">
             {editing && <input type="hidden" name="_id" value={editing.id} />}
 
             <div>
@@ -189,6 +189,21 @@ export default async function AdminEvenements({
               <label className="block text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-1">Description</label>
               <textarea name="description" rows={2} defaultValue={editing?.description ?? ""} placeholder="Détails…"
                 className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy transition-colors resize-none" />
+            </div>
+
+            {/* ── Image ── */}
+            <div className="border border-arc-border rounded-xl p-3">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-2">🖼 Image de l&apos;événement</div>
+              {editing?.image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={editing.image_url} alt="" className="w-full h-32 object-cover rounded-lg mb-2" />
+              )}
+              <input name="image_file" type="file" accept="image/*"
+                className="w-full text-xs text-arc-text2 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border file:border-arc-border file:text-xs file:bg-white hover:file:bg-gray-50 cursor-pointer" />
+              {editing?.image_url && (
+                <input type="hidden" name="image_url" value={editing.image_url} />
+              )}
+              <p className="text-[10px] text-arc-text3 mt-1">JPG, PNG, WebP — laissez vide pour garder l&apos;image existante</p>
             </div>
 
             {/* ── Récurrence ── */}

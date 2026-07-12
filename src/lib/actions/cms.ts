@@ -119,6 +119,13 @@ export async function createEvent(formData: FormData) {
 
   const recType = (formData.get("recurrence_type") as string) || "none";
 
+  const imageFile = formData.get("image_file") as File | null;
+  let image_url: string | null = (formData.get("image_url") as string) || null;
+  if (imageFile && imageFile.size > 0) {
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    image_url = await uploadToStorage("media", `events/${Date.now()}.${ext}`, imageFile);
+  }
+
   const { error } = await supabase.from("events").insert({
     title:               formData.get("title")       as string,
     description:         formData.get("description") as string || null,
@@ -129,6 +136,7 @@ export async function createEvent(formData: FormData) {
     capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
     price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
     tags,
+    image_url,
     is_public:           formData.get("is_public")    !== "off",
     is_published:        formData.get("is_published") !== "off",
     recurrence_type:     recType,
@@ -154,6 +162,13 @@ export async function updateEvent(id: string, formData: FormData) {
   const tags = tagsRaw ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean) : [];
   const recType = (formData.get("recurrence_type") as string) || "none";
 
+  const imageFile = formData.get("image_file") as File | null;
+  let image_url: string | null = (formData.get("image_url") as string) || null;
+  if (imageFile && imageFile.size > 0) {
+    const ext = imageFile.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    image_url = await uploadToStorage("media", `events/${Date.now()}.${ext}`, imageFile);
+  }
+
   const { error } = await supabase.from("events").update({
     title:               formData.get("title")       as string,
     description:         formData.get("description") as string || null,
@@ -164,6 +179,7 @@ export async function updateEvent(id: string, formData: FormData) {
     capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
     price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
     tags,
+    image_url,
     is_public:           formData.get("is_public")    !== "off",
     is_published:        formData.get("is_published") !== "off",
     recurrence_type:     recType,

@@ -18,6 +18,7 @@ interface EventRow {
   price_chf: number;
   is_published: boolean;
   is_public: boolean;
+  image_url: string | null;
   recurrence_type: string | null;
   recurrence_interval: number | null;
   recurrence_end_date: string | null;
@@ -46,6 +47,7 @@ interface FormState {
   price_chf: string;
   is_published: boolean;
   is_public: boolean;
+  image_url: string;
   recurrence_type: string;
   recurrence_interval: string;
   recurrence_end_date: string;
@@ -63,6 +65,7 @@ const emptyForm = (): FormState => ({
   price_chf: "0",
   is_published: true,
   is_public: true,
+  image_url: "",
   recurrence_type: "none",
   recurrence_interval: "1",
   recurrence_end_date: "",
@@ -81,6 +84,7 @@ function formStateToFormData(f: FormState): FormData {
   fd.set("price_chf", f.price_chf || "0");
   if (!f.is_published) fd.set("is_published", "off");
   if (!f.is_public) fd.set("is_public", "off");
+  if (f.image_url) fd.set("image_url", f.image_url);
   fd.set("recurrence_type", f.recurrence_type || "none");
   if (f.recurrence_type !== "none") {
     fd.set("recurrence_interval", f.recurrence_interval || "1");
@@ -103,6 +107,7 @@ function eventToFormState(ev: EventRow): FormState {
     price_chf: String(ev.price_chf ?? 0),
     is_published: ev.is_published,
     is_public: ev.is_public,
+    image_url: ev.image_url ?? "",
     recurrence_type: ev.recurrence_type ?? "none",
     recurrence_interval: String(ev.recurrence_interval ?? 1),
     recurrence_end_date: ev.recurrence_end_date ?? "",
@@ -121,6 +126,8 @@ export function EventsManagerClient({ canManage }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -132,7 +139,7 @@ export function EventsManagerClient({ canManage }: Props) {
     const supabase = createClient();
     const { data } = await supabase
       .from("events")
-      .select("id, title, date, time_start, time_end, location, description, tags, capacity, price_chf, is_published, is_public, recurrence_type, recurrence_interval, recurrence_end_date")
+      .select("id, title, date, time_start, time_end, location, description, tags, capacity, price_chf, is_published, is_public, image_url, recurrence_type, recurrence_interval, recurrence_end_date")
       .order("date", { ascending: true });
     setEvents(data ?? []);
     setLoading(false);
@@ -147,6 +154,8 @@ export function EventsManagerClient({ canManage }: Props) {
   function openAdd() {
     setEditingId(null);
     setForm(emptyForm());
+    setImageFile(null);
+    setImagePreview(null);
     setError(null);
     setSuccess(null);
     setShowForm(true);
@@ -155,6 +164,8 @@ export function EventsManagerClient({ canManage }: Props) {
   function openEdit(ev: EventRow) {
     setEditingId(ev.id);
     setForm(eventToFormState(ev));
+    setImageFile(null);
+    setImagePreview(ev.image_url ?? null);
     setError(null);
     setSuccess(null);
     setShowForm(true);
@@ -163,7 +174,24 @@ export function EventsManagerClient({ canManage }: Props) {
   function closeForm() {
     setShowForm(false);
     setEditingId(null);
+    setImageFile(null);
+    setImagePreview(null);
     setError(null);
+  }
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    }
+    e.target.value = "";
+  }
+
+  function clearImage() {
+    setImageFile(null);
+    setImagePreview(null);
+    setForm(f => ({ ...f, image_url: "" }));
   }
 
   async function handleSubmit() {
@@ -172,6 +200,7 @@ export function EventsManagerClient({ canManage }: Props) {
     setSaving(true);
     setError(null);
     const fd = formStateToFormData(form);
+    if (imageFile) fd.set("image_file", imageFile);
     let result: { error?: string; success?: boolean } | undefined;
     if (editingId) {
       result = await updateEvent(editingId, fd);
@@ -316,6 +345,42 @@ export function EventsManagerClient({ canManage }: Props) {
             />
           </Field>
 
+          {/* ── Image ── */}
+          <div className="border border-arc-border rounded-xl p-4 mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue mb-3">🖼 Image de l'événement</div>
+
+            {imagePreview && (
+              <div className="relative mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePreview}
+                  alt="Aperçu"
+                  className="w-full h-44 object-cover rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute top-2 right-2 bg-white/90 hover:bg-white text-arc-text3 hover:text-red-500 rounded-full w-7 h-7 flex items-center justify-center text-sm shadow transition"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <span className="px-3 py-1.5 text-xs font-semibold border border-arc-border rounded-lg hover:bg-gray-50 transition text-arc-navy">
+                📁 {imagePreview ? "Changer l'image" : "Choisir une image"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+            </label>
+            <p className="text-[10px] text-arc-text3 mt-1.5">JPG, PNG, WebP — max 5 Mo recommandé</p>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <Field label="Tags (virgule-séparés)">
               <input
@@ -442,15 +507,24 @@ export function EventsManagerClient({ canManage }: Props) {
               key={ev.id}
               className="bg-white border border-arc-border rounded-xl px-4 py-3 flex items-center gap-3"
             >
-              {/* Date badge */}
-              <div className="flex-shrink-0 w-12 text-center">
-                <div className="text-xs font-bold text-arc-blue uppercase leading-tight">
-                  {new Date(ev.date + "T00:00:00").toLocaleDateString("fr-CH", { month: "short" })}
+              {/* Thumbnail */}
+              {ev.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={ev.image_url}
+                  alt=""
+                  className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                />
+              ) : (
+                <div className="flex-shrink-0 w-12 text-center">
+                  <div className="text-xs font-bold text-arc-blue uppercase leading-tight">
+                    {new Date(ev.date + "T00:00:00").toLocaleDateString("fr-CH", { month: "short" })}
+                  </div>
+                  <div className="text-lg font-bold text-arc-navy leading-tight">
+                    {new Date(ev.date + "T00:00:00").getDate()}
+                  </div>
                 </div>
-                <div className="text-lg font-bold text-arc-navy leading-tight">
-                  {new Date(ev.date + "T00:00:00").getDate()}
-                </div>
-              </div>
+              )}
 
               {/* Info */}
               <div className="flex-1 min-w-0">

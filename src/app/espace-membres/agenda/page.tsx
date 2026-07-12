@@ -26,10 +26,10 @@ export default async function AgendaPage() {
 
   const [upcomingRes, pastRes, myRsvpRes, myAttendRes] = await Promise.all([
     supabase.from("events")
-      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags")
+      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags, image_url")
       .eq("is_published", true).gte("date", today).order("date"),
     supabase.from("events")
-      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags")
+      .select("id, title, description, date, time_start, time_end, location, capacity, price_chf, tags, image_url")
       .eq("is_published", true).gte("date", past30).lt("date", today).order("date", { ascending: false }),
     supabase.from("event_rsvp").select("event_id, status").eq("user_id", user.id),
     supabase.from("event_attendance").select("event_id, checked_in_at").eq("user_id", user.id),

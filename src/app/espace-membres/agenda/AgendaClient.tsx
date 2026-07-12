@@ -19,6 +19,7 @@ interface EventCardProps {
     capacity: number | null;
     price_chf: number;
     tags: string[];
+    image_url?: string | null;
   };
   myRsvp: RsvpStatus;
   counts: RsvpCounts;
@@ -192,7 +193,12 @@ export function EventCard({ event: ev, myRsvp, counts, attendCount, myCheckedIn,
   const d = new Date(ev.date + "T00:00:00");
 
   return (
-    <div className={`bg-white border rounded-2xl p-5 flex gap-5 ${isPast ? "border-arc-border opacity-80" : "border-arc-border"}`}>
+    <div className={`bg-white border rounded-2xl overflow-hidden ${isPast ? "border-arc-border opacity-80" : "border-arc-border"}`}>
+      {ev.image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={ev.image_url} alt={ev.title} className="w-full h-44 object-cover" />
+      )}
+      <div className="p-5 flex gap-5">
       <div className={`flex-shrink-0 text-center rounded-xl px-4 py-3 min-w-[64px] ${isPast ? "bg-gray-100" : "bg-arc-blueBg"}`}>
         <div className={`font-serif text-3xl font-bold leading-none ${isPast ? "text-arc-text3" : "text-arc-navy"}`}>
           {d.getDate()}
@@ -266,6 +272,7 @@ export function EventCard({ event: ev, myRsvp, counts, attendCount, myCheckedIn,
           />
         )}
       </div>
+    </div>
     </div>
   );
 }
