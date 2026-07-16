@@ -14,10 +14,6 @@ export interface ExternalVerse {
 
 // ── API.Bible (nécessite API_BIBLE_KEY) ─────────────────────────────────────
 
-const API_BIBLE_KEY = process.env.BIBLE_API_KEY
-const API_BIBLE_URL = process.env.BIBLE_API_BASE ?? 'https://api.scripture.api.bible/v1'
-const DEFAULT_BIBLE_ID = process.env.BIBLE_DEFAULT_ID ?? BIBLE_IDS.LSG
-
 // Bible IDs utiles pour ARC Église (Français + Anglais)
 const BIBLE_IDS = {
   'LSG':  '61fd76eafa1ef5f7-01',  // Louis Segond 1910 (en DB locale aussi)
@@ -26,6 +22,10 @@ const BIBLE_IDS = {
   'NIV':  '78a9f6124f344018-01',  // NIV
   'NFC':  'bf8f1c7f7f39b9d2-01',  // Nouvelle Français Courant
 }
+
+const API_BIBLE_KEY = process.env.BIBLE_API_KEY
+const API_BIBLE_URL = process.env.BIBLE_API_BASE ?? 'https://api.scripture.api.bible/v1'
+const DEFAULT_BIBLE_ID = process.env.BIBLE_DEFAULT_ID ?? BIBLE_IDS.LSG
 
 export async function fetchVerseFromApiBible(
   reference: string,
