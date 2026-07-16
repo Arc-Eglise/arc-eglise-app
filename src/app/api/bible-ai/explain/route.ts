@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, SSE_HEADERS,
+  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS,
   buildCacheKey, getCachedResponse, setCachedResponse, sseChunk,
 } from "@/lib/bible-ai"
 import { buildExplainSystemPrompt } from "@/lib/bible-ai-prompts"
@@ -37,20 +37,7 @@ export async function POST(req: NextRequest) {
 
     const system  = buildExplainSystemPrompt(lvl, lang)
     const message = `Explique ce passage biblique : ${verse_ref}`
-    const res = await import("@/lib/lunziko").then(m => m.lunzikoFetch("/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        message,
-        history: [],
-        context: { language: lang, system },
-        provider: "auto",
-        stream: false,
-      }),
-    }))
-
-    if (!res.ok) return NextResponse.json({ explanation: "Service indisponible.", verse_ref, level: lvl })
-    const data = await res.json()
-    const explanation = data.content ?? data.message ?? ""
+    const explanation = await arcAIRequest(message, system).catch(() => "Service indisponible.")
     setCachedResponse(cacheKey, explanation, "explain", lang, lvl, 24)
     return NextResponse.json({ explanation, verse_ref, level: lvl, language: lang })
   }

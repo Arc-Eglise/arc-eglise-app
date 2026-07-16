@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, SSE_HEADERS, sseChunk,
+  getUserPrefs, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient }      from "@/lib/supabase/server"
-import { lunzikoFetch }      from "@/lib/lunziko"
 import type { BibleLevel }   from "@/lib/bible-ai-prompts"
 
 export async function POST(req: NextRequest) {
@@ -65,13 +64,7 @@ ${focus ? `- Focus : ${focus}` : "- Équilibre AT/NT"}
       ;(async () => {
         try {
           await writer.write(enc.encode(sseChunk({ type: "start", plan_id: plan.id })))
-          const res = await lunzikoFetch("/chat", {
-            method: "POST",
-            body: JSON.stringify({ message, history: [], context: { language: lang, system }, provider: "auto", stream: false }),
-          })
-          if (!res.ok) throw new Error("Lunziko error")
-          const data = await res.json()
-          const raw = data.content ?? data.message ?? ""
+          const raw = await arcAIRequest(message, system)
           const jsonMatch = raw.match(/\{[\s\S]*\}/)
           if (!jsonMatch) throw new Error("JSON invalide")
           const parsed = JSON.parse(jsonMatch[0]) as { days: { day: number; title: string; passages: string[]; reflection: string; prayer_guide: string }[] }

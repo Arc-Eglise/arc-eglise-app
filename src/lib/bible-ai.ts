@@ -1,10 +1,10 @@
 // ARC Église AI — Helper partagé (server-side uniquement)
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lunzikoFetch }      from "@/lib/lunziko"
 import { NextResponse }      from "next/server"
 import type { BibleLevel }   from "@/lib/bible-ai-prompts"
 import crypto                from "crypto"
+import { arcAIStream, arcAIChat } from "@/lib/arc-ai"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -138,19 +138,12 @@ export async function autoSummarizeSession(
   transcript: string,
 ): Promise<void> {
   try {
-    const res = await lunzikoFetch("/summarize", {
-      method: "POST",
-      body: JSON.stringify({
-        text: transcript.slice(0, 8000),
-        length: "short",
-        format: "paragraph",
-        language: "fr",
-        provider: "auto",
-      }),
+    const result = await arcAIChat({
+      message: `Résume en 2-3 phrases ce que l'utilisateur a exploré dans cette conversation biblique :\n\n${transcript.slice(0, 8000)}`,
+      system: "Tu résumes brièvement des conversations bibliques. Réponds en français, en 2-3 phrases courtes.",
+      provider: "auto",
     })
-    if (!res.ok) return
-    const data = await res.json()
-    const summary = data.summary as string | undefined
+    const summary = result.content
     if (!summary) return
 
     const admin = createAdminClient()
@@ -250,60 +243,55 @@ export function extractVerseRefs(text: string): string[] {
   return Array.from(new Set(matches)).slice(0, 20)
 }
 
-// ── Lunziko chat stream forwarding ─────────────────────────────────
+// ── ARC AI helpers ──────────────────────────────────────────────────
 
+// Non-stream : retourne le texte de réponse de l'ARC engine
+export async function arcAIRequest(
+  message: string,
+  system: string,
+  history: { role: string; content: string }[] = [],
+): Promise<string> {
+  const result = await arcAIChat({
+    message,
+    history: history as Array<{ role: "user" | "assistant"; content: string }>,
+    system,
+    provider: "auto",
+  })
+  return result.content
+}
+
+// Stream : remplace streamFromLunziko, retourne une Response SSE
 export async function streamFromLunziko(
   message: string,
   history: { role: string; content: string }[],
   systemPrompt: string,
   onChunk?: (text: string) => void,
 ): Promise<Response> {
-  const res = await lunzikoFetch("/chat", {
-    method: "POST",
-    body: JSON.stringify({
-      message,
-      history,
-      context: { language: "fr", system: systemPrompt },
-      provider: "auto",
-      stream: true,
-    }),
+  const rawStream = arcAIStream({
+    message,
+    history: history as Array<{ role: "user" | "assistant"; content: string }>,
+    system: systemPrompt,
+    provider: "auto",
   })
 
-  if (!res.ok) {
-    const err = await res.text()
-    console.error("[bible-ai] lunziko error:", res.status, err)
-    throw new Error(`Lunziko ${res.status}`)
-  }
-
-  if (!onChunk) {
-    return new Response(res.body, { headers: SSE_HEADERS })
-  }
-
-  // Intercept stream to extract data while forwarding
-  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
-  const writer = writable.getWriter()
   const enc = new TextEncoder()
   const dec = new TextDecoder()
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+  const writer = writable.getWriter()
 
   ;(async () => {
-    const reader = res.body!.getReader()
-    let buf = ""
+    const reader = rawStream.getReader()
     try {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        await writer.write(value)
-        buf += dec.decode(value, { stream: true })
-        const lines = buf.split("\n")
-        buf = lines.pop() ?? ""
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue
-          try {
-            const ev = JSON.parse(line.slice(6))
-            if (ev.type === "chunk" && ev.content) onChunk(ev.content)
-          } catch { /* skip */ }
-        }
+        const text = dec.decode(value, { stream: true })
+        if (onChunk && text) onChunk(text)
+        await writer.write(enc.encode(`data: ${JSON.stringify({ type: "chunk", content: text })}\n\n`))
       }
+      await writer.write(enc.encode('data: {"type":"done"}\n\n'))
+    } catch (err) {
+      await writer.write(enc.encode(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`))
     } finally {
       await writer.close()
     }

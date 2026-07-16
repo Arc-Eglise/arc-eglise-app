@@ -3,7 +3,7 @@ import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, getRecentSessionSummaries,
   createSession, persistMessage, autoSummarizeSession,
-  streamFromLunziko, extractVerseRefs,
+  streamFromLunziko, arcAIRequest, extractVerseRefs,
 } from "@/lib/bible-ai"
 import { buildChatSystemPrompt } from "@/lib/bible-ai-prompts"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
@@ -78,22 +78,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Non-streaming
-    const res = await import("@/lib/lunziko").then(m => m.lunzikoFetch("/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        message: message.trim(),
-        history,
-        context: { language: lang, system: systemPrompt },
-        provider: "auto",
-        stream: false,
-      }),
-    }))
-
-    if (!res.ok) {
-      return NextResponse.json({ answer: "Service temporairement indisponible." }, { status: 200 })
-    }
-    const data = await res.json()
-    const answer = data.content ?? data.message ?? ""
+    const answer = await arcAIRequest(message.trim(), systemPrompt, history).catch(() => "Service temporairement indisponible.")
     if (sessionId && answer) {
       persistMessage(sessionId, "assistant", answer, extractVerseRefs(answer))
     }

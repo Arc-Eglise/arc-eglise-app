@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, SSE_HEADERS, sseChunk,
+  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lunzikoFetch }      from "@/lib/lunziko"
 
 export async function POST(req: NextRequest) {
   let userId: string
@@ -53,28 +52,16 @@ export async function POST(req: NextRequest) {
       // Générer une réflexion IA si demandé
       if (generate_reflection && entry?.id) {
         const prefs = await getUserPrefs(userId)
-        const reflRes = await lunzikoFetch("/chat", {
-          method: "POST",
-          body: JSON.stringify({
-            message: `Lis cette entrée de journal spirituel et offre une courte réflexion biblique encourageante (3-4 phrases, avec un verset):\n\n"${content.trim().slice(0, 1000)}"`,
-            history: [],
-            context: {
-              language: prefs.language,
-              system: "Tu es un conseiller spirituel bienveillant. Tu lis des journaux de foi et offres des réflexions brèves, bibliquement fondées, encourageantes. Ne diagnostique pas et ne juge pas. Cite un verset. Termine par une invitation à prier.",
-            },
-            provider: "auto",
-            stream: false,
-          }),
-        })
-        if (reflRes.ok) {
-          const d = await reflRes.json()
-          const reflection = d.content ?? d.message ?? ""
-          if (reflection) {
-            await admin.from("ai_spiritual_journal")
-              .update({ ai_reflection: reflection })
-              .eq("id", entry.id)
-          }
+        const reflection = await arcAIRequest(
+          `Lis cette entrée de journal spirituel et offre une courte réflexion biblique encourageante (3-4 phrases, avec un verset):\n\n"${content.trim().slice(0, 1000)}"`,
+          "Tu es un conseiller spirituel bienveillant. Tu lis des journaux de foi et offres des réflexions brèves, bibliquement fondées, encourageantes. Ne diagnostique pas et ne juge pas. Cite un verset. Termine par une invitation à prier.",
+        ).catch(() => "")
+        if (reflection) {
+          await admin.from("ai_spiritual_journal")
+            .update({ ai_reflection: reflection })
+            .eq("id", entry.id)
         }
+        void prefs // prefs.language disponible si besoin dans future itération
       }
 
       return NextResponse.json({ ok: true, id: entry?.id })
@@ -94,7 +81,6 @@ export async function POST(req: NextRequest) {
 
       if (!entry) return NextResponse.json({ error: "Entrée introuvable" }, { status: 404 })
 
-      const prefs   = await getUserPrefs(userId)
       const message = `Lis cette entrée de journal spirituel et offre une réflexion biblique encourageante :\n\n"${entry.content.slice(0, 1500)}"${entry.mood ? `\n\nHumeur : ${entry.mood}` : ""}`
       const system  = "Tu es un conseiller spirituel bienveillant. Offre une réflexion brève (5-6 phrases), bibliquement fondée, encourageante. Cite 1-2 versets. Ne diagnostique pas. Termine par une invitation à prier."
 
@@ -103,17 +89,7 @@ export async function POST(req: NextRequest) {
         catch { return NextResponse.json({ error: "Service indisponible" }, { status: 502 }) }
       }
 
-      const res = await lunzikoFetch("/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message, history: [],
-          context: { language: prefs.language, system },
-          provider: "auto", stream: false,
-        }),
-      })
-      if (!res.ok) return NextResponse.json({ error: "Service indisponible" }, { status: 502 })
-      const d = await res.json()
-      const reflection = d.content ?? d.message ?? ""
+      const reflection = await arcAIRequest(message, system).catch(() => "")
 
       // Persister la réflexion
       await admin.from("ai_spiritual_journal")

@@ -1,7 +1,7 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, SSE_HEADERS, sseChunk,
+  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildMeditationSystemPrompt } from "@/lib/bible-ai-prompts"
 
@@ -46,15 +46,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const res = await import("@/lib/lunziko").then(m => m.lunzikoFetch("/chat", {
-    method: "POST",
-    body: JSON.stringify({
-      message, history: [],
-      context: { language: lang, system },
-      provider: "auto", stream: false,
-    }),
-  }))
-  if (!res.ok) return import("next/server").then(m => m.NextResponse.json({ guide: "Service indisponible." }))
-  const data = await res.json()
-  return import("next/server").then(m => m.NextResponse.json({ guide: data.content ?? data.message ?? "" }))
+  const guide = await arcAIRequest(message, system).catch(() => "Service indisponible.")
+  return NextResponse.json({ guide })
 }
