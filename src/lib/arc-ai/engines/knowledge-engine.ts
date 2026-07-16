@@ -13,7 +13,9 @@ export interface KnowledgeChunk {
   similarity: number
 }
 
-// Modèle d'embedding léger et économique
+// Embedding : Ollama local (nomic-embed-text, 768-dim) → fallback OpenAI 768-dim
+const EMBED_DIM   = 768
+const OLLAMA_BASE = (process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434/v1').replace('/v1', '')
 const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL ?? 'text-embedding-3-small'
 
 let _openai: OpenAI | null = null
@@ -22,9 +24,25 @@ function getOpenAI(): OpenAI {
   return _openai
 }
 
-// Générer un embedding pour une requête
+// Générer un embedding 768-dim via Ollama, avec fallback OpenAI (dimensions: 768)
 export async function embedQuery(text: string): Promise<number[]> {
-  const response = await getOpenAI().embeddings.create({ model: EMBED_MODEL, input: text })
+  // 1. Ollama nomic-embed-text (local, gratuit, 768-dim)
+  try {
+    const res = await fetch(`${OLLAMA_BASE}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'nomic-embed-text', input: text }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (res.ok) {
+      const data = await res.json() as { data: Array<{ embedding: number[] }> }
+      const emb = data.data[0]?.embedding
+      if (emb?.length === EMBED_DIM) return emb
+    }
+  } catch { /* fallback */ }
+
+  // 2. OpenAI avec dimensions: 768 (compatible pgvector 768-dim)
+  const response = await getOpenAI().embeddings.create({ model: EMBED_MODEL, input: text, dimensions: EMBED_DIM })
   return response.data[0]?.embedding ?? []
 }
 

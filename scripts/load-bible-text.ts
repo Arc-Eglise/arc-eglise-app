@@ -8,20 +8,24 @@
 // =============================================================================
 
 import { createClient } from '@supabase/supabase-js'
+// tsx 4.x charge .env.local automatiquement — pas besoin de dotenv manuel
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('Variables manquantes : NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY')
+  console.error('Vérifier que .env.local est présent à la racine du projet.')
   process.exit(1)
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 // Lire les arguments CLI
+// Traductions disponibles sur bolls.life : BDS (fr), KJV (en), NIV (en)
+// LSG n'est pas disponible sur bolls.life — utiliser BDS pour le français
 const args = process.argv.slice(2)
-const translationArg = (args[args.indexOf('--translation') + 1] ?? 'LSG') as 'LSG' | 'KJV'
+const translationArg = (args[args.indexOf('--translation') + 1] ?? 'BDS') as string
 const fromBook = parseInt(args[args.indexOf('--from') + 1] ?? '1') || 1
 const toBook   = parseInt(args[args.indexOf('--to') + 1]   ?? '66') || 66
 
@@ -104,7 +108,8 @@ async function main() {
           book_name: bookName,
           chapter: chap,
           verse: v.verse,
-          text: v.text.trim(),
+          // Nettoyer les numéros Strong (<S>1234</S>) présents dans KJV/NIV
+          text: v.text.replace(/<S>\d+<\/S>/g, '').replace(/\s+/g, ' ').trim(),
         }))
 
         await upsertVerses(rows)
@@ -130,6 +135,8 @@ async function main() {
   console.log(`\n✅ Import terminé : ${totalVerses} versets, ${totalErrors} erreurs`)
   console.log('\n📌 Prochaine étape — générer les embeddings :')
   console.log(`   npx tsx scripts/index-bible-embeddings.ts --version ${translation}`)
+  console.log('\n💡 Pour charger aussi la version anglaise :')
+  console.log('   npx tsx scripts/load-bible-text.ts --translation KJV')
 }
 
 main().catch(console.error)
