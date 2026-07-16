@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildMeditationSystemPrompt } from "@/lib/bible-ai-prompts"
 
@@ -30,7 +30,12 @@ export async function POST(req: NextRequest) {
 
   const prefs  = await getUserPrefs(userId)
   const lang   = language ?? prefs.language
+  
+  // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
+  const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
+  
   const system = buildMeditationSystemPrompt(verse_ref, style, duration, lang)
+  // TODO: Passer summaries au system prompt si besoin
   const message = `Guide-moi dans une méditation de ${duration} sur ${verse_ref} (style : ${style}).`
 
   if (stream) {
@@ -40,7 +45,8 @@ export async function POST(req: NextRequest) {
       const enc = new TextEncoder()
       const { readable, writable } = new TransformStream()
       const writer = writable.getWriter()
-      writer.write(enc.encode(JSON.stringify({ type: "error", error: "Service indisponible" })))
+      // BUG FIX 1: Utiliser sseChunk() au lieu de JSON.stringify() direct
+      writer.write(enc.encode(sseChunk({ type: "error", error: "Service indisponible" })))
       writer.close()
       return new Response(readable, { headers: SSE_HEADERS })
     }

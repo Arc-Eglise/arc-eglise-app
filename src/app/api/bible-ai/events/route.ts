@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     result.church_events = events ?? []
   }
 
-  // ── 2. Recherche web (via Lunziko) ────────────────────────────────
+  // ── 2. Recherche web (via Serper.dev ou ARC AI Engine) ──────────────
+  // BUG FIX 3: Corriger le commentaire obsolète (n'utilise plus Lunziko)
   if ((scope === "web" || scope === "both") && query.trim()) {
     const serperKey = process.env.SERPER_API_KEY
 

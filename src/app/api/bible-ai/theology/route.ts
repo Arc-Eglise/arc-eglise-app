@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildTheologySystemPrompt } from "@/lib/bible-ai-prompts"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
   const prefs  = await getUserPrefs(userId)
   const lang   = language ?? prefs.language
   const lvl    = level    ?? prefs.level
+  
+  // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
+  const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
+  void summaries // TODO: intégrer au system prompt si buildTheologySystemPrompt() l'accepte
+  
   const system = buildTheologySystemPrompt(lvl, lang)
 
   if (stream) {

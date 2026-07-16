@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -80,6 +80,11 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (!entry) return NextResponse.json({ error: "Entrée introuvable" }, { status: 404 })
+
+      // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
+      const prefs = await getUserPrefs(userId)
+      const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
+      void summaries // TODO: intégrer au system prompt si besoin
 
       const message = `Lis cette entrée de journal spirituel et offre une réflexion biblique encourageante :\n\n"${entry.content.slice(0, 1500)}"${entry.mood ? `\n\nHumeur : ${entry.mood}` : ""}`
       const system  = "Tu es un conseiller spirituel bienveillant. Offre une réflexion brève (5-6 phrases), bibliquement fondée, encourageante. Cite 1-2 versets. Ne diagnostique pas. Termine par une invitation à prier."

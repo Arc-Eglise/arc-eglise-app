@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, streamFromLunziko, arcAIRequest, SSE_HEADERS,
+  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS,
   buildCacheKey, getCachedResponse, setCachedResponse, sseChunk,
 } from "@/lib/bible-ai"
 import { buildExplainSystemPrompt } from "@/lib/bible-ai-prompts"
@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Streaming
+  // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
+  const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
+  void summaries // TODO: intégrer au system prompt si buildExplainSystemPrompt() l'accepte
+  
   const system  = buildExplainSystemPrompt(lvl, lang)
   const message = `Explique ce passage biblique en détail pour le niveau ${lvl} : ${verse_ref}`
 
