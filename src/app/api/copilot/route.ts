@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { lunzikoFetch } from "@/lib/lunziko"
+import { streamFromLunziko, arcAIRequest } from "@/lib/bible-ai"
 
 const CHURCH_BASE =
   "Tu es l'assistant IA de l'église ARC (Ambassade du Royaume de Christ), une église chrétienne évangélique basée à La Chaux-de-Fonds, Suisse. " +
@@ -83,38 +83,12 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = await buildSystemPrompt()
 
-    const res = await lunzikoFetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: message.trim(),
-        history,
-        context: { language: "fr", system: systemPrompt },
-        provider: "auto",
-        stream,
-      }),
-    })
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { answer: "Je suis temporairement indisponible. Merci de réessayer dans un instant." },
-        { status: 200 }
-      )
-    }
-
     if (stream) {
-      return new Response(res.body, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
-          "X-Accel-Buffering": "no",
-        },
-      })
+      return streamFromLunziko(message.trim(), history, systemPrompt)
     }
 
-    const data = await res.json()
-    return NextResponse.json({ answer: data.content ?? data.message ?? "" })
+    const answer = await arcAIRequest(message.trim(), systemPrompt, history).catch(() => "Je suis temporairement indisponible. Merci de réessayer dans un instant.")
+    return NextResponse.json({ answer })
   } catch (err) {
     console.error("[api/copilot]", err)
     return NextResponse.json(

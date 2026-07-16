@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   buildCacheKey, getCachedResponse, setCachedResponse,
+  arcAIRequest,
 } from "@/lib/bible-ai"
 import { createClient } from "@/lib/supabase/server"
-import { lunzikoFetch } from "@/lib/lunziko"
 
 const CHURCH_HOURS = `
 Horaires réguliers ARC Église (Ambassade du Royaume de Christ) :
@@ -90,29 +90,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (!result.web_results.length) {
-      // Fallback : Lunziko Platform
+      // Fallback : ARC Église IA Engine
       try {
-        const res = await lunzikoFetch("/chat", {
-          method: "POST",
-          body: JSON.stringify({
-            message: `Recherche web : événements chrétiens évangéliques "${query}" en Suisse ou en ligne 2026. Donne 3-4 résultats avec titre, lien et date si disponible.`,
-            history: [],
-            context: {
-              language,
-              system: `Tu es un assistant de recherche d'événements chrétiens.
-Réponds en JSON : [{"title":"...","url":"...","snippet":"...","date":"...","source":"..."}]
-Si tu n'as pas d'informations fiables, réponds avec un tableau vide [].`,
-            },
-            provider: "auto",
-            stream: false,
-          }),
-        })
-        if (res.ok) {
-          const d = await res.json()
-          const raw = d.content ?? d.message ?? "[]"
-          const jsonMatch = raw.match(/\[[\s\S]*\]/)
-          if (jsonMatch) result.web_results = JSON.parse(jsonMatch[0])
-        }
+        const raw = await arcAIRequest(
+          `Recherche web : événements chrétiens évangéliques "${query}" en Suisse ou en ligne 2026. Donne 3-4 résultats avec titre, lien et date si disponible.`,
+          `Tu es un assistant de recherche d'événements chrétiens.\nRéponds en JSON : [{"title":"...","url":"...","snippet":"...","date":"...","source":"..."}]\nSi tu n'as pas d'informations fiables, réponds avec un tableau vide [].`
+        )
+        const jsonMatch = raw.match(/\[[\s\S]*\]/)
+        if (jsonMatch) result.web_results = JSON.parse(jsonMatch[0])
       } catch { /* non bloquant */ }
     }
   }

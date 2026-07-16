@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, buildCacheKey, getCachedResponse, setCachedResponse,
+  arcAIRequest,
 } from "@/lib/bible-ai"
 import { buildSearchSystemPrompt } from "@/lib/bible-ai-prompts"
-import { lunzikoFetch } from "@/lib/lunziko"
 
 const VALID_MODES = ["semantic","thematic","character","location","event","keyword"]
 
@@ -39,23 +39,10 @@ export async function POST(req: NextRequest) {
 
   const system = buildSearchSystemPrompt(mode, level, lang)
 
-  const res = await lunzikoFetch("/chat", {
-    method: "POST",
-    body: JSON.stringify({
-      message: `Recherche biblique [${mode}] : "${query.trim()}"`,
-      history: [],
-      context: { language: lang, system },
-      provider: "auto",
-      stream: false,
-    }),
-  })
-
-  if (!res.ok) {
+  const raw = await arcAIRequest(`Recherche biblique [${mode}] : "${query.trim()}"`, system).catch(() => "")
+  if (!raw) {
     return NextResponse.json({ results: [], total: 0, query_interpretation: "" })
   }
-
-  const data = await res.json()
-  const raw = data.content ?? data.message ?? ""
 
   let parsed: { results: unknown[]; query_interpretation: string; total?: number }
   try {

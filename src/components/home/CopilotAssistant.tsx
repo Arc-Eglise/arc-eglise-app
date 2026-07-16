@@ -108,7 +108,7 @@ export default function CopilotAssistant() {
               Posez votre question — horaires, événements, comment nous rejoindre. Notre assistant vous répond instantanément.
             </p>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,.4)" }}>
-              Propulsé par <span style={{ color: "#E6C763", fontWeight: 700 }}>Lunziko IA</span>
+              Propulsé par <span style={{ color: "#E6C763", fontWeight: 700 }}>ARC Église IA</span>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export default function CopilotAssistant() {
                 <div style={{ fontWeight: 700, fontSize: 15 }}>Assistant ARC</div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.6)", display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-                  En ligne · Lunziko IA
+                  En ligne · ARC Église IA
                 </div>
               </div>
             </div>

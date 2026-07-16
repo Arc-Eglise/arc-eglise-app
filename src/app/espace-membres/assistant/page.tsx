@@ -158,7 +158,7 @@ export default function AssistantPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-arc-navy/10 bg-white/80 backdrop-blur shrink-0">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-arc-blue">Lunziko IA</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-arc-blue">ARC Église IA</p>
           <h1 className="text-base font-serif font-semibold text-arc-navy leading-tight">Assistant IA</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export default function AssistantPage() {
           </button>
         </div>
         <p className="mt-1.5 text-center text-[10px] text-slate-400">
-          Propulsé par Lunziko IA · Les réponses sont générées par IA et peuvent contenir des inexactitudes.
+          Propulsé par ARC Église IA · Les réponses sont générées par IA et peuvent contenir des inexactitudes.
         </p>
       </div>
     </div>

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireAuth, unauthorizedResponse, badRequestResponse } from "@/lib/bible-ai"
+import { requireAuth, unauthorizedResponse, badRequestResponse, arcAIRequest } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lunzikoFetch }      from "@/lib/lunziko"
 
 export async function POST(req: NextRequest) {
   let userId: string
@@ -72,14 +71,7 @@ Réponds UNIQUEMENT en JSON valide sans markdown, avec ce format :
 }`
 
       try {
-        const res = await lunzikoFetch("/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: prompt, history: [], context: { language, level: "intermediaire" }, provider: "auto", stream: false }),
-        })
-        if (!res.ok) throw new Error(`Lunziko error ${res.status}`)
-        const data = await res.json()
-        const raw  = (data.content ?? data.message ?? "").trim()
+        const raw  = (await arcAIRequest(prompt, "Tu es l'assistant biblique de l'église ARC. Réponds uniquement en JSON valide.", [])).trim()
 
         let parsed: { summary?: string; key_verses?: string[]; themes?: string[] } = {}
         try {

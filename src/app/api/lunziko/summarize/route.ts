@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { lunzikoFetch, lunzikoWorkflow } from '@/lib/lunziko'
+import { arcAIRequest } from '@/lib/bible-ai'
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,31 +16,13 @@ export async function POST(req: NextRequest) {
 
     const trimmed = text.slice(0, 50000)
 
-    // For long texts (sermons, documents), use workflow engine — has retry + timeout
-    if (trimmed.length > 2000) {
-      try {
-        const out = await lunzikoWorkflow('ocrToSummary', { text: trimmed })
-        if (out.summary) {
-          return NextResponse.json({ summary: out.summary, word_count: out.word_count ?? 0 })
-        }
-      } catch {
-        // Fall through to /summarize
-      }
-    }
+    const formatLabel = format === 'bullets' ? 'liste à puces' : format === 'numbered' ? 'liste numérotée' : 'paragraphes'
+    const lengthLabel = length === 'short' ? 'court (2-3 phrases)' : length === 'long' ? 'long (8-10 phrases)' : 'moyen (4-6 phrases)'
+    const summaryPrompt = `Génère un résumé en ${formatLabel}, de longueur ${lengthLabel}, du texte suivant :\n\n${trimmed}`
 
-    const res = await lunzikoFetch('/summarize', {
-      method: 'POST',
-      body: JSON.stringify({ text: trimmed, length, format, language: 'fr', provider: 'auto' }),
-    })
-
-    if (!res.ok) {
-      const errText = await res.text()
-      console.error('[lunziko/summarize]', res.status, errText)
-      return NextResponse.json({ error: 'Erreur lors de la synthèse' }, { status: 502 })
-    }
-
-    const data = await res.json()
-    return NextResponse.json({ summary: data.summary, word_count: data.word_count })
+    const summary = await arcAIRequest(summaryPrompt, "Tu es un assistant de synthèse. Génère uniquement le résumé demandé, sans introduction ni conclusion.").catch(() => null)
+    if (!summary) return NextResponse.json({ error: 'Erreur lors de la synthèse' }, { status: 502 })
+    return NextResponse.json({ summary, word_count: summary.split(/\s+/).length })
   } catch (err) {
     console.error('[lunziko/summarize]', err)
     return NextResponse.json({ error: 'Service indisponible' }, { status: 500 })

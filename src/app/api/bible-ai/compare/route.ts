@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, buildCacheKey, getCachedResponse, setCachedResponse,
+  arcAIRequest,
 } from "@/lib/bible-ai"
-import { lunzikoFetch } from "@/lib/lunziko"
 
 const BASE = "https://api.scripture.api.bible/v1"
 
@@ -72,23 +72,11 @@ export async function POST(req: NextRequest) {
   let ai_commentary: string | undefined
   if (with_commentary && translations.length >= 2) {
     const comparisonText = translations.map(t => `${t.name} (${t.abbr}): "${t.text}"`).join("\n")
-    const res = await lunzikoFetch("/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        message: `Compare ces traductions de ${verse_ref} et commente les différences significatives :\n${comparisonText}`,
-        history: [],
-        context: {
-          language: lang,
-          system: "Tu es un spécialiste des traductions bibliques. Analyse les différences lexicales et théologiques entre les traductions. Sois concis (3-5 phrases).",
-        },
-        provider: "auto",
-        stream: false,
-      }),
-    })
-    if (res.ok) {
-      const d = await res.json()
-      ai_commentary = d.content ?? d.message ?? undefined
-    }
+    ai_commentary = await arcAIRequest(
+      `Compare ces traductions de ${verse_ref} et commente les différences significatives :\n${comparisonText}`,
+      "Tu es un spécialiste des traductions bibliques. Analyse les différences lexicales et théologiques entre les traductions. Sois concis (3-5 phrases).",
+      []
+    ).catch(() => undefined)
   }
 
   const result = { verse_ref, translations, ai_commentary }

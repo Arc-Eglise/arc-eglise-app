@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getSpiritualProfile, buildSpiritualContextBlock } from "@/lib/spiritual-profile"
-import { getRecentSessionSummaries } from "@/lib/bible-ai"
-import { lunzikoFetch } from "@/lib/lunziko"
+import { getRecentSessionSummaries, arcAIRequest } from "@/lib/bible-ai"
 
 export async function POST() {
   const supabase = createClient()
@@ -50,7 +49,7 @@ export async function POST() {
       return NextResponse.json({ ok: true, memo: null })
     }
 
-    // Appeler Lunziko Platform pour générer un mémo court
+    // Appeler ARC Église IA pour générer un mémo court
     const prompt = `À partir des informations suivantes sur un membre de l'église ARC, rédige un mémo de profil de 300 caractères maximum (en français), en 1-2 phrases, décrivant qui est cet utilisateur spirituellement, ses centres d'intérêt et habitudes d'étude. Sois factuel et concis.
 
 DONNÉES :
@@ -58,24 +57,16 @@ ${textToSummarize}
 
 MÉMO (300 chars max) :`
 
-    const res = await lunzikoFetch("/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        message: prompt,
-        history: [],
-        context: { language: "fr", system: "Tu es un assistant qui génère des mémos de profil utilisateur courts et précis." },
-        provider: "auto",
-        stream: false,
-      }),
-    })
+    const rawMemo = await arcAIRequest(
+      prompt,
+      "Tu es un assistant qui génère des mémos de profil utilisateur courts et précis."
+    ).catch(() => "")
 
-    if (!res.ok) {
+    if (!rawMemo) {
       return NextResponse.json({ ok: false, error: "Service IA indisponible" }, { status: 500 })
     }
 
-    const data = await res.json()
-    const rawMemo = (data.content ?? data.message ?? "") as string
-    const memo    = rawMemo.trim().slice(0, 500) // 500 chars max, sécurisé
+    const memo = rawMemo.trim().slice(0, 500)
 
     if (!memo) return NextResponse.json({ ok: true, memo: null })
 

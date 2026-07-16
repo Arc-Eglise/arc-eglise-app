@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, buildCacheKey, getCachedResponse, setCachedResponse,
+  arcAIRequest,
 } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lunzikoFetch }      from "@/lib/lunziko"
 
 const CURATED_BOOKS_FR = [
   { title: "Connaître Dieu", author: "J.I. Packer", topics: ["théologie","dieu","foi"], level: "intermediaire" },
@@ -93,32 +93,17 @@ export async function POST(req: NextRequest) {
       const booksForPrompt = CURATED_BOOKS_FR.map(b => `- "${b.title}" de ${b.author} (${b.topics.join(", ")}) — niveau ${b.level}`).join("\n")
       const podcastsForPrompt = CURATED_PODCASTS_FR.map(p => `- "${p.title}" : ${p.description}`).join("\n")
 
-      const res = await lunzikoFetch("/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message: `Recommande 3 ressources chrétiennes sur "${context}" pour un niveau ${prefs.level} en ${lang}.
-Types souhaités : ${allowedTypes.join(", ")}.
-Choisis parmi ces livres :\n${booksForPrompt}\nOu ces podcasts :\n${podcastsForPrompt}`,
-          history: [],
-          context: {
-            language: lang,
-            system: `Tu es un bibliothécaire chrétien. Recommande uniquement parmi les ressources listées.
-Réponds en JSON : [{"title":"...","author":"...","type":"book|podcast|article","url":null,"description":"...","verse_refs":[],"topics":[],"language":"${lang}"}]`,
-          },
-          provider: "auto",
-          stream: false,
-        }),
-      })
-
       let aiRecs: Record<string, unknown>[] = []
-      if (res.ok) {
-        const d = await res.json()
-        const raw = d.content ?? d.message ?? "[]"
+      try {
+        const raw = await arcAIRequest(
+          `Recommande 3 ressources chrétiennes sur "${context}" pour un niveau ${prefs.level} en ${lang}.\nTypes souhaités : ${allowedTypes.join(", ")}.\nChoisis parmi ces livres :\n${booksForPrompt}\nOu ces podcasts :\n${podcastsForPrompt}`,
+          `Tu es un bibliothécaire chrétien. Recommande uniquement parmi les ressources listées.\nRéponds en JSON : [{"title":"...","author":"...","type":"book|podcast|article","url":null,"description":"...","verse_refs":[],"topics":[],"language":"${lang}"}]`
+        )
         const jsonMatch = raw.match(/\[[\s\S]*\]/)
         if (jsonMatch) {
           try { aiRecs = JSON.parse(jsonMatch[0]) } catch { /* skip */ }
         }
-      }
+      } catch { /* non bloquant */ }
 
       const result = {
         recommendations: [...sermons, ...audioBibles, ...aiRecs.slice(0, 4)].map(r => ({ ...r, saved: false })),
