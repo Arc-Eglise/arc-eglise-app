@@ -289,7 +289,7 @@ export async function streamFromLunziko(
         if (onChunk && text) onChunk(text)
         await writer.write(enc.encode(`data: ${JSON.stringify({ type: "chunk", content: text })}\n\n`))
       }
-      await writer.write(enc.encode('data: {"type":"done"}\n\n'))
+      await writer.write(enc.encode('data: {"type":"end"}\n\n'))
     } catch (err) {
       await writer.write(enc.encode(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`))
     } finally {

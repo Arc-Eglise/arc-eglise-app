@@ -44,18 +44,18 @@ export async function POST(req: NextRequest) {
       if (!generate) return NextResponse.json({ plan })
 
       // Générer les jours via IA (streaming)
-      const system = `Tu génères un plan de lecture biblique structuré.
-RÈGLES :
-- Exactement ${duration_days} jours
-- Chaque jour : 1-2 passages max (format: ["GEN.1", "PSA.23"])
-- Niveau : ${lvl} (${lvl === "enfant" ? "passages courts et connus" : lvl === "avance" ? "passages plus longs et complexes" : "équilibrés"})
-- Langue : ${lang}
-${focus ? `- Focus : ${focus}` : "- Équilibre AT/NT"}
-- Inclure une question de réflexion par jour (courte)
-- Répondre UNIQUEMENT en JSON valide :
-{"days":[{"day":1,"title":"...","passages":["GEN.1"],"reflection":"...","prayer_guide":"..."}]}`
+      const system = `Tu génères un plan de lecture biblique structuré en ${lang}.
+RÈGLES ABSOLUES :
+- Exactement ${duration_days} jours numérotés de 1 à ${duration_days}
+- Chaque jour : 1-2 références bibliques LISIBLES (ex: "Jean 3:16", "Psaumes 23", "Genèse 1:1-10")
+- Niveau : ${lvl === "enfant" ? "passages courts et bien connus, vocabulaire simple" : lvl === "avance" || lvl === "enseignant" ? "passages plus longs et profonds" : "équilibre entre facilité et profondeur"}
+${focus ? `- Thème central : ${focus}` : "- Équilibre Ancien Testament et Nouveau Testament"}
+- Question de réflexion par jour : courte, personnelle, pratique
+- Guide de prière par jour : 1-2 phrases d'invitation à la prière
+- Répondre UNIQUEMENT avec du JSON valide, sans markdown, sans texte avant ou après :
+{"days":[{"day":1,"title":"Titre court du jour","passages":["Jean 3:16","Romains 8:1"],"reflection":"Question de réflexion personnelle ?","prayer_guide":"Prière d'invitation courte."}]}`
 
-      const message = `Génère un plan de lecture de ${duration_days} jours${focus ? ` sur "${focus}"` : ""}.`
+      const message = `Génère un plan de lecture biblique de ${duration_days} jours${focus ? ` centré sur "${focus}"` : " avec un bon équilibre AT/NT"} pour un niveau ${lvl} en ${lang}. Réponds uniquement en JSON.`
 
       const enc = new TextEncoder()
       const { readable, writable } = new TransformStream()
@@ -65,8 +65,10 @@ ${focus ? `- Focus : ${focus}` : "- Équilibre AT/NT"}
         try {
           await writer.write(enc.encode(sseChunk({ type: "start", plan_id: plan.id })))
           const raw = await arcAIRequest(message, system)
-          const jsonMatch = raw.match(/\{[\s\S]*\}/)
-          if (!jsonMatch) throw new Error("JSON invalide")
+          // Nettoyer markdown éventuel (```json ... ```)
+          const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '').trim()
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+          if (!jsonMatch) throw new Error("Le modèle IA n'a pas retourné de JSON valide")
           const parsed = JSON.parse(jsonMatch[0]) as { days: { day: number; title: string; passages: string[]; reflection: string; prayer_guide: string }[] }
 
           // Insérer les jours en DB

@@ -29,9 +29,18 @@ export async function POST(req: NextRequest) {
   const prefs  = await getUserPrefs(userId)
   const lang   = language ?? prefs.language
   const level  = prefs.level
+  const bibleId = bible_id ?? prefs.default_bible
 
   // Cache check
-  const cacheKey = buildCacheKey({ type: "search", query: query.trim(), mode, lang, level })
+  // BUG FIX 4: Inclure bible_id dans la clé de cache pour éviter les faux positifs
+  const cacheKey = buildCacheKey({ 
+    type: "search", 
+    query: query.trim(), 
+    mode, 
+    lang, 
+    level,
+    bible_id: bibleId,  // Nouveau paramètre
+  })
   const cached = await getCachedResponse(cacheKey)
   if (cached) {
     try { return NextResponse.json(JSON.parse(cached)) } catch { /* fallthrough */ }
@@ -46,11 +55,12 @@ export async function POST(req: NextRequest) {
 
   let parsed: { results: unknown[]; query_interpretation: string; total?: number }
   try {
-    // Extraire le JSON de la réponse (l'IA peut inclure du texte autour)
-    const jsonMatch = raw.match(/\{[\s\S]*\}/)
-    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { results: [], query_interpretation: raw, total: 0 }
+    // Nettoyer markdown éventuel (```json ... ```) avant de parser
+    const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '').trim()
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { results: [], query_interpretation: cleaned, total: 0 }
   } catch {
-    parsed = { results: [], query_interpretation: raw, total: 0 }
+    parsed = { results: [], query_interpretation: raw.slice(0, 300), total: 0 }
   }
 
   const result = {
@@ -59,6 +69,7 @@ export async function POST(req: NextRequest) {
     query_interpretation: parsed.query_interpretation ?? "",
     mode,
     language: lang,
+    bible_id: bibleId,  // Inclure la version biblique utilisée dans la réponse
   }
 
   // Mettre en cache 6h

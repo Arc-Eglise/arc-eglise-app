@@ -174,12 +174,14 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
               full += ev.content
               setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full } : m))
             }
-            if (ev.type === "end") {
+            if (ev.type === "end" || ev.type === "done") {
               setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full || "…", streaming: false } : m))
             }
           } catch { /* skip */ }
         }
       }
+      // Fallback : marquer terminé même si l'événement "end" n'est pas reçu
+      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, streaming: false } : m))
     } catch {
       setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: "Service temporairement indisponible.", streaming: false } : m))
     } finally {
