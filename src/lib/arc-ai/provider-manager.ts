@@ -201,53 +201,62 @@ export function streamChat(
   providerReq: AIProvider = 'auto',
   options: ChatOptions = {},
 ): ReadableStream<Uint8Array> {
-  const provider = resolveProvider(providerReq)
-  const model = MODELS[provider]
+  // Build fallback chain: try each available provider in order
+  const providersToTry: Exclude<AIProvider, 'auto'>[] = providerReq === 'auto'
+    ? FALLBACK_CHAIN.filter(isAvailable)
+    : [resolveProvider(providerReq)]
+
+  if (providersToTry.length === 0) providersToTry.push('anthropic')
+
+  const encoder = new TextEncoder()
   const maxTokens = options.maxTokens ?? 2048
   const temperature = options.temperature ?? 0.7
 
-  const encoder = new TextEncoder()
-
   return new ReadableStream({
     async start(controller) {
-      try {
-        if (provider === 'anthropic') {
-          const userMessages = messages.filter(m => m.role !== 'system')
-          const system = options.system ?? messages.find(m => m.role === 'system')?.content
-          const stream = getAnthropic().messages.stream({
-            model,
-            max_tokens: maxTokens,
-            temperature,
-            system,
-            messages: userMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-          })
-          for await (const event of stream) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              controller.enqueue(encoder.encode(event.delta.text))
+      for (const provider of providersToTry) {
+        const model = MODELS[provider]
+        try {
+          if (provider === 'anthropic') {
+            const userMessages = messages.filter(m => m.role !== 'system')
+            const system = options.system ?? messages.find(m => m.role === 'system')?.content
+            const stream = getAnthropic().messages.stream({
+              model,
+              max_tokens: maxTokens,
+              temperature,
+              system,
+              messages: userMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+            })
+            for await (const event of stream) {
+              if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+                controller.enqueue(encoder.encode(event.delta.text))
+              }
+            }
+          } else {
+            const client = provider === 'openai' ? getOpenAI()
+              : provider === 'deepseek' ? getDeepSeek()
+              : provider === 'mistral' ? getMistral()
+              : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
+
+            const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
+            if (options.system) oaiMessages.push({ role: 'system', content: options.system })
+            oaiMessages.push(...messages
+              .filter(m => m.role !== 'system')
+              .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
+
+            const stream = await client.chat.completions.create({ model, max_tokens: maxTokens, temperature, messages: oaiMessages, stream: true })
+            for await (const chunk of stream) {
+              const text = chunk.choices[0]?.delta?.content ?? ''
+              if (text) controller.enqueue(encoder.encode(text))
             }
           }
-        } else {
-          const client = provider === 'openai' ? getOpenAI()
-            : provider === 'deepseek' ? getDeepSeek()
-            : provider === 'mistral' ? getMistral()
-            : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
-
-          const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
-          if (options.system) oaiMessages.push({ role: 'system', content: options.system })
-          oaiMessages.push(...messages
-            .filter(m => m.role !== 'system')
-            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
-
-          const stream = await client.chat.completions.create({ model, max_tokens: maxTokens, temperature, messages: oaiMessages, stream: true })
-          for await (const chunk of stream) {
-            const text = chunk.choices[0]?.delta?.content ?? ''
-            if (text) controller.enqueue(encoder.encode(text))
-          }
+          controller.close()
+          return
+        } catch {
+          // Provider failed — try next in chain
         }
-        controller.close()
-      } catch (err) {
-        controller.error(err)
       }
+      controller.error(new Error('Tous les providers IA ont échoué'))
     },
   })
 }

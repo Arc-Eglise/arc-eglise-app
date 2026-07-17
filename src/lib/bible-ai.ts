@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { NextResponse }      from "next/server"
 import type { BibleLevel }   from "@/lib/bible-ai-prompts"
 import crypto                from "crypto"
-import { arcAIStream, arcAIChat } from "@/lib/arc-ai"
+import { arcAIChat } from "@/lib/arc-ai"
+import { streamChat } from "@/lib/arc-ai/provider-manager"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -260,19 +261,18 @@ export async function arcAIRequest(
   return result.content
 }
 
-// Stream : remplace streamFromLunziko, retourne une Response SSE
+// Stream : retourne une Response SSE avec fallback multi-provider
 export async function streamFromLunziko(
   message: string,
   history: { role: string; content: string }[],
   systemPrompt: string,
   onChunk?: (text: string) => void,
 ): Promise<Response> {
-  const rawStream = arcAIStream({
-    message,
-    history: history as Array<{ role: "user" | "assistant"; content: string }>,
-    system: systemPrompt,
-    provider: "auto",
-  })
+  const messages = [
+    ...history as Array<{ role: "user" | "assistant"; content: string }>,
+    { role: "user" as const, content: message },
+  ]
+  const rawStream = streamChat(messages, "auto", { system: systemPrompt, maxTokens: 4096 })
 
   const enc = new TextEncoder()
   const dec = new TextDecoder()
