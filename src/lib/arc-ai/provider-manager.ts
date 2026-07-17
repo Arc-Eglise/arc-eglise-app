@@ -63,7 +63,7 @@ const MODELS: Record<Exclude<AIProvider, 'auto'>, string> = {
   anthropic:      process.env.ANTHROPIC_MODEL     ?? 'claude-sonnet-4-6',
   openai:         process.env.OPENAI_MODEL        ?? 'gpt-4o-mini',
   deepseek:       process.env.DEEPSEEK_MODEL      ?? 'deepseek-chat',
-  gemini:         process.env.GEMINI_MODEL        ?? 'gemini-1.5-flash',
+  gemini:         process.env.GEMINI_MODEL        ?? 'gemini-2.0-flash',
   mistral:        process.env.MISTRAL_MODEL       ?? 'mistral-small-latest',
   ollama:         process.env.OLLAMA_MODEL        ?? 'arc-llm',
   'ollama-qwen':  process.env.OLLAMA_QWEN_MODEL   ?? 'arc-llm-qwen',    // ollama create arc-llm-qwen -f Modelfile.qwen
@@ -263,8 +263,8 @@ export function streamChat(
           }
           controller.close()
           return
-        } catch {
-          // Provider failed — try next in chain
+        } catch (err) {
+          console.error(`[ARC AI] Provider ${provider} failed:`, String(err))
         }
       }
       controller.error(new Error('Tous les providers IA ont échoué'))
