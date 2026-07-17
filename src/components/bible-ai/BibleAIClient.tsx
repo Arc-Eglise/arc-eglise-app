@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import LangSelector from "@/components/bible-ai/LangSelector"
+import DictionaryPanel from "@/components/bible-ai/DictionaryPanel"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
 import type { AIUserPreferences } from "@/lib/bible-ai"
 
 /* ─── Types ─────────────────────────────────────────────────── */
-type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media" | "groups" | "sermons"
+type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media" | "groups" | "sermons" | "dictionary"
 
 interface StudyGroup {
   id: string; name: string; description: string | null; church_group: string | null
@@ -508,14 +509,15 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   }
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: "chat",    label: "Étude",       icon: "💬" },
-    { id: "search",  label: "Recherche",   icon: "🔍" },
-    { id: "plans",   label: "Plans",       icon: "📅" },
-    { id: "journal", label: "Journal",     icon: "📓" },
-    { id: "events",  label: "Événements",  icon: "🗓" },
-    { id: "media",   label: "Médias",      icon: "🎵" },
-    { id: "groups",  label: "Groupes",     icon: "👥" },
-    { id: "sermons", label: "Résumés",     icon: "🎙" },
+    { id: "chat",       label: "Étude",       icon: "💬" },
+    { id: "search",     label: "Recherche",   icon: "🔍" },
+    { id: "dictionary", label: "Dictionnaire", icon: "📚" },
+    { id: "plans",      label: "Plans",       icon: "📅" },
+    { id: "journal",    label: "Journal",     icon: "📓" },
+    { id: "events",     label: "Événements",  icon: "🗓" },
+    { id: "media",      label: "Médias",      icon: "🎵" },
+    { id: "groups",     label: "Groupes",     icon: "👥" },
+    { id: "sermons",    label: "Résumés",     icon: "🎙" },
   ]
 
   /* ══ RENDER ════════════════════════════════════════════════ */
@@ -702,6 +704,19 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
               <div className="text-center py-8 text-arc-text2 text-sm">Lance une recherche pour voir les résultats</div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── DICTIONARY ──────────────────────────────────────── */}
+      {tab === "dictionary" && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <DictionaryPanel
+            language={language}
+            onCiteVerse={(ref) => {
+              setTab("chat")
+              sendChat(`Explique-moi le verset ${ref} dans son contexte théologique et historique.`)
+            }}
+          />
         </div>
       )}
 

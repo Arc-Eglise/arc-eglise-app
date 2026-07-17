@@ -131,6 +131,15 @@ function getMistral(): OpenAI {
   return _mistral
 }
 
+let _gemini: OpenAI | null = null
+function getGemini(): OpenAI {
+  if (!_gemini) _gemini = new OpenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  })
+  return _gemini
+}
+
 let _ollama: OpenAI | null = null
 function getOllama(): OpenAI {
   if (!_ollama) _ollama = new OpenAI({
@@ -171,6 +180,7 @@ export async function chat(
     const client = provider === 'openai' ? getOpenAI()
       : provider === 'deepseek' ? getDeepSeek()
       : provider === 'mistral' ? getMistral()
+      : provider === 'gemini' ? getGemini()
       : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
 
     const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
@@ -236,6 +246,7 @@ export function streamChat(
             const client = provider === 'openai' ? getOpenAI()
               : provider === 'deepseek' ? getDeepSeek()
               : provider === 'mistral' ? getMistral()
+              : provider === 'gemini' ? getGemini()
               : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
 
             const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
