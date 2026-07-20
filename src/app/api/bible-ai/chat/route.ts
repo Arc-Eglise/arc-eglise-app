@@ -3,7 +3,7 @@ import {
   requireAuth, unauthorizedResponse, badRequestResponse,
   getUserPrefs, getRecentSessionSummaries,
   createSession, persistMessage, autoSummarizeSession,
-  streamFromLunziko, arcAIRequest, extractVerseRefs,
+  streamArcAI, arcAIRequest, extractVerseRefs,
 } from "@/lib/bible-ai"
 import { buildChatSystemPrompt } from "@/lib/bible-ai-prompts"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (stream) {
-      const response = await streamFromLunziko(
+      const response = await streamArcAI(
         message.trim(),
         history,
         systemPrompt,

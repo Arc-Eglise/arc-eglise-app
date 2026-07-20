@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { streamFromLunziko, arcAIRequest } from "@/lib/bible-ai"
+import { streamArcAI, arcAIRequest } from "@/lib/bible-ai"
 
 const CHURCH_BASE =
   "Tu es l'assistant IA de l'église ARC (Ambassade du Royaume de Christ), une église chrétienne évangélique basée à La Chaux-de-Fonds, Suisse. " +
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = await buildSystemPrompt()
 
     if (stream) {
-      return streamFromLunziko(message.trim(), history, systemPrompt)
+      return streamArcAI(message.trim(), history, systemPrompt)
     }
 
     const answer = await arcAIRequest(message.trim(), systemPrompt, history).catch(() => "Je suis temporairement indisponible. Merci de réessayer dans un instant.")

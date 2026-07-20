@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildMeditationSystemPrompt } from "@/lib/bible-ai-prompts"
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const message = `Guide-moi dans une méditation de ${duration} sur ${verse_ref} (style : ${style}).`
 
   if (stream) {
-    try { return await streamFromLunziko(message, [], system) }
+    try { return await streamArcAI(message, [], system) }
     catch (err) {
       console.error("[bible-ai/meditate]", err)
       const enc = new TextEncoder()

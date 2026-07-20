@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       const system  = "Tu es un conseiller spirituel bienveillant. Offre une réflexion brève (5-6 phrases), bibliquement fondée, encourageante. Cite 1-2 versets. Ne diagnostique pas. Termine par une invitation à prier."
 
       if (stream) {
-        try { return await streamFromLunziko(message, [], system) }
+        try { return await streamArcAI(message, [], system) }
         catch { return NextResponse.json({ error: "Service indisponible" }, { status: 502 }) }
       }
 

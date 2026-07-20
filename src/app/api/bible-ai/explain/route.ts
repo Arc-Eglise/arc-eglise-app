@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS,
+  getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS,
   buildCacheKey, getCachedResponse, setCachedResponse, sseChunk,
 } from "@/lib/bible-ai"
 import { buildExplainSystemPrompt } from "@/lib/bible-ai-prompts"
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const message = `Explique ce passage biblique en détail pour le niveau ${lvl} : ${verse_ref}`
 
   try {
-    return await streamFromLunziko(message, [], system)
+    return await streamArcAI(message, [], system)
   } catch (err) {
     console.error("[bible-ai/explain]", err)
     const enc = new TextEncoder()

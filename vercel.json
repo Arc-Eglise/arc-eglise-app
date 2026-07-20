@@ -11,9 +11,6 @@
     "src/app/api/bible-ai/**": {
       "maxDuration": 60
     },
-    "src/app/api/lunziko/**": {
-      "maxDuration": 60
-    }
   },
   "headers": [
     {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, getRecentSessionSummaries, streamFromLunziko, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildTheologySystemPrompt } from "@/lib/bible-ai-prompts"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const system = buildTheologySystemPrompt(lvl, lang)
 
   if (stream) {
-    try { return await streamFromLunziko(question.trim(), history, system) }
+    try { return await streamArcAI(question.trim(), history, system) }
     catch (err) {
       console.error("[bible-ai/theology]", err)
       const enc = new TextEncoder()

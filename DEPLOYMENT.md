@@ -54,15 +54,6 @@ Les valeurs se trouvent dans ton `.env.local` local (ne jamais les committer).
 | `BIBLE_API_BASE` | All | `https://api.scripture.api.bible/v1` |
 | `BIBLE_DEFAULT_ID` | All | ex: `6f26e199139ea7f1-01` |
 
-### Lunziko Platform
-| Variable | Scope | Source |
-|---|---|---|
-| `LUNZIKO_API_URL` | All | `https://api-gules-nine-89.vercel.app/v1` |
-| `LUNZIKO_SUPABASE_URL` | All | URL Supabase de Lunziko Platform |
-| `LUNZIKO_SUPABASE_ANON_KEY` | All | Clé anon Supabase Lunziko |
-| `LUNZIKO_EMAIL` | All | Email du compte de service Lunziko |
-| `LUNZIKO_PASSWORD` | All | Mot de passe du compte de service Lunziko |
-
 ### YouTube
 | Variable | Scope | Source |
 |---|---|---|

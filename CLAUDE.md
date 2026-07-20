@@ -111,4 +111,4 @@ Tous les fichiers SQL en attente ont été exécutés le 2026-07-17.
 - **Cultes :** Dim 9h30 + 17h00, Prière Mer 19h00
 - **Adresse :** Av. Charles-Naine 39, 2300 La Chaux-de-Fonds
 - **Email église :** arceglise.cdf@gmail.com
-- **Vercel account :** arceglise.cdf@gmail.com (≠ compte Lunziko jaise.buka.dilu@gmail.com)
+- **Vercel account :** arceglise.cdf@gmail.com

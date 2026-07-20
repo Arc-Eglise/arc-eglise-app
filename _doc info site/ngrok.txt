@@ -1,0 +1,8 @@
+ngrok
+
+api : 3GmSIJ2pzEJOeozRadre86hROAG_5YUrRi7i21zxVADCbLydu
+
+Authtokens:
+- ID: cr_3GmS2iZXJgqE9yRS6iHNCZ7uJOK
+- Description: credential for "arceglise.cdf@gmail.com"
+- Owner: arceglise.cdf@gmail.com

@@ -97,7 +97,6 @@ export {
 export type { ModelAdapter, AdaptedPrompt, DeepSeekR1Result, GlmChunk } from './engines/arc-model-adapters'
 
 // ── Fonction principale : réponse IA pour le chat biblique ───────────────────
-// Drop-in replacement de streamFromLunziko()
 
 import { streamArcAgent, runArcAgent } from './agents/arc-agents'
 import type { AgentInput, AgentResult } from './agents/arc-agents'
@@ -113,7 +112,7 @@ export interface ArcAIInput {
   stream?: boolean
 }
 
-// Stream — pour les routes API Next.js (remplace streamFromLunziko)
+// Stream — pour les routes API Next.js
 export function arcAIStream(input: ArcAIInput): ReadableStream<Uint8Array> {
   return streamArcAgent({
     task: input.message,

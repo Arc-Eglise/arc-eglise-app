@@ -262,7 +262,7 @@ export async function arcAIRequest(
 }
 
 // Stream : retourne une Response SSE avec fallback multi-provider
-export async function streamFromLunziko(
+export async function streamArcAI(
   message: string,
   history: { role: string; content: string }[],
   systemPrompt: string,
