@@ -23,6 +23,8 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 import MailPanel from "@/components/mail/MailPanel";
 import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
 import { DONS_ENABLED } from "@/lib/features";
+import { SermonSummariesManager } from "@/components/espace-membres/SermonSummariesManager";
+import { VideoPlayer } from "@/components/VideoPlayer";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
@@ -453,11 +455,15 @@ const [showSalle, setShowSalle]       = useState(false);
   const textSz = readingPrefs.font_size_px / 16;
 
   /* Computed */
-  const role        = profile?.role ?? "visiteur";
-  const isAdmin     = role === "admin";
-  const isPasteur   = role === "pasteur";
-  const canAdmin    = isAdmin || isPasteur;
-  const isManager   = (profile?.managed_groups?.length ?? 0) > 0;
+  const role           = profile?.role ?? "visiteur";
+  const isAdmin        = role === "admin";
+  const isPasteur      = role === "pasteur";
+  const userGroups     = profile?.groups ?? [];
+  const canCommFunc    = userGroups.includes("communication");
+  const canSupportFunc = userGroups.includes("support");
+  const canAdmin       = isAdmin || isPasteur || canCommFunc || canSupportFunc;
+  const canAdminFull   = isAdmin || isPasteur;
+  const isManager      = (profile?.managed_groups?.length ?? 0) > 0;
   const displayName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email
     : "Membre";
@@ -1931,15 +1937,11 @@ const [showSalle, setShowSalle]       = useState(false);
                 <button className="em-btn em-btn-primary em-btn-sm" onClick={() => setShowGS(true)}>⚙ Gérer le stream</button>
               )}
             </div>
-            <div style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}>
-              <iframe
-                src="https://www.youtube.com/embed/live_stream?channel=UCxxxxxxxx&autoplay=0&rel=0"
-                title="ARC Live"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{width:"100%",height:"100%",border:"none"}}
-              />
-            </div>
+            <VideoPlayer
+              src="https://www.youtube.com/embed/live_stream?channel=UCxxxxxxxx&autoplay=0&rel=0"
+              title="ARC Live"
+              style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
+            />
             <div className="em-g3" style={{marginBottom:18}}>
               {[
                 {ico:"📅",title:"Culte dominical",desc:"Dimanche à 9h30"},
@@ -2543,7 +2545,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
                     <input className="em-input" placeholder="Rechercher…" value={mSearch} onChange={e=>setMSearch(e.target.value)} style={{maxWidth:280,flex:1}} />
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={loadMembers}>↺ Actualiser</button>
-                    {isAdmin && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>✉️ Inviter</button>}
+                    {canAdminFull && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>✉️ Inviter</button>}
                   </div>
                   {mLoading
                     ? <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa"}}>Chargement…</div>
@@ -2667,20 +2669,22 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
 
               {/* Support */}
-              {adminTab==="support" && isAdmin && (
+              {adminTab==="support" && (
                 <div className="em-card">
                   <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>🛠 Support Technique</div>
                   <div className="em-g2">
-                    <div style={{padding:16,background:"#f7f8fc",borderRadius:12,textAlign:"center"}}>
-                      <div style={{fontSize:32,marginBottom:8}}>💻</div>
-                      <div style={{fontWeight:700,color:"#1e2464",marginBottom:6}}>RustDesk — Accès distant</div>
-                      <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Contrôle à distance sécurisé</div>
-                      <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{
-                        if(confirm("⚠️ Vous êtes sur le point d'activer l'accès distant RustDesk. Confirmez-vous ?")) {
-                          setToast("RustDesk activé — en attente de connexion");
-                        }
-                      }}>Activer RustDesk</button>
-                    </div>
+                    {(isAdmin || canSupportFunc) && (
+                      <div style={{padding:16,background:"#f7f8fc",borderRadius:12,textAlign:"center"}}>
+                        <div style={{fontSize:32,marginBottom:8}}>💻</div>
+                        <div style={{fontWeight:700,color:"#1e2464",marginBottom:6}}>RustDesk — Accès distant</div>
+                        <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Contrôle à distance sécurisé</div>
+                        <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{
+                          if(confirm("⚠️ Vous êtes sur le point d'activer l'accès distant RustDesk. Confirmez-vous ?")) {
+                            setToast("RustDesk activé — en attente de connexion");
+                          }
+                        }}>Activer RustDesk</button>
+                      </div>
+                    )}
                     <div style={{padding:16,background:"#f7f8fc",borderRadius:12}}>
                       <div style={{fontWeight:700,color:"#1e2464",marginBottom:10}}>Tickets récents</div>
                       {[{title:"Problème connexion WiFi",status:"Résolu"},{title:"Mise à jour serveur",status:"En cours"},{title:"Backup base de données",status:"Planifié"}].map(t=>(
@@ -2693,20 +2697,16 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                 </div>
               )}
-              {adminTab==="support" && !isAdmin && (
-                <div className="em-card" style={{textAlign:"center",padding:"40px 0"}}>
-                  <div style={{fontSize:32,marginBottom:8}}>🔒</div>
-                  <div style={{fontWeight:600,color:"#1e2464"}}>Accès réservé à l&apos;Administrateur</div>
-                </div>
-              )}
 
               {/* Sermons */}
               {adminTab==="sermons" && (
                 <div className="em-card">
-                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📺 Gestion des sermons</div>
-                  <a href="/admin/sermons" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#8899cc",textDecoration:"none"}}>
-                    Accéder au panneau de gestion des sermons →
-                  </a>
+                  <SermonSummariesManager />
+                  <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #e0e4f0"}}>
+                    <a href="/admin/sermons" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,color:"#8899cc",textDecoration:"none"}}>
+                      Gérer les sermons (CMS) →
+                    </a>
+                  </div>
                 </div>
               )}
 

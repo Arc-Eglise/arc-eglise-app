@@ -40,7 +40,7 @@ export default async function AboutSection() {
           <div
             style={{
               borderRadius: 24, overflow: "hidden", height: 480,
-              background: "linear-gradient(150deg,#2b327f,#141738)",
+              background: "linear-gradient(150deg,var(--navy-700),var(--navy-900))",
               boxShadow: "0 26px 60px rgba(20,23,56,.28)",
               position: "relative",
             }}
@@ -69,7 +69,7 @@ export default async function AboutSection() {
               position: "absolute", left: -16, top: -16,
               background: "#fff", border: "1px solid rgba(30,36,100,.12)",
               borderRadius: 14, padding: "11px 16px",
-              fontSize: 12.5, fontWeight: 600, color: "#1e2464",
+              fontSize: 12.5, fontWeight: 600, color: "var(--navy)",
               boxShadow: "0 12px 30px rgba(20,23,56,.14)",
             }}
           >
@@ -84,7 +84,7 @@ export default async function AboutSection() {
           </div>
           <h2
             className="font-serif"
-            style={{ fontWeight: 600, fontSize: "clamp(34px,4vw,52px)", lineHeight: 1.08, color: "#1e2464", marginBottom: 24 }}
+            style={{ fontWeight: 600, fontSize: "clamp(34px,4vw,52px)", lineHeight: 1.08, color: "var(--navy)", marginBottom: 24 }}
           >
             Une église enracinée{" "}
             <span style={{ fontStyle: "italic", color: "#C9A227" }}>dans la Parole</span>
@@ -103,7 +103,7 @@ export default async function AboutSection() {
               fontStyle: "italic",
               fontSize: 23,
               lineHeight: 1.4,
-              color: "#1e2464",
+              color: "var(--navy)",
             }}
             className="font-serif"
           >
@@ -134,7 +134,7 @@ export default async function AboutSection() {
               href="#equipe"
               style={{
                 textDecoration: "none",
-                background: "#1e2464",
+                background: "var(--navy)",
                 color: "#fff",
                 padding: "14px 26px",
                 borderRadius: 999,
@@ -148,8 +148,8 @@ export default async function AboutSection() {
               href="#contact"
               style={{
                 textDecoration: "none",
-                border: "1px solid #1e2464",
-                color: "#1e2464",
+                border: "1px solid var(--navy)",
+                color: "var(--navy)",
                 padding: "14px 26px",
                 borderRadius: 999,
                 fontWeight: 600,

@@ -4,7 +4,7 @@ export default function AnnouncementMarquee({ items }: { items: string[] }) {
   const doubled = [...items, ...items];
   return (
     <div
-      style={{ background: "#141738", overflow: "hidden", fontSize: 13, letterSpacing: ".04em" }}
+      style={{ background: "var(--navy-900)", overflow: "hidden", fontSize: 13, letterSpacing: ".04em" }}
       aria-hidden="true"
     >
       <div className="animate-marquee" style={{ gap: 48, padding: "9px 0", whiteSpace: "nowrap", width: "max-content" }}>

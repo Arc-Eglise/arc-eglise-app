@@ -120,7 +120,7 @@ export default function Header() {
                 href="/inscription"
                 className="text-[14px] font-semibold text-white transition-all hover:-translate-y-px"
                 style={{
-                  background: "#1e2464",
+                  background: "var(--navy)",
                   padding: "11px 22px",
                   borderRadius: 999,
                   boxShadow: "0 8px 22px rgba(30,36,100,.28)",

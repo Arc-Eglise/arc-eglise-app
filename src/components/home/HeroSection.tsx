@@ -48,7 +48,7 @@ export default function HeroSection({
             fontSize: 12.5,
             letterSpacing: ".14em",
             textTransform: "uppercase",
-            color: "#1e2464",
+            color: "var(--navy)",
             fontWeight: 600,
           }}
         >
@@ -63,7 +63,7 @@ export default function HeroSection({
             fontSize: "clamp(44px,5.4vw,76px)",
             lineHeight: 1.04,
             letterSpacing: "-.01em",
-            color: "#1e2464",
+            color: "var(--navy)",
           }}
         >
           Construisons des générations{" "}
@@ -90,7 +90,7 @@ export default function HeroSection({
           <Link
             href="/inscription"
             className="inline-flex items-center gap-2 font-semibold text-[15px] text-arc-navy hover:-translate-y-0.5 transition-all"
-            style={{ background: "transparent", padding: "16px 28px", borderRadius: 999, border: "1px solid #1e2464" }}
+            style={{ background: "transparent", padding: "16px 28px", borderRadius: 999, border: "1px solid var(--navy)" }}
           >
             Rejoindre la famille →
           </Link>
@@ -105,7 +105,7 @@ export default function HeroSection({
             { v: stats?.touches ?? "—",                         l: "Touchés" },
           ].map((s) => (
             <div key={s.l} style={{ textAlign: "left" }}>
-              <div className="font-serif" style={{ fontSize: 40, fontWeight: 600, color: "#1e2464", lineHeight: 1 }}>{s.v}</div>
+              <div className="font-serif" style={{ fontSize: 40, fontWeight: 600, color: "var(--navy)", lineHeight: 1 }}>{s.v}</div>
               <div style={{ fontSize: 12, letterSpacing: ".08em", textTransform: "uppercase", color: "#6b6f86", marginTop: 5 }}>{s.l}</div>
             </div>
           ))}
@@ -119,7 +119,7 @@ export default function HeroSection({
           style={{
             position: "absolute", inset: 0, borderRadius: 24, overflow: "hidden",
             boxShadow: "0 30px 70px rgba(20,23,56,.32)",
-            background: "linear-gradient(150deg,#262c6e,#141738)",
+            background: "linear-gradient(150deg,var(--navy-700),var(--navy-900))",
           }}
         >
           <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 22px)" }} />
@@ -154,7 +154,7 @@ export default function HeroSection({
             }}
           >
             <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: "#C9A227", fontWeight: 700, marginBottom: 8 }}>Dernier sermon</div>
-            <div className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "#1e2464", lineHeight: 1.1 }}>{lastSermon.title}</div>
+            <div className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "var(--navy)", lineHeight: 1.1 }}>{lastSermon.title}</div>
             <div style={{ fontSize: 12.5, color: "#6b6f86", marginTop: 6 }}>
               {[lastSermon.reference, lastSermon.pastor ? `Past. ${lastSermon.pastor}` : null].filter(Boolean).join(" · ")}
             </div>
@@ -166,7 +166,7 @@ export default function HeroSection({
           className="animate-float"
           style={{
             position: "absolute", right: -22, bottom: 34, width: 248,
-            background: "#1e2464", color: "#fff", borderRadius: 18, padding: 20,
+            background: "var(--navy)", color: "#fff", borderRadius: 18, padding: 20,
             boxShadow: "0 24px 50px rgba(20,23,56,.4)",
             animationDelay: ".8s",
           }}

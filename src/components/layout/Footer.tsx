@@ -109,7 +109,7 @@ export default async function Footer() {
   const horaireLines     = horaires.split("\n");
 
   return (
-    <footer style={{ background: "#141738", color: "#fff", padding: "72px 32px 36px" }}>
+    <footer style={{ background: "var(--navy-900)", color: "#fff", padding: "72px 32px 36px" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto" }}>
 
         {/* Top grid */}

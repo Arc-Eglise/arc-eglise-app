@@ -87,8 +87,8 @@ export default async function BiblePage() {
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Retour
+      <Link href="/espace-membres/ai-biblique" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← ARC Église AI
       </Link>
       <div className="mb-6 flex items-center justify-between">
         <div>

@@ -178,11 +178,14 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
             if (ev.type === "end" || ev.type === "done") {
               setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full || "…", streaming: false } : m))
             }
+            if (ev.type === "error") {
+              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: "Le service IA est temporairement indisponible. Veuillez réessayer dans quelques minutes.", streaming: false } : m))
+            }
           } catch { /* skip */ }
         }
       }
-      // Fallback : marquer terminé même si l'événement "end" n'est pas reçu
-      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, streaming: false } : m))
+      // Fallback si le stream se termine sans événement "end"
+      setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: m.content || "Service temporairement indisponible.", streaming: false } : m))
     } catch {
       setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: "Service temporairement indisponible.", streaming: false } : m))
     } finally {
@@ -259,6 +262,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
           try {
             const ev = JSON.parse(line.slice(6))
             if (ev.type === "end") setPlanGenMsg(`✅ Plan créé (${ev.days_count} jours)`)
+            if (ev.type === "error") setPlanGenMsg(`❌ Erreur : ${ev.error}`)
           } catch { /* skip */ }
         }
       }
@@ -472,6 +476,39 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   const [activeSermon, setActiveSermon] = useState<SermonItem | null>(null)
   const [sermonSummary, setSermonSummary] = useState<SermonSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
+
+  const [versePopup, setVersePopup]   = useState<{ ref: string; text: string | null } | null>(null)
+  const [verseLoading, setVerseLoading] = useState(false)
+  const [themePopup, setThemePopup]   = useState<{ theme: string; result: string | null } | null>(null)
+  const [themeLoading, setThemeLoading] = useState(false)
+
+  const openVersePopup = async (ref: string) => {
+    setVersePopup({ ref, text: null })
+    setVerseLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_verse", ref }) })
+      const data = await res.json()
+      setVersePopup({ ref, text: data.text ?? "Verset non trouvé." })
+    } catch {
+      setVersePopup({ ref, text: "Impossible de charger le verset." })
+    } finally {
+      setVerseLoading(false)
+    }
+  }
+
+  const openThemePopup = async (theme: string) => {
+    setThemePopup({ theme, result: null })
+    setThemeLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "search_theme", theme }) })
+      const data = await res.json()
+      setThemePopup({ theme, result: data.result ?? "Résultat non disponible." })
+    } catch {
+      setThemePopup({ theme, result: "Service temporairement indisponible." })
+    } finally {
+      setThemeLoading(false)
+    }
+  }
 
   const loadDbSermons = useCallback(async () => {
     setSermsLoading(true)
@@ -820,7 +857,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-sm text-arc-navy">Jour {d.day_number}{d.title ? ` — ${d.title}` : ""}</p>
-                        <p className="text-xs text-arc-blue mt-0.5">{d.passages.join(" · ")}</p>
+                        <p className="text-xs text-arc-blue mt-0.5">{(d.passages ?? []).join(" · ")}</p>
                         {d.reflection && <p className="text-xs text-arc-text2 mt-1 italic">{d.reflection}</p>}
                       </div>
                       {!d.is_completed && (
@@ -1346,8 +1383,8 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
                         <p className="text-xs font-bold text-arc-navy uppercase tracking-wide mb-2">Versets clés</p>
                         <div className="flex flex-wrap gap-1.5">
                           {sermonSummary.key_verses.map((v, i) => (
-                            <button key={i} onClick={() => { setTab("chat"); sendChat(`Explique-moi ${v} dans son contexte`) }}
-                              className="text-xs bg-arc-gold/10 text-arc-navy border border-arc-gold/30 px-2.5 py-1 rounded-full hover:bg-arc-gold/20 transition">
+                            <button key={i} onClick={() => openVersePopup(v)}
+                              className="text-xs bg-arc-gold/10 text-arc-navy border border-arc-gold/30 px-2.5 py-1 rounded-full hover:bg-arc-gold/20 transition cursor-pointer">
                               📖 {v}
                             </button>
                           ))}
@@ -1359,7 +1396,10 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
                         <p className="text-xs font-bold text-arc-navy uppercase tracking-wide mb-2">Thèmes</p>
                         <div className="flex flex-wrap gap-1.5">
                           {sermonSummary.themes.map((t, i) => (
-                            <span key={i} className="text-xs bg-arc-blueBg text-arc-navy px-2.5 py-1 rounded-full">{t}</span>
+                            <button key={i} onClick={() => openThemePopup(t)}
+                              className="text-xs bg-arc-blueBg text-arc-navy px-2.5 py-1 rounded-full hover:bg-arc-navy/10 transition cursor-pointer border border-transparent hover:border-arc-navy/20">
+                              🔍 {t}
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -1369,6 +1409,56 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── POPUP VERSET ────────────────────────────────────── */}
+      {versePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setVersePopup(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-arc-blue mb-1">Verset</p>
+                <p className="font-serif font-semibold text-arc-navy text-base">{versePopup.ref}</p>
+              </div>
+              <button onClick={() => setVersePopup(null)} className="text-arc-text2 hover:text-arc-navy text-xl leading-none ml-4">✕</button>
+            </div>
+            {verseLoading && !versePopup.text ? (
+              <div className="flex items-center gap-2 py-4 text-arc-text2 text-sm"><Spinner /> Chargement…</div>
+            ) : (
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{versePopup.text}</p>
+            )}
+            <button onClick={() => { setVersePopup(null); sendChat(`Explique-moi ${versePopup.ref} dans son contexte`) }}
+              className="mt-4 w-full py-2 rounded-xl bg-arc-navy text-white text-xs font-semibold hover:bg-arc-blue transition">
+              💬 Étudier ce verset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── POPUP THÈME ─────────────────────────────────────── */}
+      {themePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setThemePopup(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4 shrink-0">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-arc-blue mb-1">Thème biblique</p>
+                <p className="font-serif font-semibold text-arc-navy text-base">{themePopup.theme}</p>
+              </div>
+              <button onClick={() => setThemePopup(null)} className="text-arc-text2 hover:text-arc-navy text-xl leading-none ml-4">✕</button>
+            </div>
+            {themeLoading && !themePopup.result ? (
+              <div className="flex items-center gap-2 py-4 text-arc-text2 text-sm"><Spinner /> Recherche en cours…</div>
+            ) : (
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line overflow-y-auto">{themePopup.result}</p>
+            )}
+            <button onClick={() => { setThemePopup(null); sendChat(`Approfondis le thème "${themePopup.theme}" avec des références bibliques`) }}
+              className="mt-4 shrink-0 w-full py-2 rounded-xl bg-arc-navy text-white text-xs font-semibold hover:bg-arc-blue transition">
+              💬 Approfondir ce thème
+            </button>
           </div>
         </div>
       )}

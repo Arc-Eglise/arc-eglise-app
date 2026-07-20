@@ -14,6 +14,7 @@ export type AIProvider =
   | 'deepseek'
   | 'gemini'
   | 'mistral'
+  | 'groq'            // Groq — inférence ultra-rapide, plan gratuit généreux
   | 'ollama'          // Ollama générique (env OLLAMA_MODEL)
   | 'ollama-qwen'     // Qwen2.5 — multilingue FR/EN/AR/ZH — ARC LLM principal
   | 'ollama-deepseek' // DeepSeek-R1-Distill — raisonnement théologique profond
@@ -63,8 +64,9 @@ const MODELS: Record<Exclude<AIProvider, 'auto'>, string> = {
   anthropic:      process.env.ANTHROPIC_MODEL     ?? 'claude-sonnet-4-6',
   openai:         process.env.OPENAI_MODEL        ?? 'gpt-4o-mini',
   deepseek:       process.env.DEEPSEEK_MODEL      ?? 'deepseek-chat',
-  gemini:         process.env.GEMINI_MODEL        ?? 'gemini-1.5-flash',
+  gemini:         process.env.GEMINI_MODEL        ?? 'gemini-2.0-flash',
   mistral:        process.env.MISTRAL_MODEL       ?? 'mistral-small-latest',
+  groq:           process.env.GROQ_MODEL          ?? 'llama-3.3-70b-versatile',
   ollama:         process.env.OLLAMA_MODEL        ?? 'arc-llm',
   'ollama-qwen':  process.env.OLLAMA_QWEN_MODEL   ?? 'arc-llm-qwen',    // ollama create arc-llm-qwen -f Modelfile.qwen
   'ollama-deepseek': process.env.OLLAMA_DS_MODEL  ?? 'arc-llm-deepseek', // ollama create arc-llm-deepseek -f Modelfile.deepseek
@@ -81,6 +83,7 @@ export function isAvailable(provider: Exclude<AIProvider, 'auto'>): boolean {
     case 'deepseek':       return !!process.env.DEEPSEEK_API_KEY
     case 'gemini':         return !!process.env.GEMINI_API_KEY
     case 'mistral':        return !!process.env.MISTRAL_API_KEY
+    case 'groq':           return !!process.env.GROQ_API_KEY
     case 'ollama':         return ollamaUp
     case 'ollama-qwen':    return ollamaUp
     case 'ollama-deepseek': return ollamaUp
@@ -88,9 +91,9 @@ export function isAvailable(provider: Exclude<AIProvider, 'auto'>): boolean {
   }
 }
 
-// Fallback cloud → local (coût décroissant, gratuit en local)
+// Groq en tête (gratuit, rapide, sans quota strict) → Gemini → providers payants → Ollama
 const FALLBACK_CHAIN: Exclude<AIProvider, 'auto'>[] = [
-  'anthropic', 'deepseek', 'openai', 'mistral', 'gemini',
+  'groq', 'gemini', 'mistral', 'anthropic', 'deepseek', 'openai',
   'ollama-qwen', 'ollama-deepseek', 'ollama-glm', 'ollama',
 ]
 
@@ -140,6 +143,15 @@ function getGemini(): OpenAI {
   return _gemini
 }
 
+let _groq: OpenAI | null = null
+function getGroq(): OpenAI {
+  if (!_groq) _groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  })
+  return _groq
+}
+
 let _ollama: OpenAI | null = null
 function getOllama(): OpenAI {
   if (!_ollama) _ollama = new OpenAI({
@@ -176,11 +188,12 @@ export async function chat(
       return { content, provider, model, tokensIn: response.usage.input_tokens, tokensOut: response.usage.output_tokens }
     }
 
-    // OpenAI-compatible (openai, deepseek, mistral, gemini, ollama-*)
+    // OpenAI-compatible (openai, deepseek, mistral, gemini, groq, ollama-*)
     const client = provider === 'openai' ? getOpenAI()
       : provider === 'deepseek' ? getDeepSeek()
       : provider === 'mistral' ? getMistral()
       : provider === 'gemini' ? getGemini()
+      : provider === 'groq' ? getGroq()
       : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
 
     const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
@@ -211,7 +224,6 @@ export function streamChat(
   providerReq: AIProvider = 'auto',
   options: ChatOptions = {},
 ): ReadableStream<Uint8Array> {
-  // Build fallback chain: try each available provider in order
   const providersToTry: Exclude<AIProvider, 'auto'>[] = providerReq === 'auto'
     ? FALLBACK_CHAIN.filter(isAvailable)
     : [resolveProvider(providerReq)]
@@ -224,8 +236,15 @@ export function streamChat(
 
   return new ReadableStream({
     async start(controller) {
+      console.log(`[ARC AI] Stream chain: ${providersToTry.join(' → ')}`)
       for (const provider of providersToTry) {
         const model = MODELS[provider]
+        console.log(`[ARC AI] Trying ${provider} (${model})`)
+        const abort = new AbortController()
+        const timer = setTimeout(() => {
+          console.error(`[ARC AI] Provider ${provider} timed out after 15s`)
+          abort.abort()
+        }, 15_000)
         try {
           if (provider === 'anthropic') {
             const userMessages = messages.filter(m => m.role !== 'system')
@@ -247,6 +266,7 @@ export function streamChat(
               : provider === 'deepseek' ? getDeepSeek()
               : provider === 'mistral' ? getMistral()
               : provider === 'gemini' ? getGemini()
+              : provider === 'groq' ? getGroq()
               : getOllama()  // ollama, ollama-qwen, ollama-deepseek, ollama-glm
 
             const oaiMessages: OpenAI.ChatCompletionMessageParam[] = []
@@ -255,19 +275,27 @@ export function streamChat(
               .filter(m => m.role !== 'system')
               .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })))
 
-            const stream = await client.chat.completions.create({ model, max_tokens: maxTokens, temperature, messages: oaiMessages, stream: true })
+            const stream = await client.chat.completions.create(
+              { model, max_tokens: maxTokens, temperature, messages: oaiMessages, stream: true },
+              { signal: abort.signal },
+            )
             for await (const chunk of stream) {
               const text = chunk.choices[0]?.delta?.content ?? ''
               if (text) controller.enqueue(encoder.encode(text))
             }
           }
+          clearTimeout(timer)
           controller.close()
           return
         } catch (err) {
-          console.error(`[ARC AI] Provider ${provider} failed:`, String(err))
+          clearTimeout(timer)
+          const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+          console.error(`[ARC AI] Provider ${provider} failed:`, errMsg)
         }
       }
-      controller.error(new Error('Tous les providers IA ont échoué'))
+      const failMsg = `Tous les providers IA ont échoué (chain: ${providersToTry.join(', ')})`
+      console.error(`[ARC AI] ${failMsg}`)
+      controller.error(new Error(failMsg))
     },
   })
 }
@@ -335,6 +363,7 @@ export async function chatWithTools(
   const isOllamaVariant = provider === 'ollama' || provider === 'ollama-qwen' || provider === 'ollama-deepseek' || provider === 'ollama-glm'
   const client = provider === 'openai' ? getOpenAI()
     : provider === 'deepseek' ? getDeepSeek()
+    : provider === 'groq' ? getGroq()
     : isOllamaVariant ? getOllama()
     : getMistral()
   const oaiTools: OpenAI.ChatCompletionTool[] = tools.map(t => ({

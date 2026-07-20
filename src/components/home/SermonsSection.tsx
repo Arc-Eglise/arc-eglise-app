@@ -13,7 +13,7 @@ export default async function SermonsSection() {
     .limit(10);
 
   return (
-    <section id="sermons" style={{ background: "#141738", color: "#fff", padding: "96px 0" }}>
+    <section id="sermons" style={{ background: "var(--navy-900)", color: "#fff", padding: "96px 0" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 32px" }}>
 
         {/* Header row */}

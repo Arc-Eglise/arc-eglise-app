@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   requireAuth, unauthorizedResponse, badRequestResponse,
-  getUserPrefs, arcAIRequest, SSE_HEADERS, sseChunk,
+  getUserPrefs, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
+import { chat } from "@/lib/arc-ai/provider-manager"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient }      from "@/lib/supabase/server"
 import type { BibleLevel }   from "@/lib/bible-ai-prompts"
@@ -64,7 +65,12 @@ ${focus ? `- Thème central : ${focus}` : "- Équilibre Ancien Testament et Nouv
       ;(async () => {
         try {
           await writer.write(enc.encode(sseChunk({ type: "start", plan_id: plan.id })))
-          const raw = await arcAIRequest(message, system)
+          const result = await chat(
+            [{ role: "user", content: message }],
+            "auto",
+            { system, maxTokens: 8192 }
+          )
+          const raw = result.content
           // Nettoyer markdown éventuel (```json ... ```)
           const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '').trim()
           const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
@@ -76,12 +82,20 @@ ${focus ? `- Thème central : ${focus}` : "- Équilibre Ancien Testament et Nouv
             plan_id: plan.id,
             day_number: d.day,
             title: d.title ?? `Jour ${d.day}`,
-            passages: d.passages ?? [],
+            // Normaliser passages : accepte string[] ou [{reference}] ou string
+            passages: Array.isArray(d.passages)
+              ? d.passages.map((p: unknown) => typeof p === "string" ? p : (p as Record<string,string>)?.reference ?? String(p))
+              : [],
             reflection: d.reflection ?? null,
             prayer_guide: d.prayer_guide ?? null,
           }))
-          await admin.from("ai_reading_plan_days").insert(rows)
-          await writer.write(enc.encode(sseChunk({ type: "end", plan_id: plan.id, days_count: rows.length })))
+          const { error: insertError } = await admin.from("ai_reading_plan_days").insert(rows)
+          if (insertError) {
+            console.error("[plans/create] Erreur insertion jours:", insertError.message)
+            await writer.write(enc.encode(sseChunk({ type: "error", error: `Erreur base de données: ${insertError.message}` })))
+          } else {
+            await writer.write(enc.encode(sseChunk({ type: "end", plan_id: plan.id, days_count: rows.length })))
+          }
         } catch (err) {
           await writer.write(enc.encode(sseChunk({ type: "error", error: String(err) })))
         } finally {

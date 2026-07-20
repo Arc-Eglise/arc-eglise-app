@@ -107,10 +107,12 @@ export async function replyToMessage(
   ccRecipients?: { emailAddress: { address: string; name?: string } }[],
 ): Promise<void> {
   const payload: Record<string, unknown> = { comment };
-  const msgOverride: Record<string, unknown> = {};
+  const msgOverride: Record<string, unknown> = {
+    from: { emailAddress: { address: mailbox } },
+  };
   if (toRecipients && toRecipients.length > 0) msgOverride.toRecipients = toRecipients;
   if (ccRecipients && ccRecipients.length > 0) msgOverride.ccRecipients = ccRecipients;
-  if (Object.keys(msgOverride).length > 0) payload.message = msgOverride;
+  payload.message = msgOverride;
   await gfetch(`/users/${enc(mailbox)}/messages/${msgId}/reply`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -144,6 +146,7 @@ export async function sendMail(opts: {
   const message: Record<string, unknown> = {
     subject: opts.subject,
     body: { contentType: opts.isHtml ? "HTML" : "Text", content: opts.body },
+    from: { emailAddress: { address: opts.from } },
     toRecipients: [{ emailAddress: { address: opts.to } }],
   };
   if (opts.replyTo) {
@@ -154,7 +157,7 @@ export async function sendMail(opts: {
   }
   await gfetch(`/users/${enc(opts.from)}/sendMail`, {
     method: "POST",
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, saveToSentItems: true }),
   });
 }
 

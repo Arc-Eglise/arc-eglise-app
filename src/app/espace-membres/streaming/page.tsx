@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect }     from "next/navigation";
 import Link             from "next/link";
 import Image            from "next/image";
+import { VideoPlayer }  from "@/components/VideoPlayer";
 
 type YTItem = {
   videoId:     string;
@@ -82,8 +83,8 @@ export default async function StreamingPage() {
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Retour
+      <Link href="/espace-membres/ai-biblique" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
+        ← ARC Église AI
       </Link>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -107,15 +108,11 @@ export default async function StreamingPage() {
       {/* Main video */}
       {mainVideo ? (
         <div className="mb-6">
-          <div className={`rounded-2xl overflow-hidden bg-black aspect-video mb-4 ${isLive ? "ring-2 ring-red-500 ring-offset-2" : ""}`}>
-            <iframe
-              src={`https://www.youtube.com/embed/${mainVideo.youtubeId}${isLive ? "?autoplay=1" : "?rel=0"}`}
-              title={mainVideo.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            />
-          </div>
+          <VideoPlayer
+            src={`https://www.youtube.com/embed/${mainVideo.youtubeId}${isLive ? "?autoplay=1" : "?rel=0"}`}
+            title={mainVideo.title}
+            className={`rounded-2xl overflow-hidden bg-black aspect-video mb-4${isLive ? " ring-2 ring-red-500 ring-offset-2" : ""}`}
+          />
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-serif text-xl font-bold text-arc-navy mb-1">{mainVideo.title}</h2>
             <div className="text-sm text-arc-text3">{mainVideo.subtitle}</div>

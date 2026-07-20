@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { Sermon } from "@/lib/supabase/types";
+import { VideoPlayer } from "@/components/VideoPlayer";
 
 const FILTERS = ["Tout", "Série", "Évangélisation", "Prière", "Famille"];
 const GRADIENT = ["from-arc-navy to-arc-blue", "from-[#2d3a8e] to-arc-navy", "from-arc-navy2 to-[#2d3a8e]"];
@@ -57,29 +58,28 @@ export default function SermonsClient({ sermons, dark = false }: { sermons: Serm
               overflow: "hidden",
             }}
           >
-            <a
-              href={featured.youtube_id ? `https://youtu.be/${featured.youtube_id}` : undefined}
-              target={featured.youtube_id ? "_blank" : undefined}
-              rel="noopener noreferrer"
-              style={{ position: "relative", display: "block", height: 260, background: "linear-gradient(150deg,#2b327f,#141738)", cursor: "pointer" }}
-            >
-              {featured.youtube_id && (
-                <Image
-                  src={`https://img.youtube.com/vi/${featured.youtube_id}/hqdefault.jpg`}
-                  alt={featured.title}
-                  fill
-                  sizes="(max-width:900px) 100vw, 50vw"
-                  style={{ objectFit: "cover", opacity: 0.6 }}
+            {featured.youtube_id ? (
+              <div style={{ position: "relative" }}>
+                <VideoPlayer
+                  src={`https://www.youtube.com/embed/${featured.youtube_id}?rel=0`}
+                  title={featured.title}
+                  style={{ height: 260, background: "#141738" }}
                 />
-              )}
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
-              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-                <span style={{ width: 66, height: 66, borderRadius: "50%", background: "rgba(255,255,255,.16)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", fontSize: 24 }}>▶</span>
+                <div style={{ position: "absolute", top: 14, left: 14, background: "#C9A227", color: "#141738", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, letterSpacing: ".05em", pointerEvents: "none", zIndex: 5 }}>
+                  DERNIER MESSAGE
+                </div>
               </div>
-              <div style={{ position: "absolute", top: 16, left: 16, background: "#C9A227", color: "#141738", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, letterSpacing: ".05em" }}>
-                DERNIER MESSAGE
+            ) : (
+              <div style={{ position: "relative", height: 260, background: "linear-gradient(150deg,#2b327f,#141738)" }}>
+                <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 22px)" }} />
+                <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,.4)" }}>Aucune vidéo disponible</span>
+                </div>
+                <div style={{ position: "absolute", top: 16, left: 16, background: "#C9A227", color: "#141738", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 999, letterSpacing: ".05em" }}>
+                  DERNIER MESSAGE
+                </div>
               </div>
-            </a>
+            )}
             <div style={{ padding: 24 }}>
               <div style={{ fontSize: 12, color: "#E6C763", fontWeight: 600, letterSpacing: ".05em" }}>
                 {featured.series ? `SÉRIE · ${featured.series.toUpperCase()}` : "SERMON DU DIMANCHE"}

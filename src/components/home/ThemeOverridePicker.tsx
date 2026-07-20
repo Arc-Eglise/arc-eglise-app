@@ -55,6 +55,9 @@ const PALETTE = [
   { name: "Menthe",     hex: "#00796B" },
   { name: "Lavande",    hex: "#5C6BC0" },
   { name: "Rose pâle",  hex: "#AD1457" },
+  { name: "Rose",       hex: "#E91E63" },
+  { name: "Rose clair", hex: "#EC407A" },
+  { name: "Fuchsia",    hex: "#F06292" },
   { name: "Or ARC",     hex: "#C9A227" },
   { name: "Sable",      hex: "#795548" },
   // Très clairs

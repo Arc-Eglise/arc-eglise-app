@@ -59,7 +59,7 @@ export default async function AIBibliquePage() {
     <div className="flex flex-col h-screen bg-arc-bg">
       {/* Mobile top bar */}
       <div className="md:hidden shrink-0 flex items-center gap-3 px-4 py-3 bg-arc-navy text-white border-b border-white/10">
-        <a href="/espace-membres" className="text-white/60 hover:text-white text-sm">←</a>
+        <a href="/espace-membres" className="text-white/60 hover:text-white text-sm">← Espace Membres</a>
         <span className="font-bold text-sm">ARC Église AI</span>
       </div>
 

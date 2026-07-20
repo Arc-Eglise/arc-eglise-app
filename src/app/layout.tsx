@@ -77,17 +77,19 @@ export const viewport: Viewport = {
 function buildThemeCss(color: string): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
   if (!m) return "";
-  const darken = (factor: number) => {
-    const [r, g, b] = [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)];
-    return `#${[r, g, b].map(c => Math.max(0, Math.round(c * factor)).toString(16).padStart(2, "0")).join("")}`;
-  };
+  const [r, g, b] = [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)];
+  const darken  = (f: number) => `#${[r, g, b].map(c => Math.max(0, Math.round(c * f)).toString(16).padStart(2, "0")).join("")}`;
+  const lighten = (f: number) => `#${[r, g, b].map(c => Math.min(255, Math.round(c + (255 - c) * f)).toString(16).padStart(2, "0")).join("")}`;
   const n2 = darken(0.85);
   const n3 = darken(0.70);
+  const n9 = darken(0.60);  // très foncé — fond footer & sections sombres
+  const n7 = lighten(0.15); // légèrement éclairci — gradient highlight
   return `
+:root{--navy:${color};--navy-900:${n9};--navy-700:${n7};--line:rgba(${r},${g},${b},.12)}
 .bg-arc-navy,.hover\\:bg-arc-navy:hover{background-color:${color}!important}
 .bg-arc-navy2,.hover\\:bg-arc-navy2:hover{background-color:${n2}!important}
 .bg-arc-navy3{background-color:${n3}!important}
-.bg-arc-navy9{background-color:${n3}!important}
+.bg-arc-navy9{background-color:${n9}!important}
 .text-arc-navy{color:${color}!important}
 .border-arc-navy,.focus\\:border-arc-navy:focus,.hover\\:border-arc-navy:hover{border-color:${color}!important}
 .from-arc-navy{--tw-gradient-from:${color}!important}
@@ -97,6 +99,8 @@ function buildThemeCss(color: string): string {
 .to-arc-navy3{--tw-gradient-to:${n3}!important}
 .ring-arc-navy{--tw-ring-color:${color}!important}
 .accent-arc-navy{accent-color:${color}!important}
+.fill-arc-navy{fill:${color}!important}
+.stroke-arc-navy{stroke:${color}!important}
 `;
 }
 

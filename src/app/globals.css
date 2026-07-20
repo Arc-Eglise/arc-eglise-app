@@ -281,19 +281,52 @@
 .em-g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
 .em-stat-num { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 28px; font-weight: 700; color: #1e2464; line-height: 1; }
 .em-stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #8890aa; margin-top: 3px; }
-.em-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; font-family: var(--font-manrope); }
-.em-btn-sm { padding: 5px 11px; font-size: 12px; }
-.em-btn-primary { background: #1e2464; color: #fff; }
-.em-btn-primary:hover { background: #161b4e; }
-.em-btn-outline { background: transparent; border: 1.5px solid rgba(30,36,100,.2); color: #1e2464; }
-.em-btn-outline:hover { background: #eef1f8; }
+/* ── Boutons espace membres — design moderne charte ARC ──────────────── */
+.em-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer; border: none;
+  transition: all .18s cubic-bezier(.4,0,.2,1);
+  white-space: nowrap; font-family: var(--font-manrope);
+  letter-spacing: .01em; line-height: 1; text-decoration: none;
+  user-select: none;
+}
+.em-btn:active { transform: translateY(0) !important; box-shadow: none !important; }
+.em-btn-sm { padding: 6px 13px; font-size: 12px; border-radius: 8px; }
+.em-btn-xs { padding: 4px 10px; font-size: 11px; border-radius: 7px; }
+
+/* Primaire — navy (suit le thème accent) */
+.em-btn-primary { background: var(--navy,#1e2464); color: #fff; box-shadow: 0 2px 8px rgba(30,36,100,.22); }
+.em-btn-primary:hover { background: var(--navy-900,#141738); box-shadow: 0 4px 14px rgba(30,36,100,.32); transform: translateY(-1px); }
+
+/* Or — accent secondaire */
+.em-btn-gold { background: #C9A227; color: #1a1c2e; box-shadow: 0 2px 8px rgba(201,162,39,.28); font-weight: 700; }
+.em-btn-gold:hover { background: #b8931f; box-shadow: 0 4px 14px rgba(201,162,39,.38); transform: translateY(-1px); }
+
+/* Contour */
+.em-btn-outline { background: #fff; border: 1.5px solid rgba(30,36,100,.18); color: var(--navy,#1e2464); box-shadow: 0 1px 3px rgba(30,36,100,.06); }
+.em-btn-outline:hover { background: #eef1f8; border-color: var(--navy,#1e2464); box-shadow: 0 2px 8px rgba(30,36,100,.12); transform: translateY(-1px); }
+
+/* Fantôme */
 .em-btn-ghost { background: transparent; color: #8890aa; }
-.em-btn-ghost:hover { background: #eef1f8; color: #1e2464; }
-.em-btn-danger { background: #e53e3e; color: #fff; }
-.em-btn-success { background: #2f855a; color: #fff; }
-.em-tabs { display: flex; gap: 3px; background: #f0f2f9; padding: 4px; border-radius: 10px; margin-bottom: 18px; }
-.em-tab { flex: 1; padding: 6px 8px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; transition: all .15s; color: #8890aa; border: none; background: transparent; white-space: nowrap; font-family: var(--font-manrope); }
-.em-tab.active { background: #fff; color: #1e2464; box-shadow: 0 2px 8px rgba(30,36,100,.1); }
+.em-btn-ghost:hover { background: #f0f2f9; color: var(--navy,#1e2464); }
+
+/* Danger — rouge — conservation couleur Administration */
+.em-btn-danger { background: #e53e3e; color: #fff; box-shadow: 0 2px 8px rgba(229,62,62,.22); }
+.em-btn-danger:hover { background: #c53030; box-shadow: 0 4px 14px rgba(229,62,62,.32); transform: translateY(-1px); }
+
+/* Succès — vert — conservation couleur Administration */
+.em-btn-success { background: #2f855a; color: #fff; box-shadow: 0 2px 8px rgba(47,133,90,.22); }
+.em-btn-success:hover { background: #276749; box-shadow: 0 4px 14px rgba(47,133,90,.32); transform: translateY(-1px); }
+
+/* Avertissement — orange — conservation couleur Administration */
+.em-btn-warning { background: #d97706; color: #fff; box-shadow: 0 2px 8px rgba(217,119,6,.22); }
+.em-btn-warning:hover { background: #b45309; box-shadow: 0 4px 14px rgba(217,119,6,.32); transform: translateY(-1px); }
+
+/* ── Onglets ─────────────────────────────────────────────────────────── */
+.em-tabs { display: flex; gap: 2px; background: #eef1f8; padding: 4px; border-radius: 12px; margin-bottom: 18px; }
+.em-tab { flex: 1; padding: 7px 10px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; transition: all .18s cubic-bezier(.4,0,.2,1); color: #8890aa; border: none; background: transparent; white-space: nowrap; font-family: var(--font-manrope); }
+.em-tab.active { background: #fff; color: var(--navy,#1e2464); box-shadow: 0 2px 10px rgba(30,36,100,.13); transform: none; }
 .em-tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .em-tag-marine { background: #eef1f8; color: #1e2464; }
 .em-tag-vert { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
@@ -343,8 +376,8 @@
 .em-modal-hdr { padding: 18px 22px; border-bottom: 1px solid rgba(30,36,100,.1); display: flex; align-items: center; justify-content: space-between; }
 .em-modal-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; font-weight: 700; color: #1e2464; }
 .em-modal-body { padding: 22px; }
-.em-modal-close { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: #f7f8fc; cursor: pointer; font-size: 15px; transition: background .15s; border: none; color: #8890aa; }
-.em-modal-close:hover { background: #eef1f8; color: #1e2464; }
+.em-modal-close { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f0f2f9; cursor: pointer; font-size: 15px; transition: all .15s; border: none; color: #8890aa; }
+.em-modal-close:hover { background: #e4e8f5; color: var(--navy,#1e2464); transform: scale(1.08); }
 .em-input { width: 100%; padding: 9px 13px; border: 1.5px solid rgba(30,36,100,.15); border-radius: 8px; font-size: 13.5px; color: #1a1d3a; outline: none; background: #fff; transition: border-color .15s; font-family: var(--font-manrope); }
 .em-input:focus { border-color: var(--B); }
 .em-textarea { width: 100%; padding: 9px 13px; border: 1.5px solid rgba(30,36,100,.15); border-radius: 8px; font-size: 13.5px; color: #1a1d3a; outline: none; background: #fff; transition: border-color .15s; resize: none; font-family: var(--font-manrope); }
@@ -354,8 +387,9 @@
 .em-tbl th { background: #f7f8fc; padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #8890aa; border-bottom: 1px solid rgba(30,36,100,.09); }
 .em-tbl td { padding: 11px 12px; border-bottom: 1px solid rgba(30,36,100,.06); }
 .em-tbl tr:hover td { background: #f7f8fc; }
-.em-amt { padding: 14px; border: 2px solid rgba(30,36,100,.15); border-radius: 10px; font-size: 18px; font-weight: 800; color: #1e2464; cursor: pointer; text-align: center; transition: all .15s; background: #fff; border: none; width: 100%; font-family: var(--font-manrope); }
-.em-amt:hover, .em-amt.sel { outline: 2px solid #1e2464; background: #eef1f8; }
+.em-amt { padding: 14px; border-radius: 12px; font-size: 18px; font-weight: 800; color: var(--navy,#1e2464); cursor: pointer; text-align: center; transition: all .18s cubic-bezier(.4,0,.2,1); background: #fff; border: 1.5px solid rgba(30,36,100,.15); width: 100%; font-family: var(--font-manrope); box-shadow: 0 1px 3px rgba(30,36,100,.06); }
+.em-amt:hover { border-color: var(--navy,#1e2464); background: #eef1f8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,36,100,.12); }
+.em-amt.sel { border-color: var(--navy,#1e2464); background: #eef1f8; box-shadow: 0 0 0 3px rgba(30,36,100,.12); }
 
 /* ── Système de préférences de lecture ──────────────────────────────── */
 
@@ -733,10 +767,11 @@
 }
 .em-toolbar-btn {
   border: none; background: none; cursor: pointer; font-size: 14px;
-  padding: 4px 7px; border-radius: 6px; color: #8890aa;
-  transition: all .12s; line-height: 1; font-family: inherit;
+  padding: 5px 8px; border-radius: 7px; color: #8890aa;
+  transition: all .15s cubic-bezier(.4,0,.2,1); line-height: 1; font-family: inherit;
 }
-.em-toolbar-btn:hover { background: #eef1f8; color: #1e2464; }
+.em-toolbar-btn:hover { background: #eef1f8; color: var(--navy,#1e2464); transform: scale(1.05); }
+.em-toolbar-btn:active { transform: scale(.97); }
 
 /* Pinned banner */
 .em-pinned-banner {

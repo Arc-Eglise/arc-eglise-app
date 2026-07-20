@@ -50,7 +50,7 @@ export default async function FeaturesStrip() {
             className="arc-discover-card"
           >
             <Icon name={d.icon} variant="tile" size={52} style={{ marginBottom: "auto", flexShrink: 0 }} />
-            <span className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "#1e2464", marginTop: 18 }}>{d.title}</span>
+            <span className="font-serif" style={{ fontSize: 22, fontWeight: 600, color: "var(--navy)", marginTop: 18 }}>{d.title}</span>
             <span style={{ fontSize: 13.5, color: "#6b6f86", lineHeight: 1.55, marginTop: 7 }}>{d.text}</span>
             <span style={{ fontSize: 13.5, color: "#C9A227", fontWeight: 700, marginTop: 14 }}>{d.cta} →</span>
           </a>

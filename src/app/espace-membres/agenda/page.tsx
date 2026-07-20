@@ -88,9 +88,15 @@ export default async function AgendaPage() {
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Retour
-      </Link>
+      <div className="flex items-center gap-4 mb-5">
+        <Link href="/espace-membres/ai-biblique" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy transition-colors">
+          ← ARC Église AI
+        </Link>
+        <span className="text-arc-border">|</span>
+        <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-text2 hover:text-arc-navy transition-colors">
+          ← Espace Membres
+        </Link>
+      </div>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Agenda</h1>
         <p className="text-sm text-arc-text2 mt-0.5">Événements à venir — confirme ta présence</p>
