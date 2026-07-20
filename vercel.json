@@ -10,7 +10,7 @@
     },
     "src/app/api/bible-ai/**": {
       "maxDuration": 60
-    },
+    }
   },
   "headers": [
     {
