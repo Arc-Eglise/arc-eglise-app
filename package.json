@@ -2,11 +2,15 @@
   "name": "arc-eglise-app",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:isolation": "node scripts/check-isolation.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

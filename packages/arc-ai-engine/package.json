@@ -1,0 +1,14 @@
+{
+  "name": "@arc/ai-engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Moteur IA biblique ARC — dépend de @arc/core, jamais l'inverse (R9)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@arc/core": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

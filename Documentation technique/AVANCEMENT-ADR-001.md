@@ -131,11 +131,35 @@
 
 | Sous-étape | Description | État |
 |---|---|---|
-| B0 | Isolation + script de vérification | ⏳ |
+| B0 | Isolation + script de vérification | ✅ 21/07/2026 |
 | B1 | `arc-core` (référentiel, droits, schemas, errors) | ⏳ |
 | B2 | `/api/v1` + OpenAPI | ⏳ |
 | B3 | Quotas, rate limiting, journalisation | ⏳ |
 | B4 | Validation du socle | ⏳ |
+
+---
+
+### B0 — Isolation + script de vérification ✅ TERMINÉ — 21/07/2026
+
+**Livrables :**
+
+| Fichier | Rôle |
+|---|---|
+| `packages/arc-core/package.json` | Package `@arc/core` — privé, name + types |
+| `packages/arc-core/src/index.ts` | Squelette vide (contenu réel : B1) |
+| `packages/arc-ai-engine/package.json` | Package `@arc/ai-engine` — dépend de `@arc/core` |
+| `packages/arc-ai-engine/src/index.ts` | Squelette vide (contenu réel : B1–B3) |
+| `scripts/check-isolation.js` | Vérifie les règles I1/I2/I3 à chaque session |
+| `package.json` | `workspaces: ["packages/*"]` + script `check:isolation` |
+
+**Règles d'isolation vérifiées automatiquement :**
+- **I1** — `src/` ne doit pas importer `@arc/core` ni `@arc/ai-engine`
+- **I2** — `arc-core` ne doit pas importer `@arc/ai-engine` ni `src/app/`
+- **I3** — `arc-ai-engine` ne doit pas importer depuis `src/app/`
+
+**Résultat du test :** `node scripts/check-isolation.js` → ✅ aucune violation
+
+**Convention d'utilisation :** lancer `npm run check:isolation` en début de chaque session de travail sur `feat/socle-api`.
 
 ---
 
@@ -149,10 +173,10 @@
 
 | Branche | Rôle | État |
 |---|---|---|
-| `master` | Production (via Vercel CLI) | ✅ Commité — `3cd215e` session 8 |
-| `fix/adr-001-correctifs` | Chantier A | ✅ A1+A2 terminés — commit `2715039` |
-| `feat/socle-api` | Chantier B | ⏳ À créer (après merge A dans main) |
+| `master` | Production (via Vercel CLI) | ✅ À jour — merge Chantier A + bible-ai (21/07/2026) |
+| `fix/adr-001-correctifs` | Chantier A | ✅ Mergée dans master — supprimée |
+| `feat/socle-api` | Chantier B | ✅ Créée — B0 terminé |
 
 ---
 
-*Dernière mise à jour : 21/07/2026 — Session ADR-001 A2 TERMINÉ — Chantier A complet, déploiement sur main à valider*
+*Dernière mise à jour : 21/07/2026 — B0 TERMINÉ — packages/arc-core + packages/arc-ai-engine + script check-isolation*

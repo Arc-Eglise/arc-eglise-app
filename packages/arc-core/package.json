@@ -1,0 +1,11 @@
+{
+  "name": "@arc/core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Référentiel, droits, schémas et erreurs — socle ARC Église",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
