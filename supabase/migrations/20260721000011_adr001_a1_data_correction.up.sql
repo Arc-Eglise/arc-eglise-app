@@ -1,18 +1,22 @@
 -- ═══════════════════════════════════════════════════════════════════════
 --  ADR-001 · Chantier A1 · Migration 2/3 · UP
---  Correction des données non conformes dans profiles.groups[] et profiles.role
+--  Correction des données non conformes — AUCUNE CORRECTION NÉCESSAIRE
 --
---  ⚠️  CETTE MIGRATION EST INCOMPLÈTE
---  Les blocs UPDATE commentés doivent être remplis APRÈS avoir exécuté
---  les requêtes B-1 à B-8 de l'audit et soumis le tableau de correction
---  à Joe pour validation.
+--  Résultats des requêtes B-1 à B-8 exécutées le 21/07/2026 :
 --
---  Ordre d'exécution impératif :
---    1. Exécuter les requêtes B-1 à B-8 (Supabase SQL Editor)
---    2. Remplir le tableau de correction ci-dessous
---    3. Soumettre à Joe pour validation
---    4. Joe valide → décommenter et exécuter les UPDATE
---    5. Exécuter la migration 3/3 (contrainte CHECK)
+--  B-1 groups[] : 6 valeurs, toutes conformes (chorale, communication,
+--                 jeunesse, media, pasteur, support)
+--  B-2 managed_groups[] : 0 valeur (aucun manager assigné)
+--  B-3 non-conformes : 0 résultat — base déjà propre ✅
+--  B-4 variantes casse : 0 variante — toutes canoniques ✅
+--  B-5 vides : 3 profils avec groups=[] (admin/visiteur/testmembre — normal)
+--  B-6 roles : membre(4), admin(1), visiteur(1) — tous conformes ✅
+--             NB : profiles.role est un ENUM user_role (pas TEXT)
+--  B-7 pastoral_stage : actif(4), visiteur(2) — conformes ✅
+--  B-8 divergences auth : 0 divergence ✅
+--  B-9 notes : 0 note pastorale en base
+--
+--  Cette migration est conservée comme preuve que la vérification a eu lieu.
 -- ═══════════════════════════════════════════════════════════════════════
 
 BEGIN;

@@ -159,8 +159,8 @@ Le chantier B vit sur `feat/socle-api`. Tant que cette branche n'est pas fusionn
 | Chantier | Sous-étape | État | Date |
 |---|---|---|---|
 | — | Audit (Étape 0) | ✅ Terminé | 21/07/2026 |
-| A | A1 — Contrainte d'intégrité DB | ⏳ À démarrer | — |
-| A | A2 — Confidentialité notes + droits | ⏳ Arbitrage requis | — |
+| A | A1 — Contrainte d'intégrité DB | ✅ Terminé | 21/07/2026 |
+| A | A2 — Confidentialité notes + droits | 🔶 En cours (A2-now) | 21/07/2026 |
 | B | B0 — Mise en place isolation | ⏳ À démarrer | — |
 | B | B1–B4 | ⏳ À démarrer | — |
 | C | C0–C4 | 🔒 Bloqué (feu vert requis) | — |
