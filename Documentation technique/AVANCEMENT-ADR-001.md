@@ -88,13 +88,40 @@
 
 ---
 
-### A2 — Confidentialité des notes et droits ⏳ DÉCISION PRISE : A2-now
+### A2 — Confidentialité des notes et droits ✅ TERMINÉ — 21/07/2026
 
 **Décision :** A2-now — `lib/droits/` local, remplacé par `arc-core` lors de la bascule.
 
-**Motif :** les notes pastorales sont accessibles à la fonction `communication` depuis la production. Reporter au chantier C laisserait cette faille ouverte pendant plusieurs semaines. Le module `lib/droits/` est conçu pour être exactement remplacé par `arc-core/droits/` lors de la bascule — aucune duplication ne sera maintenue à terme.
+**Commit :** `2715039` — branche `fix/adr-001-correctifs`
 
-**Statut :** ⏳ À démarrer (après complétion de A1)
+**Migration SQL (exécutée en production) :**
+
+| Fichier | Contenu | Statut |
+|---|---|---|
+| `20260721000013_adr001_a2_notes_confidentialite.up.sql` | Colonne `member_notes.confidentialite` + CHECK + 4 RLS | ✅ Exécuté |
+| `20260721000013_adr001_a2_notes_confidentialite.down.sql` | Rollback complet | ✅ Écrit |
+
+**RLS `member_notes` actives :**
+- `notes_select` : admin/pasteur → tout ; suivi → partagee_suivi + ses propres notes
+- `notes_insert` : admin | pasteur | suivi (auteur = auth.uid())
+- `notes_update` / `notes_delete` : auteur uniquement
+
+**Code applicatif livré :**
+- `src/lib/droits/index.ts` — 10 droits nommés (`peutVoirCRM`, `peutLireNotesPastorales`, `peutEcrireNotesPastorales`…)
+- `membres.ts` — `assertCRMWriter` (admin|pasteur|suivi), `addMemberNote` + `updatePastoralStage` utilisent assertCRMWriter, `addMemberNote` accepte `confidentialite`
+- `crm/page.tsx` — garde étendue à suivi + support
+- `crm/[id]/page.tsx` — garde étendue, panneaux DangerActions/Rôle/Fonctions/Manager masqués pour suivi/support, formulaire note avec sélecteur confidentialité, badge confidentialité sur chaque note
+- `EspaceMembresClient.tsx` — import droits, `peutVoirCRM` pour l'onglet CRM (suivi y accède désormais), `canAdmin` conservé pour le panneau Administration
+
+**Matrice d'accès effective :**
+| Opération | admin | pasteur | suivi | support | comm |
+|---|---|---|---|---|---|
+| Voir CRM (liste + fiche) | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Lire notes (partagee_suivi) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Lire notes (confidentielle_pasteur) | ✅ | ✅ | ses propres | ❌ | ❌ |
+| Créer notes | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Mettre à jour pipeline | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Changer rôle/fonctions/ban | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -123,9 +150,9 @@
 | Branche | Rôle | État |
 |---|---|---|
 | `master` | Production (via Vercel CLI) | ✅ Commité — `3cd215e` session 8 |
-| `fix/adr-001-correctifs` | Chantier A | ✅ Créée — migrations A1 prêtes (data_correction incomplète) |
-| `feat/socle-api` | Chantier B | ⏳ À créer (après A1 finalisé) |
+| `fix/adr-001-correctifs` | Chantier A | ✅ A1+A2 terminés — commit `2715039` |
+| `feat/socle-api` | Chantier B | ⏳ À créer (après merge A dans main) |
 
 ---
 
-*Dernière mise à jour : 21/07/2026 — Session ADR-001 A1 TERMINÉ + A2 en cours (décision A2-now)*
+*Dernière mise à jour : 21/07/2026 — Session ADR-001 A2 TERMINÉ — Chantier A complet, déploiement sur main à valider*
