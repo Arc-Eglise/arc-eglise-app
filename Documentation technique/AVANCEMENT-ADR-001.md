@@ -44,14 +44,28 @@
 
 ## Chantier A — Correctifs de production
 
-### A1 — Contrainte d'intégrité ⏳ EN ATTENTE
+### A1 — Contrainte d'intégrité 🔶 EN COURS — EN ATTENTE SQL
 
-**Branche cible :** `fix/adr-001-correctifs`  
-**Prérequis :** résultats des requêtes SQL B-1 à B-8 du Livrable B de l'audit (non encore exécutées)
+**Branche :** `fix/adr-001-correctifs` ✅ créée (21/07/2026)
 
-**Résultats SQL attendus :** _(à remplir lors de la session A1)_
+**Migrations créées :**
 
-| Requête | Résultat | Anomalies |
+| Fichier | Contenu | Statut |
+|---|---|---|
+| `20260721000010_adr001_a1_referentiel.up.sql` | Tables `arc_referentiel_roles`, `arc_referentiel_functions`, `arc_referentiel_pipeline` | ✅ Prêt |
+| `20260721000010_adr001_a1_referentiel.down.sql` | Rollback tables de référence | ✅ Prêt |
+| `20260721000011_adr001_a1_data_correction.up.sql` | Corrections données non conformes | ⚠️ INCOMPLET — bloqué sur résultats SQL B-1→B-8 |
+| `20260721000011_adr001_a1_data_correction.down.sql` | Rollback (manuel, sauvegarde requise) | ✅ Prêt |
+| `20260721000012_adr001_a1_check_constraint.up.sql` | CHECK sur role, groups[], managed_groups[], pastoral_stage | ✅ Prêt |
+| `20260721000012_adr001_a1_check_constraint.down.sql` | Rollback contraintes | ✅ Prêt |
+
+**🚧 BLOQUANT :** Les résultats des requêtes SQL B-1 à B-8 n'ont pas été fournis.
+La migration 2/3 (data_correction) est un template avec des blocs UPDATE commentés.
+Joe doit coller les résultats SQL pour compléter cette migration avant exécution.
+
+**Résultats SQL attendus :**
+
+| Requête | Résultat | Anomalies détectées |
 |---|---|---|
 | B-1 — valeurs distinctes groups[] | ⏳ | ⏳ |
 | B-2 — valeurs distinctes managed_groups[] | ⏳ | ⏳ |
@@ -62,28 +76,23 @@
 | B-7 — valeurs pastoral_stage | ⏳ | ⏳ |
 | B-8 — divergence profiles ↔ auth.users | ⏳ | ⏳ |
 
-**Travaux :**
-1. Table de référence des 13 fonctions et 4 rôles (migration SQL)
-2. Migration corrective des valeurs non conformes → **à soumettre à Joe avant exécution**
-3. Contrainte CHECK sur `profiles.groups[]` et `profiles.managed_groups[]`
-4. Vérification RLS après contrainte
-5. Migrations `up` + `down` (réversible)
-
-**Ordre d'exécution impératif :**
-1. Sauvegarde complète base → Joe exécute la commande
-2. Test en préproduction Supabase
-3. Accord Joe → exécution production
+**Ordre d'exécution (quand résultats reçus) :**
+1. Joe fournit résultats B-1→B-8
+2. Compléter les UPDATE dans `20260721000011_adr001_a1_data_correction.up.sql`
+3. Joe valide le tableau valeur_actuelle → valeur_cible → nb_profils
+4. Sauvegarde Supabase (commande fournie lors de l'étape)
+5. Test en préproduction → accord Joe → exécution production
+6. Exécuter migrations dans l'ordre : 10 → 11 → 12
 
 ---
 
-### A2 — Confidentialité des notes et droits ⏳ ARBITRAGE REQUIS
+### A2 — Confidentialité des notes et droits ⏳ DÉCISION PRISE : A2-now
 
-**Décision attendue :** A2-now (lib/droits/ local, correctif immédiat) ou A2-later (reporter au chantier C)
+**Décision :** A2-now — `lib/droits/` local, remplacé par `arc-core` lors de la bascule.
 
-| Voie | Description | Statut |
-|---|---|---|
-| A2-now | Droits dans `lib/droits/`, remplacé par `arc-core` lors de la bascule | ⏳ |
-| A2-later | Reporter entièrement au chantier C | ⏳ |
+**Motif :** les notes pastorales sont accessibles à la fonction `communication` depuis la production. Reporter au chantier C laisserait cette faille ouverte pendant plusieurs semaines. Le module `lib/droits/` est conçu pour être exactement remplacé par `arc-core/droits/` lors de la bascule — aucune duplication ne sera maintenue à terme.
+
+**Statut :** ⏳ À démarrer (après complétion de A1)
 
 ---
 
@@ -111,10 +120,10 @@
 
 | Branche | Rôle | État |
 |---|---|---|
-| `master` | Production (via Vercel CLI) | En avance sur git — nombreux fichiers modifiés non commités |
-| `fix/adr-001-correctifs` | Chantier A | ⏳ À créer |
-| `feat/socle-api` | Chantier B | ⏳ À créer |
+| `master` | Production (via Vercel CLI) | ✅ Commité — `3cd215e` session 8 |
+| `fix/adr-001-correctifs` | Chantier A | ✅ Créée — migrations A1 prêtes (data_correction incomplète) |
+| `feat/socle-api` | Chantier B | ⏳ À créer (après A1 finalisé) |
 
 ---
 
-*Dernière mise à jour : 21/07/2026 — Session ADR-001 démarrage*
+*Dernière mise à jour : 21/07/2026 — Session ADR-001 A1 (migrations créées, data_correction bloquée)*
