@@ -31,6 +31,14 @@ interface ReadingPlan {
   id: string; title: string; level: string; duration_days: number
   language: string; focus: string | null; created_at: string; created_by_ai: boolean
   is_shared?: boolean; group_id?: string | null
+  started_at?: string | null
+}
+interface TodayReading {
+  plan_id: string; plan_title: string
+  current_day: number; total_days: number; completed_days: number
+  day_id: string; day_title: string | null
+  passages: string[]; verse_texts: { reference: string; text: string }[]
+  reflection: string | null; prayer_guide: string | null; is_completed: boolean
 }
 interface GroupPlan {
   id: string; title: string; level: string; duration_days: number; focus: string | null
@@ -216,14 +224,28 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   }
 
   /* ══ PLANS ═════════════════════════════════════════════════ */
-  const [plans, setPlans]             = useState<ReadingPlan[]>([])
+  const [plans, setPlans]               = useState<ReadingPlan[]>([])
   const [plansLoading, setPlansLoading] = useState(false)
-  const [activePlan, setActivePlan]   = useState<ReadingPlan | null>(null)
-  const [planDays, setPlanDays]       = useState<PlanDay[]>([])
-  const [showNewPlan, setShowNewPlan] = useState(false)
+  const [activePlan, setActivePlan]     = useState<ReadingPlan | null>(null)
+  const [planDays, setPlanDays]         = useState<PlanDay[]>([])
+  const [showNewPlan, setShowNewPlan]   = useState(false)
   const [newPlanFocus, setNewPlanFocus] = useState("")
-  const [newPlanDays, setNewPlanDays] = useState(30)
-  const [planGenMsg, setPlanGenMsg]   = useState("")
+  const [newPlanDays, setNewPlanDays]   = useState(30)
+  const [planGenMsg, setPlanGenMsg]     = useState("")
+  const [todayReading, setTodayReading] = useState<TodayReading | null>(null)
+  const [todayLoading, setTodayLoading] = useState(false)
+  const [expandedDay, setExpandedDay]   = useState<string | null>(null)
+  const [dayVerseTexts, setDayVerseTexts] = useState<Record<string, { reference: string; text: string }[]>>({})
+  const [verseLoadingKey, setVerseLoadingKey] = useState<string | null>(null)
+
+  const loadTodayReading = useCallback(async () => {
+    setTodayLoading(true)
+    try {
+      const res = await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_today" }) })
+      const data = await res.json()
+      setTodayReading(data.today ?? null)
+    } finally { setTodayLoading(false) }
+  }, [])
 
   const loadPlans = useCallback(async () => {
     setPlansLoading(true)
@@ -234,12 +256,48 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     } finally { setPlansLoading(false) }
   }, [])
 
-  useEffect(() => { if (tab === "plans") loadPlans() }, [tab, loadPlans])
+  useEffect(() => {
+    if (tab === "plans") {
+      loadPlans()
+      loadTodayReading()
+    }
+  }, [tab, loadPlans, loadTodayReading])
 
   const loadPlanDays = async (planId: string) => {
     const res = await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_days", plan_id: planId }) })
     const data = await res.json()
     setPlanDays(data.days ?? [])
+  }
+
+  const startPlan = async (planId: string) => {
+    await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start_plan", plan_id: planId }) })
+    setPlans(prev => prev.map(p => p.id === planId ? { ...p, started_at: new Date().toISOString() } : p))
+    loadTodayReading()
+  }
+
+  const fetchDayVerseTexts = async (key: string, passages: string[], planId?: string, dayNum?: number) => {
+    if (dayVerseTexts[key] || verseLoadingKey === key) return
+    setVerseLoadingKey(key)
+    try {
+      // Si on a plan_id + day_number, utiliser l'action serveur avec fallback IA
+      if (planId && dayNum) {
+        const res = await fetch("/api/bible-ai/plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get_day_verses", plan_id: planId, day_number: dayNum }),
+        })
+        const data = await res.json()
+        setDayVerseTexts(prev => ({ ...prev, [key]: data.verse_texts ?? [] }))
+      }
+    } catch { /* skip */ } finally {
+      setVerseLoadingKey(null)
+    }
+  }
+
+  const toggleDay = (key: string, passages: string[], planId?: string, dayNum?: number) => {
+    if (expandedDay === key) { setExpandedDay(null); return }
+    setExpandedDay(key)
+    fetchDayVerseTexts(key, passages, planId, dayNum)
   }
 
   const createPlan = async () => {
@@ -273,6 +331,9 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   const completeDay = async (planId: string, dayNum: number) => {
     await fetch("/api/bible-ai/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete_day", plan_id: planId, day_number: dayNum }) })
     setPlanDays(prev => prev.map(d => d.day_number === dayNum ? { ...d, is_completed: true } : d))
+    if (todayReading?.plan_id === planId && todayReading?.current_day === dayNum) {
+      setTodayReading(prev => prev ? { ...prev, is_completed: true, completed_days: (prev.completed_days ?? 0) + 1 } : prev)
+    }
   }
 
   /* ══ JOURNAL ═══════════════════════════════════════════════ */
@@ -761,7 +822,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
       {tab === "plans" && (
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-arc-navy">Mes plans de lecture</h2>
+            <h2 className="font-bold text-arc-navy">Plans de lecture</h2>
             <button onClick={() => setShowNewPlan(v => !v)}
               className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue transition">
               + Nouveau plan
@@ -798,43 +859,133 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
             </div>
           )}
 
+          {/* ── Lecture du jour ───────────────────────────────── */}
+          {!activePlan && (todayLoading ? (
+            <div className="mb-4 bg-arc-blueBg border border-arc-bluePale rounded-2xl p-4 animate-pulse">
+              <div className="h-3 w-32 bg-arc-bluePale rounded mb-2" />
+              <div className="h-4 w-48 bg-arc-bluePale rounded" />
+            </div>
+          ) : todayReading && (
+            <div className="mb-5 bg-gradient-to-br from-arc-navy to-arc-blue rounded-2xl p-5 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">Lecture du jour</p>
+                  <p className="font-semibold text-sm text-white/90 mt-0.5">{todayReading.plan_title}</p>
+                </div>
+                <div className="text-right shrink-0 ml-3">
+                  <p className="text-2xl font-bold leading-none">{todayReading.current_day}</p>
+                  <p className="text-[10px] text-white/60">/ {todayReading.total_days}</p>
+                </div>
+              </div>
+
+              {/* Barre de progression */}
+              <div className="w-full bg-white/20 rounded-full h-1.5 mb-4">
+                <div className="bg-arc-gold h-1.5 rounded-full transition-all"
+                  style={{ width: `${Math.round((todayReading.completed_days / todayReading.total_days) * 100)}%` }} />
+              </div>
+
+              {/* Titre du jour */}
+              {todayReading.day_title && (
+                <p className="font-semibold text-white mb-3">{todayReading.day_title}</p>
+              )}
+
+              {/* Textes des versets */}
+              {todayReading.verse_texts.length > 0 ? (
+                <div className="space-y-3 mb-4">
+                  {todayReading.verse_texts.map((v, i) => (
+                    <div key={i} className="bg-white/10 rounded-xl p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-arc-gold mb-1">{v.reference}</p>
+                      <p className="text-sm text-white/95 leading-relaxed italic">&ldquo;{v.text}&rdquo;</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mb-4 space-y-1">
+                  {todayReading.passages.map((p, i) => (
+                    <p key={i} className="text-sm font-semibold text-arc-gold">{p}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Réflexion */}
+              {todayReading.reflection && (
+                <div className="bg-white/10 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/60 mb-1">Réflexion</p>
+                  <p className="text-xs text-white/80 italic">{todayReading.reflection}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 mt-2">
+                {!todayReading.is_completed ? (
+                  <button onClick={() => completeDay(todayReading.plan_id, todayReading.current_day)}
+                    className="flex-1 py-2 rounded-xl bg-white text-arc-navy text-xs font-bold hover:bg-white/90 transition">
+                    ✓ Marquer comme fait
+                  </button>
+                ) : (
+                  <div className="flex-1 py-2 rounded-xl bg-white/20 text-white/70 text-xs font-bold text-center">
+                    ✓ Complété
+                  </div>
+                )}
+                <button onClick={() => { const p = plans.find(pl => pl.id === todayReading.plan_id); if (p) { setActivePlan(p); loadPlanDays(p.id) } }}
+                  className="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-semibold hover:bg-white/30 transition">
+                  Voir le plan →
+                </button>
+              </div>
+            </div>
+          ))}
+
           {plansLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
 
           {!activePlan ? (
             <div className="space-y-3">
-              {plans.map(p => (
-                <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 hover:border-arc-navy transition">
-                  <div className="flex items-start justify-between cursor-pointer" onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
-                        {p.is_shared && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">📤 Partagé</span>}
-                      </div>
-                      <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
-                    </div>
-                    <span className="text-xs text-arc-blue ml-2">→</span>
-                  </div>
-                  {!p.is_shared && groups.filter(g => g.is_member).length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-arc-border/50">
-                      {showShareModal === p.id ? (
-                        <div className="flex items-center gap-2">
-                          <select className="flex-1 text-xs border border-arc-border rounded-lg px-2 py-1 outline-none" id={`share-sel-${p.id}`}>
-                            {groups.filter(g => g.is_member).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                          </select>
-                          <button onClick={() => {
-                            const sel = document.getElementById(`share-sel-${p.id}`) as HTMLSelectElement
-                            if (sel?.value) sharePlanWithGroup(p.id, sel.value)
-                          }} className="text-xs px-2 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">Partager</button>
-                          <button onClick={() => setShowShareModal(null)} className="text-xs text-arc-text2 hover:text-arc-navy">✕</button>
+              {plans.map(p => {
+                const isStarted = !!p.started_at
+                return (
+                  <div key={p.id} className="bg-white border border-arc-border rounded-xl p-4 hover:border-arc-navy transition">
+                    <div className="flex items-start justify-between cursor-pointer" onClick={() => { setActivePlan(p); loadPlanDays(p.id) }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-arc-navy text-sm">{p.title}</p>
+                          {isStarted && <span className="text-[10px] bg-arc-blueBg text-arc-blue px-2 py-0.5 rounded-full font-semibold">En cours</span>}
+                          {p.is_shared && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">📤 Partagé</span>}
                         </div>
-                      ) : (
-                        <button onClick={e => { e.stopPropagation(); loadGroups(); setShowShareModal(p.id) }}
-                          className="text-xs text-arc-text2 hover:text-arc-navy transition">🔗 Partager avec un groupe</button>
-                      )}
+                        <p className="text-xs text-arc-text2 mt-0.5">{p.duration_days} jours · {p.level}{p.focus ? ` · ${p.focus}` : ""}</p>
+                      </div>
+                      <span className="text-xs text-arc-blue ml-2 shrink-0">→</span>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {!isStarted && (
+                      <div className="mt-3 pt-3 border-t border-arc-border/50">
+                        <button onClick={e => { e.stopPropagation(); startPlan(p.id) }}
+                          className="w-full py-2 rounded-lg bg-arc-navy text-white text-xs font-semibold hover:bg-arc-blue transition">
+                          Commencer ce plan
+                        </button>
+                      </div>
+                    )}
+
+                    {!p.is_shared && groups.filter(g => g.is_member).length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-arc-border/50">
+                        {showShareModal === p.id ? (
+                          <div className="flex items-center gap-2">
+                            <select className="flex-1 text-xs border border-arc-border rounded-lg px-2 py-1 outline-none" id={`share-sel-${p.id}`}>
+                              {groups.filter(g => g.is_member).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                            </select>
+                            <button onClick={() => {
+                              const sel = document.getElementById(`share-sel-${p.id}`) as HTMLSelectElement
+                              if (sel?.value) sharePlanWithGroup(p.id, sel.value)
+                            }} className="text-xs px-2 py-1 rounded-lg bg-arc-navy text-white hover:bg-arc-blue transition">Partager</button>
+                            <button onClick={() => setShowShareModal(null)} className="text-xs text-arc-text2 hover:text-arc-navy">✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={e => { e.stopPropagation(); loadGroups(); setShowShareModal(p.id) }}
+                            className="text-xs text-arc-text2 hover:text-arc-navy transition">🔗 Partager avec un groupe</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
               {!plansLoading && plans.length === 0 && (
                 <div className="text-center py-12 text-arc-text2">
                   <p className="text-4xl mb-3">📅</p>
@@ -845,31 +996,118 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
             </div>
           ) : (
             <div>
-              <button onClick={() => { setActivePlan(null); setPlanDays([]) }}
+              <button onClick={() => { setActivePlan(null); setPlanDays([]); setExpandedDay(null) }}
                 className="mb-4 text-sm text-arc-blue hover:underline">
                 ← Retour aux plans
               </button>
               <h3 className="font-bold text-arc-navy mb-1">{activePlan.title}</h3>
-              <p className="text-xs text-arc-text2 mb-4">{activePlan.duration_days} jours · Niveau {activePlan.level}</p>
-              <div className="space-y-2">
-                {planDays.map(d => (
-                  <div key={d.id} className={`border rounded-xl p-4 transition-colors ${d.is_completed ? "bg-green-50 border-green-200" : "bg-white border-arc-border hover:border-arc-navy"}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm text-arc-navy">Jour {d.day_number}{d.title ? ` — ${d.title}` : ""}</p>
-                        <p className="text-xs text-arc-blue mt-0.5">{(d.passages ?? []).join(" · ")}</p>
-                        {d.reflection && <p className="text-xs text-arc-text2 mt-1 italic">{d.reflection}</p>}
-                      </div>
-                      {!d.is_completed && (
-                        <button onClick={() => completeDay(activePlan.id, d.day_number)}
-                          className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">
-                          ✓ Fait
-                        </button>
-                      )}
-                      {d.is_completed && <span className="text-green-600 text-sm">✓</span>}
+              <p className="text-xs text-arc-text2 mb-2">{activePlan.duration_days} jours · Niveau {activePlan.level}</p>
+
+              {/* Barre de progression dans la vue détail */}
+              {(() => {
+                const completed = planDays.filter(d => d.is_completed).length
+                const pct = planDays.length ? Math.round((completed / planDays.length) * 100) : 0
+                return planDays.length > 0 ? (
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-arc-text2 mb-1">
+                      <span>{completed} / {planDays.length} jours complétés</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="w-full bg-arc-border rounded-full h-2">
+                      <div className="bg-arc-navy h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                ))}
+                ) : null
+              })()}
+
+              {/* Lien Commencer si pas encore démarré */}
+              {!activePlan.started_at && (
+                <button onClick={() => startPlan(activePlan.id)}
+                  className="w-full mb-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-semibold hover:bg-arc-blue transition">
+                  Commencer ce plan
+                </button>
+              )}
+
+              <div className="space-y-2">
+                {planDays.map(d => {
+                  const key = `${activePlan.id}_${d.day_number}`
+                  const isToday = todayReading?.plan_id === activePlan.id && todayReading?.current_day === d.day_number
+                  const isExpanded = expandedDay === key
+                  const vTexts = dayVerseTexts[key]
+                  const loadingVerse = verseLoadingKey === key
+
+                  return (
+                    <div key={d.id} className={`border rounded-xl transition-colors ${
+                      isToday ? "bg-arc-blueBg border-arc-blue shadow-sm" :
+                      d.is_completed ? "bg-green-50 border-green-200" : "bg-white border-arc-border hover:border-arc-navy"
+                    }`}>
+                      <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => toggleDay(key, d.passages ?? [], activePlan.id, d.day_number)}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            {isToday && <span className="text-[10px] bg-arc-blue text-white px-2 py-0.5 rounded-full font-bold shrink-0">Aujourd'hui</span>}
+                            <p className={`font-semibold text-sm ${isToday ? "text-arc-blue" : "text-arc-navy"}`}>
+                              Jour {d.day_number}{d.title ? ` — ${d.title}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-xs text-arc-blue/80 mt-0.5">{(d.passages ?? []).join(" · ")}</p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-3 shrink-0">
+                          {d.is_completed && <span className="text-green-600 text-sm">✓</span>}
+                          <span className={`text-xs text-arc-text2 transition-transform ${isExpanded ? "rotate-90" : ""}`}>›</span>
+                        </div>
+                      </div>
+
+                      {/* Contenu expandé avec versets */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 border-t border-arc-border/40 pt-3 space-y-3">
+                          {loadingVerse ? (
+                            <div className="flex items-center gap-2 text-xs text-arc-text2 py-2">
+                              <Spinner /> Chargement des versets…
+                            </div>
+                          ) : vTexts && vTexts.length > 0 ? (
+                            vTexts.map((v, i) => (
+                              <div key={i} className="bg-white rounded-xl p-3 border border-arc-border">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-1">{v.reference}</p>
+                                {v.text ? (
+                                  <p className="text-sm text-slate-700 leading-relaxed italic">&ldquo;{v.text}&rdquo;</p>
+                                ) : (
+                                  <p className="text-xs text-arc-text2">Verset non disponible — ouvrez la Bible pour lire.</p>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="space-y-1">
+                              {(d.passages ?? []).map((p, i) => (
+                                <p key={i} className="text-sm font-semibold text-arc-blue">{p}</p>
+                              ))}
+                            </div>
+                          )}
+
+                          {d.reflection && (
+                            <div className="bg-arc-blueBg rounded-xl p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-arc-navy mb-1">Réflexion</p>
+                              <p className="text-xs text-slate-700 italic">{d.reflection}</p>
+                            </div>
+                          )}
+
+                          {d.prayer_guide && (
+                            <div className="bg-amber-50 rounded-xl p-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1">Guide de prière</p>
+                              <p className="text-xs text-slate-700">{d.prayer_guide}</p>
+                            </div>
+                          )}
+
+                          {!d.is_completed && (
+                            <button onClick={() => completeDay(activePlan.id, d.day_number)}
+                              className="w-full py-2 rounded-xl bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition">
+                              ✓ Marquer comme fait
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

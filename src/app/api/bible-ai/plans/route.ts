@@ -110,7 +110,7 @@ ${focus ? `- Thème central : ${focus}` : "- Équilibre Ancien Testament et Nouv
     case "list": {
       const { data: plans } = await supabase
         .from("ai_reading_plans")
-        .select("id, title, level, duration_days, language, focus, is_active, created_at, updated_at, created_by_ai")
+        .select("id, title, level, duration_days, language, focus, is_active, created_at, updated_at, created_by_ai, started_at")
         .eq("user_id", userId)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -127,6 +127,172 @@ ${focus ? `- Thème central : ${focus}` : "- Équilibre Ancien Testament et Nouv
         .eq("plan_id", plan_id)
         .order("day_number")
       return NextResponse.json({ days: days ?? [] })
+    }
+
+    // ── Démarrer un plan (enregistre started_at) ────────────────────
+    case "start_plan": {
+      const { plan_id } = body as { plan_id: string }
+      if (!plan_id) return badRequestResponse("plan_id requis")
+      const { error } = await supabase
+        .from("ai_reading_plans")
+        .update({ started_at: new Date().toISOString() })
+        .eq("id", plan_id)
+        .eq("user_id", userId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Lecture du jour (calcule le jour courant + textes des versets) ──
+    case "get_today": {
+      // Plan le plus récemment démarré et actif
+      const { data: planRow } = await supabase
+        .from("ai_reading_plans")
+        .select("id, title, duration_days, started_at, focus")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .not("started_at", "is", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!planRow?.started_at) return NextResponse.json({ today: null })
+
+      const startDate  = new Date(planRow.started_at)
+      const now        = new Date()
+      const daysSince  = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      const currentDay = Math.max(1, Math.min(daysSince + 1, planRow.duration_days))
+
+      const { data: day } = await supabase
+        .from("ai_reading_plan_days")
+        .select("*")
+        .eq("plan_id", planRow.id)
+        .eq("day_number", currentDay)
+        .single()
+
+      if (!day) return NextResponse.json({ today: null })
+
+      // Nombre de jours complétés pour la barre de progression
+      const { count: completedCount } = await supabase
+        .from("ai_reading_plan_days")
+        .select("*", { count: "exact", head: true })
+        .eq("plan_id", planRow.id)
+        .eq("is_completed", true)
+
+      // Récupérer le texte des versets via scripture.api.bible
+      const bibleKey  = (process.env.BIBLE_API_KEY ?? "").replace(/^﻿/, "").trim()
+      const bibleId   = process.env.BIBLE_DEFAULT_ID ?? "61fd76eafa1ef5f7-01"
+      const bibleBase = process.env.BIBLE_API_BASE ?? "https://api.scripture.api.bible/v1"
+      const verseTexts: { reference: string; text: string }[] = []
+
+      if (bibleKey && bibleKey !== "your_api_bible_key_here") {
+        for (const passage of (day.passages ?? [])) {
+          try {
+            const sr = await fetch(
+              `${bibleBase}/bibles/${bibleId}/search?query=${encodeURIComponent(passage)}&limit=1&sort=relevance`,
+              { headers: { "api-key": bibleKey } }
+            )
+            if (sr.ok) {
+              const { data: sd } = await sr.json()
+              const verse = sd?.verses?.[0]
+              if (verse?.text) verseTexts.push({ reference: verse.reference ?? passage, text: verse.text.trim() })
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      // Fallback IA si la Bible API n'est pas disponible ou n'a rien retourné
+      if (verseTexts.length === 0 && (day.passages ?? []).length > 0) {
+        try {
+          const aiResult = await chat(
+            [{ role: "user", content: `Donne le texte exact en français (version TOB ou Louis Segond) des versets : ${(day.passages as string[]).join(", ")}. Format : une ligne par verset, "Référence : texte du verset"` }],
+            "auto",
+            { maxTokens: 600 }
+          )
+          verseTexts.push({ reference: (day.passages as string[]).join(" · "), text: aiResult.content })
+        } catch { /* skip */ }
+      }
+
+      return NextResponse.json({
+        today: {
+          plan_id:       planRow.id,
+          plan_title:    planRow.title,
+          current_day:   currentDay,
+          total_days:    planRow.duration_days,
+          completed_days: completedCount ?? 0,
+          day_id:        day.id,
+          day_title:     day.title,
+          passages:      day.passages ?? [],
+          verse_texts:   verseTexts,
+          reflection:    day.reflection,
+          prayer_guide:  day.prayer_guide,
+          is_completed:  day.is_completed,
+        }
+      })
+    }
+
+    // ── Textes des versets d'un jour (Bible API + fallback IA) ─────
+    case "get_day_verses": {
+      const { plan_id, day_number } = body as { plan_id: string; day_number: number }
+      if (!plan_id || !day_number) return badRequestResponse("plan_id et day_number requis")
+
+      const { data: dayRow } = await supabase
+        .from("ai_reading_plan_days")
+        .select("passages")
+        .eq("plan_id", plan_id)
+        .eq("day_number", day_number)
+        .single()
+
+      const passages: string[] = dayRow?.passages ?? []
+      if (!passages.length) return NextResponse.json({ verse_texts: [] })
+
+      const bibleKey  = (process.env.BIBLE_API_KEY ?? "").replace(/^﻿/, "").trim()
+      const bibleId   = process.env.BIBLE_DEFAULT_ID ?? "61fd76eafa1ef5f7-01"
+      const bibleBase = process.env.BIBLE_API_BASE ?? "https://api.scripture.api.bible/v1"
+      const verseTexts: { reference: string; text: string }[] = []
+
+      if (bibleKey && bibleKey !== "your_api_bible_key_here") {
+        for (const passage of passages) {
+          try {
+            const sr = await fetch(
+              `${bibleBase}/bibles/${bibleId}/search?query=${encodeURIComponent(passage)}&limit=1&sort=relevance`,
+              { headers: { "api-key": bibleKey } }
+            )
+            if (sr.ok) {
+              const { data: sd } = await sr.json()
+              const verse = sd?.verses?.[0]
+              if (verse?.text) verseTexts.push({ reference: verse.reference ?? passage, text: verse.text.trim() })
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      // Fallback IA si l'API Bible ne retourne rien
+      if (verseTexts.length === 0) {
+        try {
+          const aiResult = await chat(
+            [{ role: "user", content: `Donne le texte exact en français (version TOB ou Louis Segond) des versets : ${passages.join(", ")}. Pour chaque verset, réponds sur une ligne séparée au format "Référence : texte du verset". Sois précis et fidèle au texte biblique.` }],
+            "auto",
+            { maxTokens: 600 }
+          )
+          // Découper la réponse ligne par ligne pour extraire chaque verset
+          const lines = aiResult.content.split("\n").filter(l => l.trim())
+          if (lines.length >= passages.length) {
+            passages.forEach((passage, i) => {
+              const line = lines[i] ?? ""
+              const colonIdx = line.indexOf(":")
+              if (colonIdx > -1) {
+                verseTexts.push({ reference: passage, text: line.slice(colonIdx + 1).trim() })
+              } else {
+                verseTexts.push({ reference: passage, text: line.trim() })
+              }
+            })
+          } else {
+            verseTexts.push({ reference: passages.join(" · "), text: aiResult.content.trim() })
+          }
+        } catch { /* skip */ }
+      }
+
+      return NextResponse.json({ verse_texts: verseTexts })
     }
 
     // ── Marquer un jour complété ────────────────────────────────────
