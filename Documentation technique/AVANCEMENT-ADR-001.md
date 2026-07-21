@@ -132,7 +132,7 @@
 | Sous-étape | Description | État |
 |---|---|---|
 | B0 | Isolation + script de vérification | ✅ 21/07/2026 |
-| B1 | `arc-core` (référentiel, droits, schemas, errors) | ⏳ |
+| B1 | `arc-core` (référentiel, droits, schemas, errors) | ✅ 21/07/2026 |
 | B2 | `/api/v1` + OpenAPI | ⏳ |
 | B3 | Quotas, rate limiting, journalisation | ⏳ |
 | B4 | Validation du socle | ⏳ |
@@ -179,4 +179,20 @@
 
 ---
 
-*Dernière mise à jour : 21/07/2026 — B0 TERMINÉ — packages/arc-core + packages/arc-ai-engine + script check-isolation*
+### B1 — `@arc/core` ✅ TERMINÉ — 21/07/2026
+
+**Fichiers livrés dans `packages/arc-core/src/` :**
+
+| Fichier | Contenu |
+|---|---|
+| `referentiel/roles.ts` | `ROLES`, `Role`, `ROLE_LABELS`, `isAdminOuPasteur()` |
+| `referentiel/fonctions.ts` | `FONCTIONS` (13), `Fonction`, `FONCTION_LABELS`, `isFonctionValide()` |
+| `referentiel/pipeline.ts` | `PIPELINE_STAGES` (5), `PipelineStage`, `PIPELINE_LABELS`, `PIPELINE_ORDER`, `peutProgresserVers()` |
+| `droits/types.ts` | `ProfileLike`, `NoteLike`, `NiveauConfidentialite` |
+| `droits/matrice.ts` | `droits` — 10 droits nommés, signatures identiques à `src/lib/droits/index.ts` |
+| `errors/index.ts` | `ArcError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `ValidationError`, `ConflictError`, `RateLimitedError`, `isArcError()` |
+| `index.ts` | Re-export unique — `export * from "./referentiel"` etc. |
+
+**Vérification :** `tsc --noEmit` → 0 erreur · `check-isolation` → ✅ aucune violation
+
+*Dernière mise à jour : 21/07/2026 — B1 TERMINÉ — @arc/core complet*

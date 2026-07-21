@@ -1,8 +1,6 @@
-// @arc/core — B0 : squelette vide
-// Contenu réel : Chantier B1
-// - referentiel : rôles, fonctions, pipeline pastoral
-// - droits      : matrice d'accès unifiée
-// - schemas     : validation Zod partagée
-// - errors      : classes d'erreurs métier
+// @arc/core — exports publics (B1)
+// Point d'entrée unique — importer depuis "@arc/core" uniquement
 
-export {}
+export * from "./referentiel"
+export * from "./droits"
+export * from "./errors"
