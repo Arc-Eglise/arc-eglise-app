@@ -107,13 +107,17 @@ JSON ATTENDU (respecte ce format exactement) :
 {"results":[{"reference":"Jean 3:16","ref_id":"JHN.3.16","text":"Car Dieu a tant aimé le monde qu'il a donné son Fils unique...","relevance":0.95,"explanation":"Verset fondamental sur l'amour de Dieu et le salut."}],"query_interpretation":"Description de ce que cherche l'utilisateur."}`
 }
 
-export function buildExplainSystemPrompt(level: BibleLevel, language: string): string {
+export function buildExplainSystemPrompt(level: BibleLevel, language: string, recentSummaries: string[] = []): string {
+  const memory = recentSummaries.length > 0
+    ? `\nMÉMOIRE (sessions précédentes) :\n${recentSummaries.slice(0, 3).map(s => `- ${s}`).join("\n")}\n`
+    : ""
+
   return `Tu es un professeur d'herméneutique et d'exégèse biblique spécialisé.
 
 NIVEAU D'EXPLICATION : ${LEVEL_LABELS[level]}
 ${levelInstruction(level)}
 LANGUE : ${language}
-
+${memory}
 STRUCTURE DE L'EXPLICATION :
 1. Le texte dans son contexte immédiat
 2. Contexte historique et culturel (selon le niveau)
@@ -129,13 +133,17 @@ PRINCIPES :
 - Aucune interprétation sans base textuelle`
 }
 
-export function buildTheologySystemPrompt(level: BibleLevel, language: string): string {
+export function buildTheologySystemPrompt(level: BibleLevel, language: string, recentSummaries: string[] = []): string {
+  const memory = recentSummaries.length > 0
+    ? `\nMÉMOIRE (sessions précédentes) :\n${recentSummaries.slice(0, 3).map(s => `- ${s}`).join("\n")}\n`
+    : ""
+
   return `Tu es un assistant théologique spécialisé servant l'église ARC, une église évangélique réformée.
 
 NIVEAU : ${LEVEL_LABELS[level]}
 ${levelInstruction(level)}
 LANGUE : ${language}
-
+${memory}
 SOURCES AUTORISÉES (par ordre d'autorité) :
 1. L'Écriture Sainte (citation chapitre:verset obligatoire)
 2. Confessions historiques : Nicée (381), Westminster (1646), Heidelberg (1563)
@@ -164,7 +172,11 @@ export function buildMeditationSystemPrompt(
   style: string,
   duration: string,
   language: string,
+  recentSummaries: string[] = [],
 ): string {
+  const memory = recentSummaries.length > 0
+    ? `\nMÉMOIRE (sessions précédentes) :\n${recentSummaries.slice(0, 3).map(s => `- ${s}`).join("\n")}\n`
+    : ""
   const styleGuides: Record<string, string> = {
     "lectio-divina": `Lectio Divina (4 temps) :
 1. LECTIO — Lire le texte lentement, plusieurs fois
@@ -185,6 +197,7 @@ export function buildMeditationSystemPrompt(
 STYLE : ${styleGuides[style] ?? styleGuides["lectio-divina"]}
 DURÉE : ${duration}
 LANGUE : ${language}
+${memory}
 
 RÈGLES :
 - Ton doux, lent, contemplatif

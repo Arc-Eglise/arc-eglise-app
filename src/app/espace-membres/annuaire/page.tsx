@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import GroupBadge from "@/components/GroupBadge";
 
 export default async function AnnuairePage() {
   const supabase = createClient();
@@ -57,9 +58,7 @@ export default async function AnnuairePage() {
                     {m.role}
                   </span>
                   {m.groups?.map((g: string) => (
-                    <span key={g} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-arc-gold/10 text-arc-goldDark">
-                      {g}
-                    </span>
+                    <GroupBadge key={g} name={g} size="sm" />
                   ))}
                 </div>
               </div>

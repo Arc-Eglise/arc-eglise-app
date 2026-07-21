@@ -210,6 +210,28 @@ export async function setCachedResponse(
   }
 }
 
+// ── Limitation de débit AI ──────────────────────────────────────────
+
+export async function checkAiRateLimit(userId: string, limit = 60): Promise<boolean> {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin.rpc("ai_increment_rate_limit", {
+      p_user_id: userId,
+      p_limit:   limit,
+    })
+    return data !== false
+  } catch {
+    return true // fail open — ne pas bloquer si le check échoue
+  }
+}
+
+export function rateLimitedResponse() {
+  return NextResponse.json(
+    { error: "Quota horaire atteint. Réessayez dans quelques minutes." },
+    { status: 429 }
+  )
+}
+
 // ── Rôle utilisateur ────────────────────────────────────────────────
 
 export async function getUserRole(userId: string): Promise<string> {

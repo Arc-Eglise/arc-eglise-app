@@ -3,9 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import Link  from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import GroupBadge from "@/components/GroupBadge";
 
 const ROLES  = ["admin", "pasteur", "membre", "visiteur"];
-const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const GROUPS = ["pasteur","chorale","media","social","hospitalite","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 
 export default async function CrmPage({
   searchParams,
@@ -145,9 +146,7 @@ export default async function CrmPage({
                     {m.role}
                   </span>
                   {m.groups?.slice(0, 2).map((g: string) => (
-                    <span key={g} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-arc-gold/10 text-arc-goldDark hidden sm:inline">
-                      {g}
-                    </span>
+                    <GroupBadge key={g} name={g} size="sm" className="hidden sm:inline-flex" />
                   ))}
                   {!m.validated && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⏳</span>

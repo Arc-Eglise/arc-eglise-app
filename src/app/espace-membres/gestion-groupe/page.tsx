@@ -12,14 +12,14 @@ import {
 /* ─── Données statiques ───────────────────────────────────────────── */
 const GROUP_LABELS: Record<string, string> = {
   pasteur:"Pasteur", chorale:"Chorale", media:"Équipe Média",
-  social:"Social & Hospitalité", sanitaire:"Sanitaire & Propreté",
-  finance:"Finance", support:"Support", jeunesse:"La Jeunesse",
-  femmes:"Groupe des Femmes", ecodim:"Écodim",
-  suivi:"Suivi d'âmes", communication:"Communication",
+  social:"Social & Hospitalité", hospitalite:"Hospitalité",
+  sanitaire:"Sanitaire & Propreté", finance:"Finance", support:"Support",
+  jeunesse:"La Jeunesse", femmes:"Groupe des Femmes",
+  ecodim:"Écodim", suivi:"Suivi d'âmes", communication:"Communication",
 };
 const GROUP_EMOJIS: Record<string, string> = {
-  pasteur:"👑", chorale:"🎵", media:"🎬", social:"🤝", sanitaire:"🏥",
-  finance:"💰", support:"🛠️", jeunesse:"⚡", femmes:"🌸",
+  pasteur:"👑", chorale:"🎵", media:"🎬", social:"🤝", hospitalite:"🤝",
+  sanitaire:"🏥", finance:"💰", support:"🛠️", jeunesse:"⚡", femmes:"🌸",
   ecodim:"📚", suivi:"🕊️", communication:"📣",
 };
 

@@ -4,7 +4,7 @@ import { useFormState, useFormStatus } from "react-dom";
 
 type State = { error?: string; success?: boolean } | null;
 
-const ALL_GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const ALL_GROUPS = ["pasteur","chorale","media","social","hospitalite","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 
 function SubmitBtn() {
   const { pending } = useFormStatus();

@@ -6,6 +6,7 @@ import { uploadMemberAvatar } from "@/lib/actions/cms";
 import AvatarUpload from "@/components/membres/AvatarUpload";
 import { getSpiritualProfile } from "@/lib/spiritual-profile";
 import SpiritualProfileSection from "@/components/profil/SpiritualProfileSection";
+import GroupBadge from "@/components/GroupBadge";
 
 export default async function ProfilPage() {
   const supabase = createClient();
@@ -78,9 +79,7 @@ export default async function ProfilPage() {
               <div className="text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-2">Groupes</div>
               <div className="flex flex-wrap gap-1.5">
                 {profile.groups.map((g: string) => (
-                  <span key={g} className="text-xs font-bold px-2.5 py-1 rounded-full bg-arc-gold/10 text-arc-goldDark border border-arc-gold/20">
-                    {g}
-                  </span>
+                  <GroupBadge key={g} name={g} size="sm" />
                 ))}
               </div>
             </div>

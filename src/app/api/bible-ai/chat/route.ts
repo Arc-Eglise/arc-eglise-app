@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  requireAuth, unauthorizedResponse, badRequestResponse,
+  requireAuth, unauthorizedResponse, badRequestResponse, checkAiRateLimit, rateLimitedResponse,
   getUserPrefs, getRecentSessionSummaries,
   createSession, persistMessage, autoSummarizeSession,
   streamArcAI, arcAIRequest, extractVerseRefs,
@@ -12,6 +12,7 @@ import { buildUserContextBlock, inferAndUpdateProfileAsync } from "@/lib/spiritu
 export async function POST(req: NextRequest) {
   let userId: string
   try { userId = await requireAuth() } catch { return unauthorizedResponse() }
+  if (!await checkAiRateLimit(userId)) return rateLimitedResponse()
 
   let body: {
     message: string

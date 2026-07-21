@@ -8,6 +8,7 @@ import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
 import { GroupsEditorClient } from "@/components/crm/GroupsEditorClient";
 import CrmTagsEditor from "../CrmTagsEditor";
+import GroupBadge from "@/components/GroupBadge";
 
 const STAGES: { key: string; label: string; color: string }[] = [
   { key: "visiteur",    label: "Visiteur",     color: "text-gray-600 bg-gray-50 border-gray-200"       },
@@ -18,14 +19,15 @@ const STAGES: { key: string; label: string; color: string }[] = [
 ];
 const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
 
-const ALL_GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const ALL_GROUPS = ["pasteur","chorale","media","social","hospitalite","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 const GROUP_LABELS_LOCAL: Record<string,string> = {
   pasteur:"Pasteur",chorale:"Chorale",media:"Équipe Média",social:"Social & Hospitalité",
-  sanitaire:"Sanitaire",finance:"Finance",support:"Support",jeunesse:"La Jeunesse",
-  femmes:"Groupe des Femmes",ecodim:"Écodim",suivi:"Suivi d'âmes",communication:"Communication",
+  hospitalite:"Hospitalité",sanitaire:"Sanitaire",finance:"Finance",support:"Support",
+  jeunesse:"La Jeunesse",femmes:"Groupe des Femmes",ecodim:"Écodim",suivi:"Suivi d'âmes",
+  communication:"Communication",
 };
 const GROUP_EMOJIS: Record<string,string> = {
-  pasteur:"👑",chorale:"🎵",media:"🎬",social:"🤝",sanitaire:"🏥",finance:"💰",
+  pasteur:"👑",chorale:"🎵",media:"🎬",social:"🤝",hospitalite:"🤝",sanitaire:"🏥",finance:"💰",
   support:"🛠️",jeunesse:"⚡",femmes:"🌸",ecodim:"📚",suivi:"🕊️",communication:"📣",
 };
 const ROLE_STYLE: Record<string, string> = {
@@ -448,9 +450,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               <h2 className="font-bold text-arc-navy mb-3">👥 Groupes</h2>
               <div className="flex flex-wrap gap-1.5">
                 {member.groups.map((g: string) => (
-                  <span key={g} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-arc-gold/10 text-arc-goldDark border border-arc-gold/20">
-                    {g}
-                  </span>
+                  <GroupBadge key={g} name={g} size="sm" />
                 ))}
               </div>
             </div>

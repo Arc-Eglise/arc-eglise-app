@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireAuth, unauthorizedResponse, badRequestResponse } from "@/lib/bible-ai"
+import { requireAuth, unauthorizedResponse, badRequestResponse, getUserRole } from "@/lib/bible-ai"
 import { chat } from "@/lib/arc-ai/provider-manager"
 import { createClient }      from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -108,6 +108,11 @@ Réponds UNIQUEMENT en JSON valide sans markdown, avec ce format :
     }
 
     case "update_summary": {
+      const role = await getUserRole(userId)
+      if (role !== "admin" && role !== "pasteur") {
+        return NextResponse.json({ error: "Réservé aux pasteurs et administrateurs" }, { status: 403 })
+      }
+
       const { sermon_id, summary, key_verses, themes } = body as {
         sermon_id: string
         summary?: string
@@ -131,6 +136,11 @@ Réponds UNIQUEMENT en JSON valide sans markdown, avec ce format :
     }
 
     case "delete_summary": {
+      const role = await getUserRole(userId)
+      if (role !== "admin" && role !== "pasteur") {
+        return NextResponse.json({ error: "Réservé aux pasteurs et administrateurs" }, { status: 403 })
+      }
+
       const { sermon_id } = body
       if (!sermon_id) return badRequestResponse("sermon_id requis")
       await admin.from("sermon_ai_summaries").delete().eq("sermon_id", sermon_id)

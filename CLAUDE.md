@@ -44,8 +44,8 @@ Site web de l'ARC (Ambassade du Royaume de Christ) — La Chaux-de-Fonds, Suisse
 ### RBAC — 4 rôles
 `visiteur` | `membre` | `pasteur` | `admin`
 
-### 12 fonctions (`profiles.groups[]`)
-`pasteur` `chorale` `media` `social` `sanitaire` `finance` `support` `jeunesse` `femmes` `ecodim` `suivi` `communication`
+### 13 fonctions (`profiles.groups[]`)
+`pasteur` `chorale` `media` `social` `hospitalite` `sanitaire` `finance` `support` `jeunesse` `femmes` `ecodim` `suivi` `communication`
 
 ### Pipeline pastoral (`profiles.pastoral_stage`)
 `visiteur` → `integration` → `actif` → `formation` → `responsable`
@@ -112,3 +112,57 @@ Tous les fichiers SQL en attente ont été exécutés le 2026-07-17.
 - **Adresse :** Av. Charles-Naine 39, 2300 La Chaux-de-Fonds
 - **Email église :** arceglise.cdf@gmail.com
 - **Vercel account :** arceglise.cdf@gmail.com
+
+---
+
+## CHANTIER ADR-001 — RÈGLES PERMANENTES
+
+### Structure du chantier
+
+| Chantier | Branche | Touche la production ? |
+|---|---|---|
+| **A — Correctifs** | `fix/adr-001-correctifs` puis `main` | Oui, volontairement |
+| **B — Socle isolé** | `feat/socle-api` — **jamais fusionnée** | **Non, jamais** |
+| **C — Bascule** | sur feu vert explicite uniquement | Oui, sous-étape par sous-étape |
+
+La branche `feat/socle-api` ne doit **jamais** être fusionnée dans `main` sans accord écrit de Joe. Un feu vert pour une sous-étape du chantier C ne vaut que pour cette sous-étape précise.
+
+### Règle d'isolation absolue
+
+Le chantier B vit sur `feat/socle-api`. Tant que cette branche n'est pas fusionnée, aucune ligne du socle n'atteint la production. Sont interdits sans feu vert explicite :
+
+- ❌ Qu'une page, composant, hook ou route **existante** importe quoi que ce soit du socle.
+- ❌ Que `arc-ai-engine` importe, appelle ou dépende de `arc-core`.
+- ❌ Que `arc-core` importe quoi que ce soit de `arc-ai-engine` ou de `app/`.
+- ❌ De rediriger, remplacer, proxifier une route existante vers le socle, même temporairement.
+- ❌ D'introduire un drapeau de fonctionnalité ou un `if` pour activer partiellement le socle.
+- ❌ De fusionner `feat/socle-api` dans `main`, ni de la déployer, sans accord écrit.
+
+**Si tu penses qu'un raccordement est nécessaire : arrête-toi et demande à Joe.** Ne décide jamais seul.
+
+### Règles non négociables (ADR-001 v2.1 — section 8)
+
+- **R1** — Aucune valeur de rôle ou de fonction en chaîne littérale hors de `arc-core`. Dans le chantier A (correctifs), les listes locales sont temporairement acceptées.
+- **R5** — Le droit suit la mission : aucun droit sur les personnes accordé par effet de bord d'un droit sur le contenu. `communication` accède aux outils de contenu, pas aux personnes.
+- **R8** — Domaine unique `arc-eglise.ch`. Aucun sous-domaine créé sans accord.
+- **R9** — Dépendance à sens unique `arc-ai-engine → arc-core`, jamais l'inverse.
+- **R11** — Validation systématique des entrées à toutes les frontières du système. Aucun digest opaque.
+
+### Référentiel officiel (à jour — session 8, 21/07/2026)
+
+**4 rôles :** `visiteur` | `membre` | `pasteur` | `admin`  
+**13 fonctions :** `pasteur` `chorale` `media` `social` `hospitalite` `sanitaire` `finance` `support` `jeunesse` `femmes` `ecodim` `suivi` `communication`  
+**5 étapes pipeline :** `visiteur` → `intégration` → `actif` → `formation` → `responsable`
+
+### État d'avancement
+
+| Chantier | Sous-étape | État | Date |
+|---|---|---|---|
+| — | Audit (Étape 0) | ✅ Terminé | 21/07/2026 |
+| A | A1 — Contrainte d'intégrité DB | ⏳ À démarrer | — |
+| A | A2 — Confidentialité notes + droits | ⏳ Arbitrage requis | — |
+| B | B0 — Mise en place isolation | ⏳ À démarrer | — |
+| B | B1–B4 | ⏳ À démarrer | — |
+| C | C0–C4 | 🔒 Bloqué (feu vert requis) | — |
+
+*Journal détaillé :* `Documentation technique/AVANCEMENT-ADR-001.md`

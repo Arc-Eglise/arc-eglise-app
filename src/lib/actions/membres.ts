@@ -23,6 +23,7 @@ const GROUP_LABELS: Record<string, string> = {
   jeunesse:      "La Jeunesse",
   femmes:        "Groupe des Femmes",
   social:        "Social & Hospitalité",
+  hospitalite:   "Hospitalité",
   sanitaire:     "Sanitaire & Propreté",
   ecodim:        "Écodim",
   suivi:         "Suivi d'âmes",
@@ -549,7 +550,7 @@ export async function savePlatformCards(cards: object[]) {
     const { data: { user: u } } = await supabase.auth.getUser();
     if (!u) return { error: "Non authentifié" };
     const { data: p } = await supabase.from("profiles").select("role,groups").eq("id", u.id).single();
-    if (!["admin","pasteur"].includes(p?.role ?? "") && !(p?.groups ?? []).includes("Communication")) {
+    if (!["admin","pasteur"].includes(p?.role ?? "") && !(p?.groups ?? []).includes("communication")) {
       return { error: "Non autorisé" };
     }
   }
@@ -679,7 +680,7 @@ export async function inviteMember(email: string, firstName: string, lastName: s
 
 // ── Gestion des managers de groupes ──────────────────────────────
 
-const VALID_GROUPS = new Set(["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"]);
+const VALID_GROUPS = new Set(["pasteur","chorale","media","social","hospitalite","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"]);
 const MAX_MANAGERS_PER_GROUP = 2;
 
 /** Vérifie si l'appelant peut gérer les managers du groupe donné */

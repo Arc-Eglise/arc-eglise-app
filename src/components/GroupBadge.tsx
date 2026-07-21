@@ -4,9 +4,10 @@ interface Props {
   name: string;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
+  className?: string;
 }
 
-export default function GroupBadge({ name, size = "md", showLabel = true }: Props) {
+export default function GroupBadge({ name, size = "md", showLabel = true, className = "" }: Props) {
   const g    = getGroup(name);
   const Icon = g.Icon;
 
@@ -15,9 +16,9 @@ export default function GroupBadge({ name, size = "md", showLabel = true }: Prop
   const text     = size === "sm" ? "text-[10px]" : size === "lg" ? "text-sm" : "text-xs";
 
   return (
-    <span className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${px} ${text} ${g.color} ${g.bg} ${g.border}`}>
+    <span className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${px} ${text} ${g.color} ${g.bg} ${g.border} ${className}`}>
       <Icon size={iconSize} strokeWidth={2} className="flex-shrink-0" />
-      {showLabel && <span>{name}</span>}
+      {showLabel && <span>{g.name}</span>}
     </span>
   );
 }

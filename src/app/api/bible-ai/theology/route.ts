@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  requireAuth, unauthorizedResponse, badRequestResponse,
+  requireAuth, unauthorizedResponse, badRequestResponse, checkAiRateLimit, rateLimitedResponse,
   getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { buildTheologySystemPrompt } from "@/lib/bible-ai-prompts"
@@ -9,6 +9,7 @@ import type { BibleLevel } from "@/lib/bible-ai-prompts"
 export async function POST(req: NextRequest) {
   let userId: string
   try { userId = await requireAuth() } catch { return unauthorizedResponse() }
+  if (!await checkAiRateLimit(userId)) return rateLimitedResponse()
 
   const body = await req.json().catch(() => null)
   if (!body) return badRequestResponse("JSON invalide")
@@ -27,11 +28,8 @@ export async function POST(req: NextRequest) {
   const lang   = language ?? prefs.language
   const lvl    = level    ?? prefs.level
   
-  // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
   const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
-  void summaries // TODO: intégrer au system prompt si buildTheologySystemPrompt() l'accepte
-  
-  const system = buildTheologySystemPrompt(lvl, lang)
+  const system = buildTheologySystemPrompt(lvl, lang, summaries)
 
   if (stream) {
     try { return await streamArcAI(question.trim(), history, system) }

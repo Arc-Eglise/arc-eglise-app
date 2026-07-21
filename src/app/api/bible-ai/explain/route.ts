@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  requireAuth, unauthorizedResponse, badRequestResponse,
+  requireAuth, unauthorizedResponse, badRequestResponse, checkAiRateLimit, rateLimitedResponse,
   getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS,
   buildCacheKey, getCachedResponse, setCachedResponse, sseChunk,
 } from "@/lib/bible-ai"
@@ -10,6 +10,7 @@ import type { BibleLevel } from "@/lib/bible-ai-prompts"
 export async function POST(req: NextRequest) {
   let userId: string
   try { userId = await requireAuth() } catch { return unauthorizedResponse() }
+  if (!await checkAiRateLimit(userId)) return rateLimitedResponse()
 
   const body = await req.json().catch(() => null)
   if (!body) return badRequestResponse("JSON invalide")
@@ -43,11 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Streaming
-  // BUG FIX 2: Charger le contexte utilisateur (summaries de sessions précédentes)
   const summaries = prefs.memory_enabled ? await getRecentSessionSummaries(userId) : []
-  void summaries // TODO: intégrer au system prompt si buildExplainSystemPrompt() l'accepte
-  
-  const system  = buildExplainSystemPrompt(lvl, lang)
+  const system  = buildExplainSystemPrompt(lvl, lang, summaries)
   const message = `Explique ce passage biblique en détail pour le niveau ${lvl} : ${verse_ref}`
 
   try {

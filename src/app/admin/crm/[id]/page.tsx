@@ -7,7 +7,7 @@ import { updateMemberGroups, addMemberNote, deleteMemberNote, setMemberRole } fr
 import { validateMember, rejectMember } from "@/lib/actions/cms";
 import { DangerActionsPanel } from "./DangerActionsPanel";
 
-const GROUPS = ["pasteur","chorale","media","social","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
+const GROUPS = ["pasteur","chorale","media","social","hospitalite","sanitaire","finance","support","jeunesse","femmes","ecodim","suivi","communication"];
 const ROLES  = ["admin", "pasteur", "membre", "visiteur"] as const;
 
 const NOTE_TYPES = [

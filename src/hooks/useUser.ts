@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "pasteur" | "membre" | "visiteur" | null;
+import type { UserRole as DBUserRole } from "@/lib/supabase/types";
+export type UserRole = DBUserRole | null;
 
 export interface UserProfile {
   id: string;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  requireAuth, unauthorizedResponse, badRequestResponse,
+  requireAuth, unauthorizedResponse, badRequestResponse, checkAiRateLimit, rateLimitedResponse,
   getUserPrefs, getRecentSessionSummaries, streamArcAI, arcAIRequest, SSE_HEADERS, sseChunk,
 } from "@/lib/bible-ai"
 import { createClient }      from "@/lib/supabase/server"
@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export async function POST(req: NextRequest) {
   let userId: string
   try { userId = await requireAuth() } catch { return unauthorizedResponse() }
+  if (!await checkAiRateLimit(userId)) return rateLimitedResponse()
 
   const body = await req.json().catch(() => null)
   if (!body) return badRequestResponse("JSON invalide")

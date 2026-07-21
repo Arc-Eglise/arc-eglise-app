@@ -10,6 +10,7 @@ export const FUNCTION_MAILBOXES: Record<string, string> = {
   ecodim:        "ecodim@arc-eglise.ch",
   sanitaire:     "sanitaire@arc-eglise.ch",
   social:        "hospitalite@arc-eglise.ch",
+  hospitalite:   "hospitalite@arc-eglise.ch",
   pasteur:       "pasteurs@arc-eglise.ch",
   suivi:         "pastoral@arc-eglise.ch",
   support:       "support@arc-eglise.ch",
