@@ -39,8 +39,13 @@ export default async function CrmPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!["admin", "pasteur"].includes(me?.role ?? "")) redirect("/espace-membres");
+  const { data: me } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const meGroupsCrm = (me?.groups as string[] | null) ?? [];
+  const hasCrmAccess =
+    ["admin", "pasteur"].includes(me?.role ?? "") ||
+    meGroupsCrm.includes("suivi") ||
+    meGroupsCrm.includes("support");
+  if (!hasCrmAccess) redirect("/espace-membres");
 
   const q     = searchParams?.q?.trim().toLowerCase() ?? "";
   const stage = searchParams?.stage ?? "";
