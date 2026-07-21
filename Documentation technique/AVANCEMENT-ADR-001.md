@@ -133,7 +133,7 @@
 |---|---|---|
 | B0 | Isolation + script de vérification | ✅ 21/07/2026 |
 | B1 | `arc-core` (référentiel, droits, schemas, errors) | ✅ 21/07/2026 |
-| B2 | `/api/v1` + OpenAPI | ⏳ |
+| B2 | `/api/v1` + OpenAPI | ✅ 21/07/2026 |
 | B3 | Quotas, rate limiting, journalisation | ⏳ |
 | B4 | Validation du socle | ⏳ |
 
@@ -195,4 +195,26 @@
 
 **Vérification :** `tsc --noEmit` → 0 erreur · `check-isolation` → ✅ aucune violation
 
-*Dernière mise à jour : 21/07/2026 — B1 TERMINÉ — @arc/core complet*
+### B2 — `/api/v1` + OpenAPI ✅ TERMINÉ — 21/07/2026
+
+**Endpoints livrés (dans `src/app/api/v1/`) :**
+
+| Route | Auth | Description |
+|---|---|---|
+| `GET /api/v1/health` | ❌ public | Health check Supabase DB — 200 ok / 503 dégradé |
+| `GET /api/v1/referentiel` | ❌ public | Rôles · fonctions · pipeline depuis `@arc/core` |
+| `GET /api/v1/profile/me` | ✅ cookie | Profil + droits calculés par `@arc/core` |
+| `GET /api/v1/openapi.json` | ❌ public | Spec OpenAPI 3.1.0 auto-générée |
+
+**Fichiers partagés `_lib/` :**
+- `auth.ts` — `requireAuthV1()` et `getUserWithProfile()` (lève `UnauthorizedError`)
+- `response.ts` — `ok()`, `fromArcError()`, `handleError()`
+
+**Configuration :**
+- `tsconfig.json` : paths `@arc/core` et `@arc/ai-engine` → `packages/*/src/index.ts`
+- `next.config.mjs` : `transpilePackages: ["@arc/core", "@arc/ai-engine"]`
+- `check-isolation.js` : règle I1 exclut `src/app/api/v1/` (fait partie du socle)
+
+**Isolation :** `check-isolation` → ✅ aucune violation
+
+*Dernière mise à jour : 21/07/2026 — B2 TERMINÉ — /api/v1 + OpenAPI 3.1.0*

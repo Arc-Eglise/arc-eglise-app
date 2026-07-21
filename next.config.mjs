@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
+  transpilePackages: ["@arc/core", "@arc/ai-engine"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "fobyvhulyjxwbhusouqz.supabase.co" },

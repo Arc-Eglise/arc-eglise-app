@@ -3,7 +3,8 @@
  * check-isolation.js — Vérifie les règles d'isolation ADR-001 (Chantier B)
  *
  * Règles vérifiées :
- *   I1  src/ (app existante) ne doit PAS importer @arc/core ni @arc/ai-engine
+ *   I1  src/ (app existante, HORS api/v1/) ne doit PAS importer @arc/core ni @arc/ai-engine
+ *       Exception : src/app/api/v1/ fait partie du socle — @arc/core y est autorisé
  *   I2  packages/arc-core ne doit PAS importer @arc/ai-engine ni depuis src/app/
  *   I3  packages/arc-ai-engine peut importer @arc/core, mais PAS depuis src/app/
  *
@@ -42,13 +43,16 @@ function rel(p) { return path.relative(ROOT, p).replace(/\\/g, "/") }
 
 // ── Zones ──────────────────────────────────────────────────────────────────
 const SRC_DIR        = path.join(ROOT, "src")
+const API_V1_DIR     = path.join(ROOT, "src", "app", "api", "v1")  // fait partie du socle
 const ARC_CORE_DIR   = path.join(ROOT, "packages", "arc-core", "src")
 const ARC_AI_DIR     = path.join(ROOT, "packages", "arc-ai-engine", "src")
 
 const violations = []
 
-// I1 — src/ ne doit pas importer les packages du socle
+// I1 — src/ (hors api/v1/) ne doit pas importer les packages du socle
 for (const file of walk(SRC_DIR)) {
+  // api/v1/ est le socle lui-même : les imports @arc/core y sont autorisés
+  if (file.startsWith(API_V1_DIR)) continue
   for (const imp of importsOf(file)) {
     if (imp.startsWith("@arc/core") || imp.startsWith("@arc/ai-engine")) {
       violations.push({ rule: "I1", file: rel(file), import: imp })
