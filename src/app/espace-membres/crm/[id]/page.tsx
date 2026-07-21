@@ -51,10 +51,13 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!["admin", "pasteur"].includes(me?.role ?? "")) redirect("/espace-membres");
+  const { data: me } = await supabase.from("profiles").select("id, role, groups").eq("id", user.id).single();
+  const meGroups = (me?.groups as string[] | null) ?? [];
+  const callerIsAdminFull = ["admin", "pasteur"].includes(me?.role ?? "");
+  if (!callerIsAdminFull && !meGroups.includes("suivi") && !meGroups.includes("support")) redirect("/espace-membres");
 
   const callerIsAdmin = me?.role === "admin";
+  const canWriteNotes = callerIsAdminFull || meGroups.includes("suivi");
 
   const admin = createAdminClient();
 
@@ -78,7 +81,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   // Fetch notes, attendance, prayer stats + ban status in parallel
   const [notesRes, attendRes, prayerRes, rsvpRes, authData] = await Promise.all([
     supabase.from("member_notes")
-      .select("id, content, type, created_at, followup_date, profiles!member_notes_author_id_fkey(first_name, last_name)")
+      .select("id, content, type, created_at, followup_date, confidentialite, profiles!member_notes_author_id_fkey(first_name, last_name)")
       .eq("member_id", params.id)
       .order("created_at", { ascending: false }),
     supabase.from("event_attendance")
@@ -199,56 +202,63 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               <div><span className="text-arc-text3 text-xs">RSVP &quot;J&apos;y vais&quot;</span><div className="font-medium text-arc-navy">{rsvpGoing}</div></div>
             </div>
 
-            {/* Actions validation */}
-            <div className="mt-4 pt-4 border-t border-arc-border flex gap-2 flex-wrap">
-              {!member.validated ? (
-                <form action={handleValidation}>
-                  <input type="hidden" name="action" value="validate" />
-                  <button className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold hover:bg-green-600 transition-colors">
-                    ✓ Valider le compte
-                  </button>
-                </form>
-              ) : (
-                <form action={handleValidation}>
-                  <input type="hidden" name="action" value="invalidate" />
-                  <button className="px-4 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
-                    Suspendre
-                  </button>
-                </form>
-              )}
-            </div>
+            {/* Actions validation — admin/pasteur uniquement */}
+            {callerIsAdminFull && (
+              <div className="mt-4 pt-4 border-t border-arc-border flex gap-2 flex-wrap">
+                {!member.validated ? (
+                  <form action={handleValidation}>
+                    <input type="hidden" name="action" value="validate" />
+                    <button className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold hover:bg-green-600 transition-colors">
+                      ✓ Valider le compte
+                    </button>
+                  </form>
+                ) : (
+                  <form action={handleValidation}>
+                    <input type="hidden" name="action" value="invalidate" />
+                    <button className="px-4 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
+                      Suspendre
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Actions administratives (reset mdp, blocage, suppression) */}
-          <DangerActionsPanel
-            memberId={params.id}
-            memberName={fullName}
-            isBanned={isBanned}
-            isAdmin={callerIsAdmin}
-            backHref="/espace-membres/crm"
-          />
+          {/* Panneaux admin/pasteur uniquement */}
+          {callerIsAdminFull && (
+            <>
+              {/* Actions administratives (reset mdp, blocage, suppression) */}
+              <DangerActionsPanel
+                memberId={params.id}
+                memberName={fullName}
+                isBanned={isBanned}
+                isAdmin={callerIsAdmin}
+                backHref="/espace-membres/crm"
+              />
 
-          {/* Changement de rôle */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">Rôle</h2>
-            <RoleSelectorClient
-              action={handleSetRole}
-              currentRole={member.role}
-              callerIsAdmin={callerIsAdmin}
-            />
-          </div>
+              {/* Changement de rôle */}
+              <div className="bg-white border border-arc-border rounded-2xl p-5">
+                <h2 className="font-bold text-arc-navy mb-3">Rôle</h2>
+                <RoleSelectorClient
+                  action={handleSetRole}
+                  currentRole={member.role}
+                  callerIsAdmin={callerIsAdmin}
+                />
+              </div>
 
-          {/* Fonctions */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">Fonctions</h2>
-            <GroupsEditorClient
-              action={handleUpdateGroups}
-              currentGroups={(member.groups as string[]) ?? []}
-            />
-          </div>
+              {/* Fonctions */}
+              <div className="bg-white border border-arc-border rounded-2xl p-5">
+                <h2 className="font-bold text-arc-navy mb-3">Fonctions</h2>
+                <GroupsEditorClient
+                  action={handleUpdateGroups}
+                  currentGroups={(member.groups as string[]) ?? []}
+                />
+              </div>
+            </>
+          )}
 
-          {/* Managers de fonctions */}
-          {(member.groups ?? []).length > 0 && (
+          {/* Managers de fonctions — admin/pasteur uniquement */}
+          {callerIsAdminFull && (member.groups ?? []).length > 0 && (
             <div className="bg-white border border-arc-border rounded-2xl p-5">
               <h2 className="font-bold text-arc-navy mb-1">👑 Manager de fonctions</h2>
               <p className="text-xs text-arc-text3 mb-3">
@@ -333,28 +343,34 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-4">📝 Notes ({notes.length})</h2>
 
-            {/* Ajouter une note */}
-            <form action={handleAddNote} className="mb-5 space-y-2">
-              <input type="hidden" name="member_id" value={member.id} />
-              <div className="flex gap-2 flex-wrap">
-                <select name="type" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
-                  {NOTE_TYPES.map(t => <option key={t.val} value={t.val}>{t.label}</option>)}
-                </select>
-                <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
-                  <label className="text-[10px] font-bold text-arc-text3 whitespace-nowrap">Relance le :</label>
-                  <input type="date" name="followup_date"
-                    className="flex-1 px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy transition-colors bg-white" />
+            {/* Ajouter une note — suivi / admin / pasteur */}
+            {canWriteNotes && (
+              <form action={handleAddNote} className="mb-5 space-y-2">
+                <input type="hidden" name="member_id" value={member.id} />
+                <div className="flex gap-2 flex-wrap">
+                  <select name="type" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
+                    {NOTE_TYPES.map(t => <option key={t.val} value={t.val}>{t.label}</option>)}
+                  </select>
+                  <select name="confidentialite" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
+                    <option value="confidentielle_pasteur">🔒 Confidentiel pasteur</option>
+                    <option value="partagee_suivi">👥 Visible équipe suivi</option>
+                  </select>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
+                    <label className="text-[10px] font-bold text-arc-text3 whitespace-nowrap">Relance le :</label>
+                    <input type="date" name="followup_date"
+                      className="flex-1 px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy transition-colors bg-white" />
+                  </div>
                 </div>
-              </div>
-              <textarea
-                name="content" required maxLength={2000} rows={3}
-                placeholder="Ajouter une note pastorale confidentielle…"
-                className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-none transition-colors"
-              />
-              <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
-                Ajouter la note
-              </button>
-            </form>
+                <textarea
+                  name="content" required maxLength={2000} rows={3}
+                  placeholder="Ajouter une note pastorale…"
+                  className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-none transition-colors"
+                />
+                <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
+                  Ajouter la note
+                </button>
+              </form>
+            )}
 
             {/* Liste notes */}
             <div className="space-y-3">
@@ -365,15 +381,22 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 type NoteWithAuthor = typeof n & {
                   profiles?: { first_name: string | null; last_name: string | null } | null;
                   followup_date?: string | null;
+                  confidentialite?: string | null;
                 };
                 const note = n as NoteWithAuthor;
                 const authorName = [note.profiles?.first_name, note.profiles?.last_name].filter(Boolean).join(" ") || "Admin";
                 const hasRelance = !!note.followup_date;
                 const relancePast = hasRelance && new Date(note.followup_date! + "T00:00:00") < new Date();
+                const isShared = note.confidentialite === "partagee_suivi";
                 return (
                   <div key={n.id} className={`rounded-xl p-3 relative group ${hasRelance ? "bg-amber-50 border border-amber-200" : "bg-arc-bg"}`}>
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-[10px] font-bold text-arc-blue uppercase tracking-wider">{n.type}</span>
+                      {isShared ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">👥 Suivi</span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">🔒 Pasteur</span>
+                      )}
                       <span className="text-[10px] text-arc-text3">· {authorName} · {new Date(n.created_at).toLocaleDateString("fr-CH")}</span>
                       {hasRelance && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${relancePast ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
@@ -382,12 +405,14 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                       )}
                     </div>
                     <p className="text-sm text-arc-navy leading-relaxed">{n.content}</p>
-                    <form action={handleDeleteNote} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <input type="hidden" name="note_id" value={n.id} />
-                      <button type="submit" className="w-6 h-6 rounded-full bg-white border border-arc-border text-arc-text3 hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
-                        ✕
-                      </button>
-                    </form>
+                    {canWriteNotes && (
+                      <form action={handleDeleteNote} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <input type="hidden" name="note_id" value={n.id} />
+                        <button type="submit" className="w-6 h-6 rounded-full bg-white border border-arc-border text-arc-text3 hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
+                          ✕
+                        </button>
+                      </form>
+                    )}
                   </div>
                 );
               })}

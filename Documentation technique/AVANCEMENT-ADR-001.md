@@ -44,46 +44,84 @@
 
 ## Chantier A — Correctifs de production
 
-### A1 — Contrainte d'intégrité ⏳ EN ATTENTE
+### A1 — Contrainte d'intégrité ✅ TERMINÉ — 21/07/2026
 
-**Branche cible :** `fix/adr-001-correctifs`  
-**Prérequis :** résultats des requêtes SQL B-1 à B-8 du Livrable B de l'audit (non encore exécutées)
+**Branche :** `fix/adr-001-correctifs`
 
-**Résultats SQL attendus :** _(à remplir lors de la session A1)_
+**Migrations exécutées en production (21/07/2026) :**
+
+| Fichier | Contenu | Statut |
+|---|---|---|
+| `20260721000010_adr001_a1_referentiel.up.sql` | Tables `arc_referentiel_roles`(4), `arc_referentiel_functions`(13), `arc_referentiel_pipeline`(5) | ✅ Exécuté |
+| `20260721000011_adr001_a1_data_correction.up.sql` | Vérification données — aucune correction nécessaire | ✅ Vérifié (base propre) |
+| `20260721000012_adr001_a1_check_constraint.up.sql` | 4 contraintes CHECK sur profiles | ✅ Exécuté |
+
+**Contraintes CHECK actives sur `profiles` :**
+- `chk_profiles_role_valid` : role IN (visiteur, membre, pasteur, admin) — redondant avec ENUM user_role mais documentaire
+- `chk_profiles_groups_valid` : groups[] ⊆ {13 fonctions}
+- `chk_profiles_managed_groups_valid` : managed_groups[] IS NULL OU ⊆ {13 fonctions}
+- `chk_profiles_pastoral_stage_valid` : pastoral_stage IS NULL OU IN (5 étapes)
+- `profiles_pastoral_stage_check` : pré-existante, compatible ✅
+
+**Résultats SQL B-1 à B-8 (exécutés en autonomie via API Supabase) :**
 
 | Requête | Résultat | Anomalies |
 |---|---|---|
-| B-1 — valeurs distinctes groups[] | ⏳ | ⏳ |
-| B-2 — valeurs distinctes managed_groups[] | ⏳ | ⏳ |
-| B-3 — valeurs non conformes aux 13 fonctions | ⏳ | ⏳ |
-| B-4 — variantes de casse/accent | ⏳ | ⏳ |
-| B-5 — groups[] NULL/vide/chaîne vide | ⏳ | ⏳ |
-| B-6 — valeurs distinctes profiles.role | ⏳ | ⏳ |
-| B-7 — valeurs pastoral_stage | ⏳ | ⏳ |
-| B-8 — divergence profiles ↔ auth.users | ⏳ | ⏳ |
+| B-1 groups[] | chorale(1), communication(1), jeunesse(1), media(1), pasteur(1), support(1) | ✅ Aucune |
+| B-2 managed_groups[] | 0 résultat | ✅ Aucun manager assigné |
+| B-3 non-conformes | 0 résultat | ✅ Base propre |
+| B-4 variantes casse | 6 valeurs, nb_variantes=1 chacune | ✅ Toutes canoniques |
+| B-5 vides/NULL | 3 profils groups=[] (admin, visiteur, testmembre) | ℹ️ Normal |
+| B-6 roles | membre(4/3v), admin(1), visiteur(1/0v) — total 6 profils | ⚠️ Aucun role=pasteur en base |
+| B-7 pastoral_stage | actif(4), visiteur(2) | ✅ Conformes |
+| B-8 divergence auth | 0 divergence | ✅ Triggers sync OK |
+| B-9 notes | 0 note pastorale | ℹ️ Aucune donnée à migrer pour A2 |
 
-**Travaux :**
-1. Table de référence des 13 fonctions et 4 rôles (migration SQL)
-2. Migration corrective des valeurs non conformes → **à soumettre à Joe avant exécution**
-3. Contrainte CHECK sur `profiles.groups[]` et `profiles.managed_groups[]`
-4. Vérification RLS après contrainte
-5. Migrations `up` + `down` (réversible)
+**Notes importantes :**
+- `profiles.role` est un ENUM `user_role` (pas TEXT comme indiqué dans l'audit)
+- Aucun profil avec `role=pasteur` → Pedro/Emerance n'ont pas encore de compte
+- 0 notes pastorales → migration A2 (confidentialité) triviale
 
-**Ordre d'exécution impératif :**
-1. Sauvegarde complète base → Joe exécute la commande
-2. Test en préproduction Supabase
-3. Accord Joe → exécution production
+**Critère de sortie ADR-001 A1 :** ✅ Vérifié
+- INSERT role='superadmin' → rejeté par ENUM user_role
+- INSERT groups='{diacre}' → rejeté par `chk_profiles_groups_valid` (ERROR 23514)
 
 ---
 
-### A2 — Confidentialité des notes et droits ⏳ ARBITRAGE REQUIS
+### A2 — Confidentialité des notes et droits ✅ TERMINÉ — 21/07/2026
 
-**Décision attendue :** A2-now (lib/droits/ local, correctif immédiat) ou A2-later (reporter au chantier C)
+**Décision :** A2-now — `lib/droits/` local, remplacé par `arc-core` lors de la bascule.
 
-| Voie | Description | Statut |
+**Commit :** `2715039` — branche `fix/adr-001-correctifs`
+
+**Migration SQL (exécutée en production) :**
+
+| Fichier | Contenu | Statut |
 |---|---|---|
-| A2-now | Droits dans `lib/droits/`, remplacé par `arc-core` lors de la bascule | ⏳ |
-| A2-later | Reporter entièrement au chantier C | ⏳ |
+| `20260721000013_adr001_a2_notes_confidentialite.up.sql` | Colonne `member_notes.confidentialite` + CHECK + 4 RLS | ✅ Exécuté |
+| `20260721000013_adr001_a2_notes_confidentialite.down.sql` | Rollback complet | ✅ Écrit |
+
+**RLS `member_notes` actives :**
+- `notes_select` : admin/pasteur → tout ; suivi → partagee_suivi + ses propres notes
+- `notes_insert` : admin | pasteur | suivi (auteur = auth.uid())
+- `notes_update` / `notes_delete` : auteur uniquement
+
+**Code applicatif livré :**
+- `src/lib/droits/index.ts` — 10 droits nommés (`peutVoirCRM`, `peutLireNotesPastorales`, `peutEcrireNotesPastorales`…)
+- `membres.ts` — `assertCRMWriter` (admin|pasteur|suivi), `addMemberNote` + `updatePastoralStage` utilisent assertCRMWriter, `addMemberNote` accepte `confidentialite`
+- `crm/page.tsx` — garde étendue à suivi + support
+- `crm/[id]/page.tsx` — garde étendue, panneaux DangerActions/Rôle/Fonctions/Manager masqués pour suivi/support, formulaire note avec sélecteur confidentialité, badge confidentialité sur chaque note
+- `EspaceMembresClient.tsx` — import droits, `peutVoirCRM` pour l'onglet CRM (suivi y accède désormais), `canAdmin` conservé pour le panneau Administration
+
+**Matrice d'accès effective :**
+| Opération | admin | pasteur | suivi | support | comm |
+|---|---|---|---|---|---|
+| Voir CRM (liste + fiche) | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Lire notes (partagee_suivi) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Lire notes (confidentielle_pasteur) | ✅ | ✅ | ses propres | ❌ | ❌ |
+| Créer notes | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Mettre à jour pipeline | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Changer rôle/fonctions/ban | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -111,10 +149,10 @@
 
 | Branche | Rôle | État |
 |---|---|---|
-| `master` | Production (via Vercel CLI) | En avance sur git — nombreux fichiers modifiés non commités |
-| `fix/adr-001-correctifs` | Chantier A | ⏳ À créer |
-| `feat/socle-api` | Chantier B | ⏳ À créer |
+| `master` | Production (via Vercel CLI) | ✅ Commité — `3cd215e` session 8 |
+| `fix/adr-001-correctifs` | Chantier A | ✅ A1+A2 terminés — commit `2715039` |
+| `feat/socle-api` | Chantier B | ⏳ À créer (après merge A dans main) |
 
 ---
 
-*Dernière mise à jour : 21/07/2026 — Session ADR-001 démarrage*
+*Dernière mise à jour : 21/07/2026 — Session ADR-001 A2 TERMINÉ — Chantier A complet, déploiement sur main à valider*

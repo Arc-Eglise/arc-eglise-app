@@ -12,30 +12,61 @@ Site web de l'ARC (Ambassade du Royaume de Christ) — La Chaux-de-Fonds, Suisse
 
 ## Skills actifs sur ce projet
 
+### IA / LLM (ARC AI Engine)
+- `/ia` — patterns IA généraux, intégration LLM côté serveur
+- `/claude-api` — référence Claude/Anthropic (fallback chain, modèles, pricing, streaming)
+- `/llm-fallback` — chaîne de fallback Groq→Gemini→Mistral→Anthropic→DeepSeek→OpenAI→Ollama
+- `/rag-pipeline` — RAG biblique (contenu théologique, dictionnaire, versets)
+- `/prompt-engineer` — system prompts ARC AI, prompts JSON-safe, prompts copilote
+- `/agent-workflow` — patterns agentiques, tool-use, boucles AI, handoff multi-agents
+- `/agent-team` — orchestration multi-agents Claude Code
+- `/token-optimizer` — optimisation coûts LLM, cache de prompts, truncation
+- `/vercel:ai-sdk` — streaming AI responses, useChat, AI SDK Vercel
+- `/vercel:ai-gateway` — Vercel AI Gateway, routing providers, fallback
+- `/vercel:vercel-agent` — agents Vercel
+
 ### Backend / BDD
 - `/supabase` — migrations SQL, RLS policies, queries, types TypeScript générés
 - `/api-design-principles` — structure des Route Handlers Next.js (`src/app/api/**`)
+- `/vector-db` — embeddings, recherche vectorielle (futur RAG Supabase pgvector)
 
 ### Frontend / UI
 - `/nextjs` — App Router, Server Components, Route Handlers, metadata, layout
 - `/vercel:nextjs` — optimisations Next.js spécifiques à Vercel
+- `/vercel:react-best-practices` — patterns React modernes, Server/Client components
+- `/vercel:routing-middleware` — middleware Next.js, redirects, rewrites
 - `/frontend` — composants React/Tailwind, patterns UI
 - `/typescript` — typage strict, types Supabase, interfaces
+- `/component-generator` — templates React Server/Client, props typées
+- `/theme-factory` — système de thèmes (buildThemeCss, accent couleur, navy/or)
+- `/micro-interactions` — animations Tailwind, transitions UX, hover states
+- `/design` — UI/UX ARC Église, identité visuelle
+- `/copywriting-ux` — textes UI, messages d'erreur, libellés
 
 ### Déploiement / Infra
 - `/vercel:deploy` — déploiements production et preview
 - `/vercel:env-vars` — gestion des variables d'environnement Vercel
 - `/vercel:vercel-functions` — Serverless Functions / Edge Functions
 - `/vercel:runtime-cache` — stratégie de cache (ISR, revalidate, tags)
+- `/vercel:auth` — Supabase Auth sur Vercel, sessions, cookies
+- `/vercel:deployments-cicd` — CI/CD, preview deployments, GitHub Actions
+- `/vercel:status` — monitoring déploiements Vercel
+- `/devops` — infra, scripts, tâches Windows (ngrok, Ollama)
+- `/git` — workflow git, branches ADR-001, merge strategy
 
 ### Services
 - `/resend` — emails transactionnels (contact, invitations, notifications)
+- `/localization-i18n` — site en français, formats dates/nombres suisses
 
 ### Qualité / Sécurité
 - `/security-auditor` — audit RLS Supabase, secrets côté client, RBAC
+- `/guardrails-security` — OWASP, injection, XSS, validation entrées AI
 - `/perf-auditor` — Core Web Vitals, Lighthouse, bundle size
 - `/accessibility-a11y` — WCAG 2.2, navigation clavier, contrastes
 - `/seo-optimizer` — metadata Next.js, sitemap, Open Graph
+- `/cost-reducer` — réduction coûts LLM + Vercel + Supabase
+- `/refactoring-debugging` — debug Next.js/Supabase, git bisect, React
+- `/code-reviewer` — revue PR, ADR-001 compliance, sécurité
 
 ---
 
@@ -159,8 +190,8 @@ Le chantier B vit sur `feat/socle-api`. Tant que cette branche n'est pas fusionn
 | Chantier | Sous-étape | État | Date |
 |---|---|---|---|
 | — | Audit (Étape 0) | ✅ Terminé | 21/07/2026 |
-| A | A1 — Contrainte d'intégrité DB | ⏳ À démarrer | — |
-| A | A2 — Confidentialité notes + droits | ⏳ Arbitrage requis | — |
+| A | A1 — Contrainte d'intégrité DB | ✅ Terminé | 21/07/2026 |
+| A | A2 — Confidentialité notes + droits | ✅ Terminé | 21/07/2026 |
 | B | B0 — Mise en place isolation | ⏳ À démarrer | — |
 | B | B1–B4 | ⏳ À démarrer | — |
 | C | C0–C4 | 🔒 Bloqué (feu vert requis) | — |

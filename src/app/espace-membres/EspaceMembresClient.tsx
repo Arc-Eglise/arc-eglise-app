@@ -23,6 +23,7 @@ import Icon, { type IconName } from "@/components/ui/Icon";
 import MailPanel from "@/components/mail/MailPanel";
 import { getAuthorizedMailboxes } from "@/lib/mail/mailbox-config";
 import { DONS_ENABLED } from "@/lib/features";
+import { droits } from "@/lib/droits";
 import { SermonSummariesManager } from "@/components/espace-membres/SermonSummariesManager";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
@@ -464,6 +465,8 @@ const [showSalle, setShowSalle]       = useState(false);
   const canSupportFunc = userGroups.includes("support");
   const canAdmin       = isAdmin || isPasteur || canCommFunc || canSupportFunc;
   const canAdminFull   = isAdmin || isPasteur;
+  const peutVoirCRM    = droits.peutVoirCRM(profile ?? {});
+  const peutVoirAdminPanel = droits.peutVoirAdminPanel(profile ?? {});
   const isManager      = (profile?.managed_groups?.length ?? 0) > 0;
   const displayName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.email
@@ -1094,8 +1097,10 @@ const [showSalle, setShowSalle]       = useState(false);
       ...(isManager ? [
         { id:"gestion-groupe", lbl:"Mon Groupe", ico:"👥", Icon:UserCheck, arcIcon:"contacts" as IconName, href:"/espace-membres/gestion-groupe" },
       ] : []),
-      ...(canAdmin ? [
+      ...(peutVoirCRM ? [
         { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
+      ] : []),
+      ...(canAdmin ? [
         { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings,  arcIcon:"parametres" as IconName },
       ] : []),
     ]},

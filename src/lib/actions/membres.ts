@@ -323,7 +323,7 @@ export async function deleteGrievance(id: string) {
   return { success: true };
 }
 
-// ── CRM (admin/pasteur) ───────────────────────────────────────────
+// ── CRM (admin/pasteur/support) ──────────────────────────────────
 
 async function assertAdmin(supabase: ReturnType<typeof createClient>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -336,20 +336,38 @@ async function assertAdmin(supabase: ReturnType<typeof createClient>) {
   return user;
 }
 
+// Notes pastorales + pipeline : admin | pasteur | suivi (ADR-001 A2)
+async function assertCRMWriter(supabase: ReturnType<typeof createClient>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const allowed =
+    ["admin", "pasteur"].includes(data?.role ?? "") ||
+    (data?.groups as string[] | null)?.includes("suivi");
+  if (!allowed) return null;
+  return user;
+}
+
+const VALID_CONFIDENTIALITE = ["partagee_suivi", "confidentielle_pasteur"] as const;
+
 export async function addMemberNote(formData: FormData) {
   const supabase = createClient();
-  const user = await assertAdmin(supabase);
+  const user = await assertCRMWriter(supabase);
   if (!user) return { error: "Non autorisé" };
 
-  const member_id    = formData.get("member_id") as string;
-  const content      = (formData.get("content") as string)?.trim();
-  const type         = (formData.get("type") as string) || "general";
-  const followup_raw = (formData.get("followup_date") as string)?.trim();
-  const followup_date = followup_raw || null;
+  const member_id        = formData.get("member_id") as string;
+  const content          = (formData.get("content") as string)?.trim();
+  const type             = (formData.get("type") as string) || "general";
+  const followup_raw     = (formData.get("followup_date") as string)?.trim();
+  const followup_date    = followup_raw || null;
+  const confidentialite_raw = formData.get("confidentialite") as string;
+  const confidentialite  = VALID_CONFIDENTIALITE.includes(confidentialite_raw as typeof VALID_CONFIDENTIALITE[number])
+    ? confidentialite_raw
+    : "confidentielle_pasteur";
 
   if (!content) return { error: "Contenu requis" };
 
-  const row: Record<string, unknown> = { member_id, author_id: user.id, content, type };
+  const row: Record<string, unknown> = { member_id, author_id: user.id, content, type, confidentialite };
   if (followup_date) row.followup_date = followup_date;
 
   const { error } = await supabase.from("member_notes").insert(row);
@@ -364,7 +382,7 @@ const PASTORAL_STAGES = ["visiteur","integration","actif","formation","responsab
 
 export async function updatePastoralStage(memberId: string, stage: string) {
   const supabase = createClient();
-  const user = await assertAdmin(supabase);
+  const user = await assertCRMWriter(supabase);
   if (!user) return { error: "Non autorisé" };
   if (!(PASTORAL_STAGES as readonly string[]).includes(stage)) return { error: "Étape invalide" };
 
@@ -378,7 +396,7 @@ export async function updatePastoralStage(memberId: string, stage: string) {
 
 export async function deleteMemberNote(noteId: string, memberId: string) {
   const supabase = createClient();
-  const user = await assertAdmin(supabase);
+  const user = await assertCRMWriter(supabase);
   if (!user) return { error: "Non autorisé" };
 
   await supabase.from("member_notes").delete().eq("id", noteId).eq("author_id", user.id);
