@@ -8,17 +8,22 @@ import { createClient } from "@/lib/supabase/client";
 //   PKCE    : ?code=xxx         → exchangeCodeForSession()
 //   Implicit: #access_token=xxx → getSession() consomme le fragment automatiquement
 //
-// Le paramètre ?next= indique la page de destination après la session établie.
+// Le paramètre #next= dans le fragment indique la page de destination après la session établie.
 
 export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase  = createClient();
-    // Lire depuis window.location (disponible uniquement côté client)
-    const params    = new URLSearchParams(window.location.search);
-    const next      = params.get("next") ?? "/espace-membres";
-    const code      = params.get("code");
+    const supabase = createClient();
+    
+    // Récupérer les paramètres depuis QUERY STRING (pour le flux PKCE)
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get("code");
+
+    // Récupérer le paramètre 'next' depuis le FRAGMENT (où Supabase le place)
+    // Format: #access_token=xyz&type=recovery&next=/nouveau-mot-de-passe&...
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const next       = hashParams.get("next") ?? "/espace-membres";
 
     async function process() {
       try {
@@ -33,7 +38,8 @@ export default function AuthCallbackPage() {
           if (!data.session) throw new Error("session absente");
         }
         router.replace(next);
-      } catch {
+      } catch (err) {
+        console.error("[auth/callback] Erreur lors de l'authentification:", err);
         router.replace("/connexion?error=lien_invalide");
       }
     }
