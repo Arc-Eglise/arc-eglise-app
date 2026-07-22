@@ -105,15 +105,6 @@ function ConnexionForm() {
           </blockquote>
           <div className="text-sm text-white/50">— Pasteur Pedro Obova · Fondateur ARC</div>
         </div>
-
-        <div className="relative z-10 flex gap-9">
-          {[["250", "Membres"], ["32", "Nations"], ["6", "Ans"]].map(([v, l]) => (
-            <div key={l}>
-              <div className="font-serif text-3xl font-bold text-white">{v}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-widest">{l}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* RIGHT — form */}
