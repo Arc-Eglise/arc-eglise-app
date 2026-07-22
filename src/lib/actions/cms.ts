@@ -474,6 +474,11 @@ const ALLOWED_SETTINGS = [
   "social_facebook", "social_instagram", "social_youtube", "social_whatsapp", "social_zoom",
   "social_custom_links",
   "histoire_p1", "histoire_p2", "histoire_citation",
+  "histoire_titre", "histoire_titre_em",
+  "valeur_1_icon", "valeur_1_titre", "valeur_1_texte",
+  "valeur_2_icon", "valeur_2_titre", "valeur_2_texte",
+  "valeur_3_icon", "valeur_3_titre", "valeur_3_texte",
+  "valeur_4_icon", "valeur_4_titre", "valeur_4_texte",
   "votre_impact_intro",
   "decouvrir_1_text", "decouvrir_2_text", "decouvrir_3_text", "decouvrir_4_text",
   "stats_nations", "stats_touches",
@@ -571,6 +576,56 @@ export async function uploadMemberAvatar(formData: FormData) {
   await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
 
   revalidatePath("/espace-membres");
+  return { success: true };
+}
+
+// ── CITATIONS ──────────────────────────────────────────────────
+
+export async function saveCitation(
+  id: string | null,
+  payload: { texte: string; auteur: string; role_mention: string; ordre: number }
+) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { userId } = cms;
+  const admin = createAdminClient();
+
+  if (id) {
+    const { error } = await admin.from("citations")
+      .update({ ...payload, updated_at: new Date().toISOString(), updated_by: userId })
+      .eq("id", id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await admin.from("citations")
+      .insert({ ...payload, is_active: false, updated_by: userId });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/connexion");
+  return { success: true };
+}
+
+export async function deleteCitationAction(id: string) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const admin = createAdminClient();
+  const { error } = await admin.from("citations").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/connexion");
+  return { success: true };
+}
+
+export async function setActiveCitation(id: string) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { userId } = cms;
+  const admin = createAdminClient();
+  await admin.from("citations").update({ is_active: false }).neq("id", id);
+  const { error } = await admin.from("citations")
+    .update({ is_active: true, updated_at: new Date().toISOString(), updated_by: userId })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/connexion");
   return { success: true };
 }
 

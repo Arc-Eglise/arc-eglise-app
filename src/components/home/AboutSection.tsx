@@ -1,35 +1,58 @@
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import Icon from "@/components/ui/Icon";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
-const VALUES = [
-  { icon: "la-parole" as const,           title: "La Parole",  text: "La Bible est notre autorité absolue et notre guide quotidien." },
-  { icon: "priere-bible" as const,        title: "La Prière",  text: "Nous sommes une maison de prière et d'intercession." },
-  { icon: "amour" as const,               title: "L'Amour",    text: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
-  { icon: "rejoindre-famille" as const,   title: "La Mission", text: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
+const VALEUR_DEFAULTS = [
+  { icon: "la-parole" as IconName,         titre: "La Parole",  texte: "La Bible est notre autorité absolue et notre guide quotidien." },
+  { icon: "priere-bible" as IconName,      titre: "La Prière",  texte: "Nous sommes une maison de prière et d'intercession." },
+  { icon: "amour" as IconName,             titre: "L'Amour",    texte: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
+  { icon: "rejoindre-famille" as IconName, titre: "La Mission", texte: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
 ];
 
-const DEFAULTS = {
-  histoire_p1:
-    "Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.",
-  histoire_p2:
-    "Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.",
-  histoire_citation:
-    "« Construisons des générations de disciples qui influencent positivement leur environnement. »",
+const SETTINGS_DEFAULTS: Record<string, string> = {
+  histoire_titre:    "Une église enracinée",
+  histoire_titre_em: "dans la Parole",
+  histoire_p1:       "Fondée en 2018 par le Pasteur Pedro Obova, l'Ambassade du Royaume de Christ est une communauté évangélique multiraciale et dynamique établie au cœur de La Chaux-de-Fonds.",
+  histoire_p2:       "Nous croyons en une foi authentique, pratique et transformatrice. Notre vision est de voir chaque personne rencontrer Dieu, être équipée et impacter sa génération pour l'Évangile.",
+  histoire_citation: "« Construisons des générations de disciples qui influencent positivement leur environnement. »",
 };
 
 export default async function AboutSection() {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("site_settings")
-    .select("key, value")
-    .in("key", ["histoire_p1", "histoire_p2", "histoire_citation", "about_photo_url", "about_photo_caption"]);
 
-  const s: Record<string, string> = { ...DEFAULTS };
-  for (const row of data ?? []) s[row.key] = row.value;
+  const [settingsRes, churchRes] = await Promise.all([
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", [
+        "histoire_titre", "histoire_titre_em",
+        "histoire_p1", "histoire_p2", "histoire_citation",
+        "about_photo_url", "about_photo_caption",
+        "valeur_1_icon", "valeur_1_titre", "valeur_1_texte",
+        "valeur_2_icon", "valeur_2_titre", "valeur_2_texte",
+        "valeur_3_icon", "valeur_3_titre", "valeur_3_texte",
+        "valeur_4_icon", "valeur_4_titre", "valeur_4_texte",
+      ]),
+    supabase
+      .from("church_info")
+      .select("founded_year, city")
+      .single(),
+  ]);
+
+  const s: Record<string, string> = { ...SETTINGS_DEFAULTS };
+  for (const row of settingsRes.data ?? []) s[row.key] = row.value;
 
   const photoUrl     = s.about_photo_url     ?? null;
   const photoCaption = s.about_photo_caption ?? "Photo — Pasteur Pedro Obova & l'équipe";
+
+  const foundedYear = churchRes.data?.founded_year ?? 2018;
+  const city        = churchRes.data?.city ?? "La Chaux-de-Fonds";
+
+  const valeurs = [1, 2, 3, 4].map((n, i) => ({
+    icon:  (s[`valeur_${n}_icon`]  as IconName | undefined) ?? VALEUR_DEFAULTS[i].icon,
+    titre: s[`valeur_${n}_titre`]  ?? VALEUR_DEFAULTS[i].titre,
+    texte: s[`valeur_${n}_texte`]  ?? VALEUR_DEFAULTS[i].texte,
+  }));
 
   return (
     <section id="apropos" style={{ maxWidth: 1240, margin: "0 auto", padding: "90px 32px" }}>
@@ -63,7 +86,7 @@ export default async function AboutSection() {
             )}
           </div>
 
-          {/* Year chip */}
+          {/* Chip — données venant de church_info */}
           <div
             style={{
               position: "absolute", left: -16, top: -16,
@@ -73,7 +96,7 @@ export default async function AboutSection() {
               boxShadow: "0 12px 30px rgba(20,23,56,.14)",
             }}
           >
-            Fondée en 2018 · La Chaux-de-Fonds
+            Fondée en {foundedYear} · {city}
           </div>
         </div>
 
@@ -86,8 +109,8 @@ export default async function AboutSection() {
             className="font-serif"
             style={{ fontWeight: 600, fontSize: "clamp(34px,4vw,52px)", lineHeight: 1.08, color: "var(--navy)", marginBottom: 24 }}
           >
-            Une église enracinée{" "}
-            <span style={{ fontStyle: "italic", color: "#C9A227" }}>dans la Parole</span>
+            {s.histoire_titre}{" "}
+            <span style={{ fontStyle: "italic", color: "#C9A227" }}>{s.histoire_titre_em}</span>
           </h2>
           <p style={{ fontSize: 16, lineHeight: 1.75, color: "#6b6f86", marginBottom: 16 }}>
             {s.histoire_p1}
@@ -110,11 +133,11 @@ export default async function AboutSection() {
             {s.histoire_citation}
           </blockquote>
 
-          {/* Values grid */}
+          {/* Cartes valeurs depuis site_settings */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 30 }}>
-            {VALUES.map((v) => (
+            {valeurs.map((v) => (
               <div
-                key={v.title}
+                key={v.titre}
                 style={{
                   background: "#fff",
                   border: "1px solid rgba(30,36,100,.12)",
@@ -123,8 +146,8 @@ export default async function AboutSection() {
                 }}
               >
                 <Icon name={v.icon} variant="tile" size={44} style={{ marginBottom: 10, display: "block" }} />
-                <div className="font-serif" style={{ fontSize: 19, fontWeight: 600, color: "#1e2464" }}>{v.title}</div>
-                <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, marginTop: 4 }}>{v.text}</div>
+                <div className="font-serif" style={{ fontSize: 19, fontWeight: 600, color: "#1e2464" }}>{v.titre}</div>
+                <div style={{ fontSize: 13, color: "#6b6f86", lineHeight: 1.5, marginTop: 4 }}>{v.texte}</div>
               </div>
             ))}
           </div>
@@ -142,7 +165,7 @@ export default async function AboutSection() {
                 fontSize: 14.5,
               }}
             >
-              Rencontrer l'équipe →
+              Rencontrer l&apos;équipe →
             </a>
             <a
               href="#contact"

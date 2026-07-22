@@ -9,7 +9,7 @@ import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVers
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
-import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia } from "@/lib/actions/cms";
+import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
@@ -46,10 +46,13 @@ function stripAI(text: string): string {
 }
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
-type BTab   = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
-type ATab   = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
-type MsgTab = "msgs"|"files"|"pins"|"tasks";
+type Panel     = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
+type BTab      = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
+type ATab      = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
+type MsgTab    = "msgs"|"files"|"pins"|"tasks";
+type MajInfoTab = "sermons"|"events"|"infos"|"citations"|"verset"|"equipe"|"theme";
+
+interface CitationRow { id: string; texte: string; auteur: string; role_mention: string|null; is_active: boolean; ordre: number; }
 
 interface Profile {
   id:string; first_name:string|null; last_name:string|null;
@@ -328,7 +331,7 @@ const [showSalle, setShowSalle]       = useState(false);
   });
   const [mpCards, setMpCards] = useState<MPCard[]>(() => MP_CARDS_DEFAULT.map(c => ({...c})));
   const [mpCard, setMpCard]   = useState(0);
-  const [majInfoTab, setMajInfoTab] = useState<"sermons"|"events"|"infos"|"verset"|"equipe"|"theme">("sermons");
+  const [majInfoTab, setMajInfoTab] = useState<MajInfoTab>("sermons");
   // MajInfo — données réelles depuis Supabase
   const [majInfoAddress,   setMajInfoAddress]   = useState("");
   const [majInfoEmail,     setMajInfoEmail]      = useState("");
@@ -351,6 +354,25 @@ const [showSalle, setShowSalle]       = useState(false);
   const [majInfoVersetExpireDays,    setMajInfoVersetExpireDays]    = useState(3);
   const [majInfoVersetExpiresAt,     setMajInfoVersetExpiresAt]     = useState<string|null>(null);
   const [majInfoSaving,           setMajInfoSaving]           = useState(false);
+  // Citations (onglet Citations)
+  const [citations,        setCitations]        = useState<CitationRow[]>([]);
+  const [citationsLoading, setCitationsLoading] = useState(false);
+  const [citationEditing,  setCitationEditing]  = useState<string|"new"|null>(null);
+  const [citationForm,     setCitationForm]     = useState({ texte: "", auteur: "", role_mention: "", ordre: 0 });
+  const [citationSaving,   setCitationSaving]   = useState(false);
+  // Notre Histoire (section dans onglet Infos)
+  const [majHistoireTitre,    setMajHistoireTitre]    = useState("Une église enracinée");
+  const [majHistoireTitreEm,  setMajHistoireTitreEm]  = useState("dans la Parole");
+  const [majHistoireP1,       setMajHistoireP1]       = useState("");
+  const [majHistoireP2,       setMajHistoireP2]       = useState("");
+  const [majHistoireCitation, setMajHistoireCitation] = useState("");
+  const [majValeurs,          setMajValeurs]          = useState([
+    { icon: "la-parole",         titre: "La Parole",  texte: "La Bible est notre autorité absolue et notre guide quotidien." },
+    { icon: "priere-bible",      titre: "La Prière",  texte: "Nous sommes une maison de prière et d'intercession." },
+    { icon: "amour",             titre: "L'Amour",    texte: "Nous nous aimons comme Christ nous a aimés, sans conditions." },
+    { icon: "rejoindre-famille", titre: "La Mission", texte: "Nous allons vers toutes les nations pour proclamer l'Évangile." },
+  ]);
+  const [majHistoireSaving,   setMajHistoireSaving]   = useState(false);
   // Bannière d'annonce
   const [showBanniere,          setShowBanniere]          = useState(false);
   const [banniereEnabled,       setBanniereEnabled]       = useState(true);
@@ -796,6 +818,11 @@ const [showSalle, setShowSalle]       = useState(false);
           "culte_1_label","culte_2_label","culte_3_label",
           "verset_reference","verset_du_jour","verset_mode","verset_auto_interval","verset_manuel_expires_at",
           "verset_theme","verset_theme_interval",
+          "histoire_titre","histoire_titre_em","histoire_p1","histoire_p2","histoire_citation",
+          "valeur_1_icon","valeur_1_titre","valeur_1_texte",
+          "valeur_2_icon","valeur_2_titre","valeur_2_texte",
+          "valeur_3_icon","valeur_3_titre","valeur_3_texte",
+          "valeur_4_icon","valeur_4_titre","valeur_4_texte",
         ]);
         const vals: Record<string,string> = {};
         for (const row of data ?? []) vals[row.key] = row.value;
@@ -823,6 +850,20 @@ const [showSalle, setShowSalle]       = useState(false);
         if (vals.verset_theme) setMajInfoVersetTheme(vals.verset_theme);
         if (vals.verset_theme_interval) setMajInfoVersetThemeInterval(Math.max(1, Math.min(24, parseInt(vals.verset_theme_interval, 10) || 24)));
         setMajInfoVersetExpiresAt(vals.verset_manuel_expires_at ?? null);
+        // Notre Histoire
+        if (vals.histoire_titre)    setMajHistoireTitre(vals.histoire_titre);
+        if (vals.histoire_titre_em) setMajHistoireTitreEm(vals.histoire_titre_em);
+        if (vals.histoire_p1)       setMajHistoireP1(vals.histoire_p1);
+        if (vals.histoire_p2)       setMajHistoireP2(vals.histoire_p2);
+        if (vals.histoire_citation) setMajHistoireCitation(vals.histoire_citation);
+        setMajValeurs(prev => prev.map((v, i) => {
+          const n = i + 1;
+          return {
+            icon:  vals[`valeur_${n}_icon`]  ?? v.icon,
+            titre: vals[`valeur_${n}_titre`] ?? v.titre,
+            texte: vals[`valeur_${n}_texte`] ?? v.texte,
+          };
+        }));
       } catch { /* silencieux */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -844,6 +885,22 @@ const [showSalle, setShowSalle]       = useState(false);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGD]);
+
+  /* ── Chargement des citations ───────────────────────────────── */
+  useEffect(() => {
+    if (!showMajInfo || majInfoTab !== "citations") return;
+    loadCitations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMajInfo, majInfoTab]);
+
+  async function loadCitations() {
+    setCitationsLoading(true);
+    try {
+      const { data } = await supabase.from("citations").select("*").order("ordre").order("created_at");
+      setCitations(data ?? []);
+    } catch { /* silencieux */ }
+    setCitationsLoading(false);
+  }
 
   /* ── Bible loader — bolls.life + scripture.api.bible ────────── */
   const APIBIBLE_IDS: Record<string, string> = {
@@ -1402,6 +1459,26 @@ const [showSalle, setShowSalle]       = useState(false);
     setMajInfoSaving(false);
     if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
     setToast("✅ Informations de contact mises à jour sur le site !");
+  }
+
+  /* ── Sauvegarde Notre Histoire (MajInfo > Infos) ────────── */
+  async function saveMajHistoire() {
+    setMajHistoireSaving(true);
+    const fd = new FormData();
+    fd.set("histoire_titre",    majHistoireTitre);
+    fd.set("histoire_titre_em", majHistoireTitreEm);
+    fd.set("histoire_p1",       majHistoireP1);
+    fd.set("histoire_p2",       majHistoireP2);
+    fd.set("histoire_citation", majHistoireCitation);
+    majValeurs.forEach((v, i) => {
+      fd.set(`valeur_${i+1}_icon`,  v.icon);
+      fd.set(`valeur_${i+1}_titre`, v.titre);
+      fd.set(`valeur_${i+1}_texte`, v.texte);
+    });
+    const result = await updateSiteSettings(fd);
+    setMajHistoireSaving(false);
+    if (result?.error) { setToast(`❌ Erreur : ${result.error}`); return; }
+    setToast("✅ Section Notre Histoire mise à jour sur le site !");
   }
 
   /* ── Sauvegarde verset du jour (MajInfo > Verset) ───────── */
@@ -4623,7 +4700,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-modal-body">
               <div style={{fontSize:11,color:"#8890aa",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
               <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(30,36,100,.1)",marginBottom:16,overflowX:"auto"}}>
-                {(([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as ["sermons"|"events"|"infos"|"verset"|"equipe"|"theme",string][]).filter(([t]) => canAdmin || t === "infos")).map(([t,l]) => (
+                {(([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["citations","💬 Citations"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as [MajInfoTab,string][]).filter(([t]) => canAdmin || t === "infos" || t === "citations")).map(([t,l]) => (
                   <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8890aa",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                 ))}
               </div>
@@ -4742,7 +4819,202 @@ const [showSalle, setShowSalle]       = useState(false);
                     style={{width:"100%",opacity:majInfoSaving?0.6:1}}
                     disabled={majInfoSaving}
                     onClick={saveMajInfoContact}
-                  >{majInfoSaving?"Enregistrement…":"📤 Publier les informations"}</button>
+                  >{majInfoSaving?"Enregistrement…":"📤 Publier les informations de contact"}</button>
+
+                  {/* ── Notre Histoire ── */}
+                  <div style={{marginTop:28,paddingTop:22,borderTop:"1px solid rgba(30,36,100,.1)"}}>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#1e2464",marginBottom:14}}>📖 Notre Histoire</div>
+
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                      <div>
+                        <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Titre H2</label>
+                        <input className="em-input" value={majHistoireTitre} onChange={e=>setMajHistoireTitre(e.target.value)} placeholder="Une église enracinée" />
+                      </div>
+                      <div>
+                        <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Partie en italique (dorée)</label>
+                        <input className="em-input" value={majHistoireTitreEm} onChange={e=>setMajHistoireTitreEm(e.target.value)} placeholder="dans la Parole" />
+                      </div>
+                    </div>
+
+                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Paragraphe 1</label>
+                    <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={majHistoireP1} onChange={e=>setMajHistoireP1(e.target.value)} placeholder="Fondée en 2018 par le Pasteur Pedro Obova…" />
+
+                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Paragraphe 2</label>
+                    <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={majHistoireP2} onChange={e=>setMajHistoireP2(e.target.value)} placeholder="Nous croyons en une foi authentique…" />
+
+                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Citation blockquote</label>
+                    <textarea className="em-input" rows={2} style={{marginBottom:14,resize:"vertical"}} value={majHistoireCitation} onChange={e=>setMajHistoireCitation(e.target.value)} placeholder="« Construisons des générations… »" />
+
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"#8890aa",marginBottom:10}}>4 cartes valeurs</div>
+                    {majValeurs.map((v, i) => (
+                      <div key={i} style={{background:"#f7f8fc",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1.5px solid #e2e5f0"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:8}}>Carte {i+1}</div>
+                        <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:8,marginBottom:6}}>
+                          <div>
+                            <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Icône</label>
+                            <select
+                              className="em-input"
+                              style={{fontSize:12}}
+                              value={v.icon}
+                              onChange={e=>setMajValeurs(prev=>prev.map((x,j)=>j===i?{...x,icon:e.target.value}:x))}
+                            >
+                              <option value="la-parole">La Parole</option>
+                              <option value="priere-bible">Prière Bible</option>
+                              <option value="amour">Amour</option>
+                              <option value="rejoindre-famille">Rejoindre / Famille</option>
+                              <option value="notre-histoire">Notre Histoire</option>
+                              <option value="temoignage">Témoignage</option>
+                              <option value="votre-impact">Votre Impact</option>
+                              <option value="lieu-de-culte">Lieu de culte</option>
+                              <option value="decouvrir">Découvrir</option>
+                              <option value="contact">Contact</option>
+                              <option value="sermons-replay">Sermons</option>
+                              <option value="mediatheque">Médiathèque</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Titre</label>
+                            <input className="em-input" style={{fontSize:12}} value={v.titre} onChange={e=>setMajValeurs(prev=>prev.map((x,j)=>j===i?{...x,titre:e.target.value}:x))} placeholder="La Parole" />
+                          </div>
+                        </div>
+                        <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Texte descriptif</label>
+                        <input className="em-input" style={{fontSize:12}} value={v.texte} onChange={e=>setMajValeurs(prev=>prev.map((x,j)=>j===i?{...x,texte:e.target.value}:x))} placeholder="Description de la valeur…" />
+                      </div>
+                    ))}
+
+                    <button
+                      className="em-btn em-btn-primary"
+                      style={{width:"100%",marginTop:6,opacity:majHistoireSaving?0.6:1}}
+                      disabled={majHistoireSaving}
+                      onClick={saveMajHistoire}
+                    >{majHistoireSaving?"Enregistrement…":"📤 Publier Notre Histoire"}</button>
+                  </div>
+                </div>
+              )}
+              {majInfoTab==="citations" && (
+                <div>
+                  <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>La citation active s&apos;affiche dans le panneau gauche de la page de connexion. Une seule citation peut être active à la fois.</div>
+
+                  <button
+                    className="em-btn em-btn-primary em-btn-sm"
+                    style={{marginBottom:14}}
+                    onClick={()=>{setCitationEditing("new");setCitationForm({texte:"",auteur:"",role_mention:"",ordre:0});}}
+                  >+ Nouvelle citation</button>
+
+                  {citationEditing === "new" && (
+                    <div style={{background:"#f0f4ff",border:"1.5px solid #c7d2fe",borderRadius:12,padding:16,marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:10}}>Nouvelle citation</div>
+                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte de la citation</label>
+                      <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={citationForm.texte} onChange={e=>setCitationForm(p=>({...p,texte:e.target.value}))} placeholder="Construisons des générations de disciples…" />
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                        <div>
+                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Auteur</label>
+                          <input className="em-input" value={citationForm.auteur} onChange={e=>setCitationForm(p=>({...p,auteur:e.target.value}))} placeholder="Pasteur Pedro Obova" />
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Rôle / mention</label>
+                          <input className="em-input" value={citationForm.role_mention} onChange={e=>setCitationForm(p=>({...p,role_mention:e.target.value}))} placeholder="Fondateur ARC" />
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                        <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setCitationEditing(null)}>Annuler</button>
+                        <button
+                          className="em-btn em-btn-primary em-btn-sm"
+                          disabled={citationSaving||!citationForm.texte.trim()||!citationForm.auteur.trim()}
+                          onClick={async()=>{
+                            setCitationSaving(true);
+                            const r = await saveCitation(null, citationForm);
+                            setCitationSaving(false);
+                            if (r?.error){setToast(`❌ ${r.error}`);return;}
+                            setCitationEditing(null);
+                            await loadCitations();
+                            setToast("✅ Citation créée");
+                          }}
+                        >{citationSaving?"Enregistrement…":"Créer"}</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {citationsLoading && <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Chargement…</div>}
+
+                  {!citationsLoading && citations.length === 0 && (
+                    <div style={{fontSize:12,color:"#b0b5cc",padding:"10px 12px",background:"#f7f8fc",borderRadius:8}}>
+                      Aucune citation. Cliquez sur « + Nouvelle citation » pour en créer une.
+                    </div>
+                  )}
+
+                  {citations.map(c => (
+                    <div key={c.id} style={{background:"#fff",border:`1.5px solid ${c.is_active?"#C9A227":"rgba(30,36,100,.12)"}`,borderRadius:12,padding:14,marginBottom:10}}>
+                      {citationEditing === c.id ? (
+                        <div>
+                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte</label>
+                          <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={citationForm.texte} onChange={e=>setCitationForm(p=>({...p,texte:e.target.value}))} />
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                            <div>
+                              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Auteur</label>
+                              <input className="em-input" value={citationForm.auteur} onChange={e=>setCitationForm(p=>({...p,auteur:e.target.value}))} />
+                            </div>
+                            <div>
+                              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Rôle / mention</label>
+                              <input className="em-input" value={citationForm.role_mention} onChange={e=>setCitationForm(p=>({...p,role_mention:e.target.value}))} />
+                            </div>
+                          </div>
+                          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                            <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setCitationEditing(null)}>Annuler</button>
+                            <button
+                              className="em-btn em-btn-primary em-btn-sm"
+                              disabled={citationSaving||!citationForm.texte.trim()||!citationForm.auteur.trim()}
+                              onClick={async()=>{
+                                setCitationSaving(true);
+                                const r = await saveCitation(c.id, citationForm);
+                                setCitationSaving(false);
+                                if (r?.error){setToast(`❌ ${r.error}`);return;}
+                                setCitationEditing(null);
+                                await loadCitations();
+                                setToast("✅ Citation mise à jour");
+                              }}
+                            >{citationSaving?"Enregistrement…":"Enregistrer"}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {c.is_active && <div style={{fontSize:10,fontWeight:700,color:"#C9A227",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>● Actif — affiché sur /connexion</div>}
+                          <div style={{fontSize:14,fontStyle:"italic",color:"#1e2464",marginBottom:6,lineHeight:1.5}}>« {c.texte} »</div>
+                          <div style={{fontSize:12,color:"#8890aa"}}>— {c.auteur}{c.role_mention ? ` · ${c.role_mention}` : ""}</div>
+                          <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                            {!c.is_active && (
+                              <button
+                                className="em-btn em-btn-sm"
+                                style={{background:"#fffbe6",color:"#92400e",border:"1px solid #fde68a",fontSize:11}}
+                                onClick={async()=>{
+                                  const r = await setActiveCitation(c.id);
+                                  if (r?.error){setToast(`❌ ${r.error}`);return;}
+                                  await loadCitations();
+                                  setToast("✅ Citation activée sur /connexion");
+                                }}
+                              >Activer</button>
+                            )}
+                            <button
+                              className="em-btn em-btn-sm"
+                              style={{fontSize:11}}
+                              onClick={()=>{setCitationEditing(c.id);setCitationForm({texte:c.texte,auteur:c.auteur,role_mention:c.role_mention??""  ,ordre:c.ordre});}}
+                            >Modifier</button>
+                            <button
+                              className="em-btn em-btn-sm"
+                              style={{background:"#fee2e2",color:"#b91c1c",border:"none",fontSize:11}}
+                              onClick={async()=>{
+                                if (!confirm("Supprimer cette citation ?")) return;
+                                const r = await deleteCitationAction(c.id);
+                                if (r?.error){setToast(`❌ ${r.error}`);return;}
+                                await loadCitations();
+                                setToast("✅ Citation supprimée");
+                              }}
+                            >Supprimer</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
               {majInfoTab==="verset" && (
