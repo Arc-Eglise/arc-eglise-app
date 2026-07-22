@@ -87,26 +87,3 @@ export function useChurchInfo(): UseChurchInfoResult {
 
   return { data, loading, error };
 }
-
-// Hook pour récupérer les infos depuis le serveur (pour les Server Components)
-export async function getChurchInfo(): Promise<ChurchInfo | null> {
-  try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
-    
-    const { data: churchInfo, error } = await supabase
-      .from("church_info")
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[getChurchInfo]", error);
-      return null;
-    }
-
-    return churchInfo;
-  } catch (err) {
-    console.error("[getChurchInfo]", err);
-    return null;
-  }
-}
