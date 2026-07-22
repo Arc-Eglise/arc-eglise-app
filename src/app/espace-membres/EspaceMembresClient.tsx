@@ -27,6 +27,24 @@ import { droits } from "@/lib/droits";
 import { SermonSummariesManager } from "@/components/espace-membres/SermonSummariesManager";
 import { VideoPlayer } from "@/components/VideoPlayer";
 
+/* ─── Strip balises IA ───────────────────────────────────────────── */
+function stripAI(text: string): string {
+  return text
+    .replace(/<[^>]+>/g, "")
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1")
+    .replace(/__([\s\S]+?)__/g, "$1")
+    .replace(/\*([\s\S]+?)\*/g, "$1")
+    .replace(/_([\s\S]+?)_/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^[*\-•]\s+/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel  = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
 type BTab   = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
@@ -39,7 +57,7 @@ interface Profile {
   groups:string[]|null; managed_groups:string[]|null; avatar_url:string|null;
 }
 interface Evt { id:string; title:string; date:string; time_start:string|null; location:string|null; }
-interface Prayer { id:string; user_id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles?:{first_name:string|null;last_name:string|null}|null; }
+interface Prayer { id:string; user_id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles?:{first_name:string|null;last_name:string|null}|null; visibility?:string; target_groups?:string[]|null; target_members?:string[]|null; }
 interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; managed_groups:string[]|null; created_at:string; }
 
 export interface EMClientProps {
@@ -72,9 +90,18 @@ const BOOKS = [
   {n:"Apocalypse",c:22},
 ];
 const TRANS = [
-  {code:"NBS",   label:"Nouvelle Bible Segond (FR)"},
-  {code:"FRDBY", label:"Darby (français)"},
-  {code:"NKJV",  label:"New King James Version"},
+  {code:"FRLSG",  label:"Louis Segond 1910 (français)"},
+  {code:"NBS",    label:"Nouvelle Bible Segond (français)"},
+  {code:"FRDBY",  label:"Bible Darby (français)"},
+  {code:"BDS",    label:"Bible du Semeur (français)"},
+  {code:"ITA",    label:"Diodati 1885 (italiano)"},
+  {code:"RV1960", label:"Reina-Valera 1960 (español)"},
+  {code:"SCH",    label:"Schlachter 1951 (Deutsch)"},
+  {code:"LUT",    label:"Luther 1545 (Deutsch)"},
+  {code:"ARA",    label:"Almeida Revisada (português)"},
+  {code:"LIN",    label:"Lingala (Mokanda na Bomoi)"},
+  {code:"SUV",    label:"Swahili (Kiswahili)"},
+  {code:"NKJV",   label:"New King James Version (EN)"},
   {code:"KJV",   label:"King James Version"},
   {code:"YLT",   label:"Young's Literal Translation"},
   {code:"ASV",   label:"American Standard Version"},
@@ -357,7 +384,7 @@ const [showSalle, setShowSalle]       = useState(false);
   const [bTab, setBTab]         = useState<BTab>("verset");
   const [bBook, setBBook]       = useState(42);   // Jean = index 42 (0-based)
   const [bCh, setBCh]           = useState(3);
-  const [bTrans, setBTrans]     = useState("NBS");
+  const [bTrans, setBTrans]     = useState("FRLSG");
   const [bVerses, setBVerses]   = useState<{verse:number;text:string}[]>([]);
   const [bLoading, setBLoading] = useState(false);
   const [bError, setBError]     = useState<string|null>(null);
@@ -367,11 +394,64 @@ const [showSalle, setShowSalle]       = useState(false);
   const [etudeRef, setEtudeRef] = useState("Jean 3:16");
   const [planDone, setPlanDone] = useState<number[]>([]);
 
+  /* AI tools — Prière & Bible */
+  const [versetMeditation, setVersetMeditation]   = useState<string|null>(null);
+  const [versetMedLoading, setVersetMedLoading]   = useState(false);
+  const [bHlExplain, setBHlExplain]               = useState<string|null>(null);
+  const [bHlLoading, setBHlLoading]               = useState(false);
+  const [etudeInput, setEtudeInput]               = useState("");
+  const [etudeAI, setEtudeAI]                     = useState<{ref:string;content:string}|null>(null);
+  const [etudeAILoading, setEtudeAILoading]       = useState(false);
+  const [personneQuery, setPersonneQuery]         = useState("");
+  const [personneInfo, setPersonneInfo]           = useState<string|null>(null);
+  const [personneVerses, setPersonneVerses]       = useState<{ref:string;text:string}[]>([]);
+  const [personneLoading, setPersonneLoading]     = useState(false);
+  const [theoAIContent, setTheoAIContent]         = useState<Record<string,string>>({});
+  const [theoAILoading, setTheoAILoading]         = useState<string|null>(null);
+  const [theoQuestion, setTheoQuestion]           = useState("");
+  const [theoAnswer, setTheoAnswer]               = useState<string|null>(null);
+  const [theoAskLoading, setTheoAskLoading]       = useState(false);
+  const [theoItemVerses, setTheoItemVerses]       = useState<Record<string,{ref:string;text:string}[]>>({});
+  const [theoAnsVerses, setTheoAnsVerses]         = useState<{ref:string;text:string}[]>([]);
+  const [concordQuery, setConcordQuery]           = useState("");
+  const [concordResults, setConcordResults]       = useState<{ref:string;text:string}[]>([]);
+  const [concordLoading, setConcordLoading]       = useState(false);
+
   /* Reading plans */
   type RpPlan = { id:string; titre:string; description:string|null; total_days:number };
-  const [rpPlans, setRpPlans]     = useState<RpPlan[]>([]);
+  type RpDayContent = { title:string; passages:string[]; reflection:string|null; prayer_guide:string|null; verse_texts:{reference:string;text:string}[] };
+  const [rpPlans, setRpPlans]       = useState<RpPlan[]>([]);
   const [rpProgress, setRpProgress] = useState<Record<string,number>>({}); // plan_id -> current_day
-  const [rpLoading, setRpLoading] = useState(false);
+  const [rpLoading, setRpLoading]   = useState(false);
+  const [rpDayContent, setRpDayContent]   = useState<Record<string, RpDayContent>>({}); // plan_id -> day content
+  const [rpDayLoading, setRpDayLoading]   = useState<Record<string, boolean>>({}); // plan_id -> loading
+  const [rpExpanded, setRpExpanded]       = useState<string|null>(null); // plan_id expanded in plans tab
+
+  /* Plans IA personnels (depuis l'Assistant Biblique IA) */
+  type AiRpPlan = {
+    id:string; title:string; level:string; duration_days:number;
+    language:string; focus:string|null; started_at:string|null; created_by_ai:boolean;
+  };
+  type AiRpDay = {
+    id:string; day_number:number; title:string|null; passages:string[];
+    reflection:string|null; prayer_guide:string|null; is_completed:boolean;
+  };
+  const [aiRpPlans, setAiRpPlans]           = useState<AiRpPlan[]>([]);
+  const [aiRpLoading, setAiRpLoading]       = useState(false);
+  const [aiRpDays, setAiRpDays]             = useState<Record<string,AiRpDay[]>>({});
+  const [aiRpDayLoading, setAiRpDayLoading] = useState<Record<string,boolean>>({});
+  const [aiRpExpanded, setAiRpExpanded]     = useState<string|null>(null);
+  const [aiRpVerses, setAiRpVerses]         = useState<Record<string,{reference:string;text:string}[]>>({});
+
+  /* Journal spirituel (partagé avec l'Assistant IA) */
+  type JEntry = { id:string; date:string; content:string; verse_refs:string[]; mood:string|null; ai_reflection:string|null; updated_at:string };
+  const [jEntries, setJEntries]         = useState<JEntry[]>([]);
+  const [jLoading, setJLoading]         = useState(false);
+  const [jContent, setJContent]         = useState("");
+  const [jMood, setJMood]               = useState("");
+  const [jSaving, setJSaving]           = useState(false);
+  const [jReflecting, setJReflecting]   = useState(false);
+  const [jSelected, setJSelected]       = useState<JEntry|null>(null);
 
   /* Prayers */
   const [prayers, setPrayers]     = useState<Prayer[]>([]);
@@ -380,6 +460,12 @@ const [showSalle, setShowSalle]       = useState(false);
   const [pDesc, setPDesc]         = useState("");
   const [pAnon, setPAnon]         = useState(false);
   const [pSubmitting, setPSubmit] = useState(false);
+  const [pVisibility, setPVisibility]   = useState<'all'|'pasteur'|'groups'|'members'>('all');
+  const [pTargetGroups, setPTargetGroups] = useState<string[]>([]);
+  const [pTargetMembers, setPTargetMembers] = useState<string[]>([]);
+  const [pMemberSearch, setPMemberSearch]   = useState("");
+  const [pMembersList, setPMembersList]     = useState<{id:string;name:string}[]>([]);
+  const [pMembersLoaded, setPMembersLoaded] = useState(false);
 
   /* Members (admin) */
   const [members, setMembers]     = useState<Member[]>([]);
@@ -544,7 +630,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
     // Notifications — chargement initial
     supabase.from("notifications").select("*").eq("user_id", userId)
-      .order("created_at", { ascending: false }).limit(20)
+      .order("created_at", { ascending: false }).limit(30)
       .then(({ data }) => { if (data) setNotifs(data as Notif[]); });
 
     // Notifications — Realtime (nouvelles insertions)
@@ -553,9 +639,49 @@ const [showSalle, setShowSalle]       = useState(false);
         event: "INSERT", schema: "public", table: "notifications",
         filter: `user_id=eq.${userId}`,
       }, ({ new: n }) => {
-        setNotifs(prev => [n as Notif, ...prev].slice(0, 20));
+        setNotifs(prev => [n as Notif, ...prev].slice(0, 30));
       })
       .subscribe();
+
+    // Événements du jour → self-notification (fire-and-forget, une seule fois par session)
+    const today = new Date().toISOString().split("T")[0];
+    supabase.from("events").select("id, title, time_start, location")
+      .eq("date", today).eq("is_published", true)
+      .then(({ data: todayEvts }) => {
+        if (!todayEvts?.length) return;
+        todayEvts.forEach(evt => {
+          const timeStr = evt.time_start ? evt.time_start.slice(0,5) : null;
+          fetch("/api/notifications/push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "self", type: "agenda",
+              title: `⏰ Aujourd'hui : ${evt.title}`,
+              body: [timeStr, evt.location].filter(Boolean).join(" · ") || null,
+              link: "/espace-membres/agenda",
+              dedup_hours: 20,
+            }),
+          }).catch(() => {});
+        });
+      });
+
+    // Mail non lu → self-notification (fire-and-forget)
+    fetch("/api/mail/unread-count", { method: "GET" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { count?: number } | null) => {
+        if (!d || !d.count || d.count < 1) return;
+        fetch("/api/notifications/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "self", type: "mail",
+            title: `📧 ${d.count} mail${d.count > 1 ? "s" : ""} non lu${d.count > 1 ? "s" : ""}`,
+            body: "Des messages vous attendent dans votre boîte mail ARC.",
+            link: "/espace-membres?p=mail",
+            dedup_hours: 2,
+          }),
+        }).catch(() => {});
+      }).catch(() => {});
 
     // Fermer notif dropdown au clic extérieur
     function handleOutside(e: MouseEvent) {
@@ -582,7 +708,7 @@ const [showSalle, setShowSalle]       = useState(false);
   }
 
   useEffect(() => {
-    if (panel === "priere") { loadPrayers(); if (rpPlans.length === 0) loadReadingPlans(); }
+    if (panel === "priere") { loadPrayers(); if (rpPlans.length === 0) loadReadingPlans(); if (aiRpPlans.length === 0) loadAIReadingPlans(); if (jEntries.length === 0) loadJournal(); }
   }, [panel]);
 
   useEffect(() => {
@@ -719,27 +845,42 @@ const [showSalle, setShowSalle]       = useState(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGD]);
 
-  /* ── Bible loader — bolls.life API ─────────────────────────── */
+  /* ── Bible loader — bolls.life + scripture.api.bible ────────── */
+  const APIBIBLE_IDS: Record<string, string> = {
+    ITA: "41f25b97f468e10b-01",
+    LIN: "ac6b6b7cd1e93057-01",
+  };
+
   const loadChapter = useCallback(async (bookIdx: number, ch: number, trans: string) => {
     setBLoading(true);
     setBVerses([]);
     setBError(null);
     try {
       const bookNum = bookIdx + 1;
-      const res = await fetch(`https://bolls.life/get-text/${trans}/${bookNum}/${ch}/`);
-      if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
-      const data: {verse:number;text:string}[] = await res.json();
-      if (!Array.isArray(data) || data.length === 0) throw new Error("Chapitre vide ou introuvable");
-      // KJV/ASV contiennent des numéros Strong (<S>1063</S>) — on les supprime
-      const stripStrong = (t: string) => t.replace(/<S>\d+<\/S>/g, "").replace(/\s+/g, " ").trim();
-      const arr = data.map(v => ({ verse: v.verse, text: stripStrong(v.text) }));
-      setBVerses(arr);
+
+      if (APIBIBLE_IDS[trans]) {
+        const bibleId = APIBIBLE_IDS[trans];
+        const res = await fetch(`/api/bible-reader?bibleId=${encodeURIComponent(bibleId)}&bookNum=${bookNum}&chapter=${ch}`);
+        if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
+        const data = await res.json();
+        if (!Array.isArray(data.verses) || data.verses.length === 0) throw new Error("Chapitre vide ou introuvable");
+        setBVerses(data.verses);
+      } else {
+        const res = await fetch(`https://bolls.life/get-text/${trans}/${bookNum}/${ch}/`);
+        if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
+        const data: {verse:number;text:string}[] = await res.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error("Chapitre vide ou introuvable");
+        // Nettoyer toutes les balises HTML (bolls.life inclut <pb/>, <i>, <b>, etc.)
+        const stripVerseHtml = (t: string) => t.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        setBVerses(data.map(v => ({ verse: v.verse, text: stripVerseHtml(v.text) })));
+      }
     } catch (e) {
       setBError(e instanceof Error ? e.message : "Erreur inconnue");
       setBVerses([]);
     } finally {
       setBLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -753,21 +894,54 @@ const [showSalle, setShowSalle]       = useState(false);
       .from("prayer_requests")
       .select("*, profiles(first_name, last_name)")
       .order("created_at", { ascending: false });
-    setPrayers((data ?? []) as Prayer[]);
+    const uGroups = profile?.groups ?? [];
+    const uRole   = profile?.role ?? "visiteur";
+    const filtered = (data ?? []).filter((p: Prayer) => {
+      if (p.user_id === userId) return true;
+      const vis = p.visibility ?? "all";
+      if (vis === "all") return true;
+      if (vis === "pasteur") return uRole === "pasteur" || uRole === "admin";
+      if (vis === "groups") return (p.target_groups ?? []).some(g => uGroups.includes(g));
+      if (vis === "members") return (p.target_members ?? []).includes(userId);
+      return false;
+    });
+    setPrayers(filtered as Prayer[]);
     setPLoading(false);
   }
 
   async function submitPrayer() {
     if (!pTitle.trim()) return;
     setPSubmit(true);
+    const ownGroups = profile?.groups ?? [];
+    const finalGroups = pVisibility === "groups"
+      ? Array.from(new Set([...ownGroups, ...pTargetGroups]))
+      : [];
     await supabase.from("prayer_requests").insert({
       user_id: userId, title: pTitle.trim(),
       description: pDesc.trim() || null, is_anonymous: pAnon,
+      visibility: pVisibility,
+      target_groups: finalGroups,
+      target_members: pVisibility === "members" ? pTargetMembers : [],
     });
     await loadPrayers();
     setPTitle(""); setPDesc(""); setPAnon(false);
+    setPVisibility("all"); setPTargetGroups([]); setPTargetMembers([]); setPMemberSearch("");
     setShowNewPrayer(false); setToast("Demande de prière envoyée 🙏");
     setPSubmit(false);
+  }
+
+  async function loadPMembersRef() {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name")
+      .eq("validated", true)
+      .neq("id", userId)
+      .order("first_name");
+    setPMembersList((data ?? []).map((m: {id:string;first_name:string|null;last_name:string|null}) => ({
+      id: m.id,
+      name: [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre",
+    })));
+    setPMembersLoaded(true);
   }
 
   async function prayFor(id: string) {
@@ -839,13 +1013,322 @@ const [showSalle, setShowSalle]       = useState(false);
 
   async function enrollPlan(planId: string) {
     const { error } = await supabase.from("reading_plan_progress").upsert({ plan_id: planId, user_id: userId, current_day: 1 }, { onConflict: "plan_id,user_id" });
-    if (!error) setRpProgress(p => ({ ...p, [planId]: 1 }));
+    if (!error) {
+      setRpProgress(p => ({ ...p, [planId]: 1 }));
+      const plan = rpPlans.find(p => p.id === planId);
+      fetch("/api/notifications/push", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"self", type:"lecture", title:`📋 Inscrit : ${plan?.titre ?? "Plan communautaire"}`, body:"Tu es maintenant inscrit à ce plan de lecture communautaire.", link:"/espace-membres?p=priere", dedup_hours:168 }),
+      }).catch(()=>{});
+    }
   }
 
   async function advancePlan(planId: string, totalDays: number) {
     const next = Math.min((rpProgress[planId] ?? 0) + 1, totalDays);
     const { error } = await supabase.from("reading_plan_progress").update({ current_day: next, updated_at: new Date().toISOString() }).eq("plan_id", planId).eq("user_id", userId);
-    if (!error) setRpProgress(p => ({ ...p, [planId]: next }));
+    if (!error) {
+      setRpProgress(p => ({ ...p, [planId]: next }));
+      // Effacer le cache du contenu pour recharger le nouveau jour
+      setRpDayContent(c => { const n = { ...c }; delete n[planId]; return n; });
+      if (next >= totalDays) {
+        const plan = rpPlans.find(p => p.id === planId);
+        fetch("/api/notifications/push", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"self", type:"lecture", title:`🎉 Plan terminé : ${plan?.titre ?? "Plan communautaire"} !`, body:"Félicitations ! Tu as complété ce plan de lecture communautaire.", link:"/espace-membres?p=priere", dedup_hours:168 }),
+        }).catch(()=>{});
+      }
+    }
+  }
+
+  async function loadDayContent(planId: string, dayNumber: number) {
+    if (rpDayLoading[planId]) return;
+    setRpDayLoading(l => ({ ...l, [planId]: true }));
+    try {
+      const res = await fetch("/api/reading-plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_day_content", plan_id: planId, day_number: dayNumber }),
+      });
+      const data = await res.json();
+      if (data?.day) setRpDayContent(c => ({ ...c, [planId]: data.day }));
+    } finally {
+      setRpDayLoading(l => ({ ...l, [planId]: false }));
+    }
+  }
+
+  async function loadVersetMeditation() {
+    if (versetMedLoading) return;
+    setVersetMedLoading(true);
+    try {
+      const res = await fetch("/api/bible-ai/meditate", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ verse_ref: VERSET.ref, duration:"5min", stream:false }),
+      });
+      const data = await res.json();
+      if (data?.guide) setVersetMeditation(stripAI(data.guide));
+    } finally { setVersetMedLoading(false); }
+  }
+
+  async function loadVerseExplanation(ref: string) {
+    if (bHlLoading) return;
+    setBHlLoading(true); setBHlExplain(null);
+    try {
+      const res = await fetch("/api/bible-ai/explain", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ verse_ref: ref, stream:false }),
+      });
+      const data = await res.json();
+      if (data?.explanation) setBHlExplain(stripAI(data.explanation));
+    } finally { setBHlLoading(false); }
+  }
+
+  async function generateEtudeAI(ref: string) {
+    const r = ref.trim() || etudeRef;
+    if (!r || etudeAILoading) return;
+    setEtudeAILoading(true); setEtudeAI(null);
+    try {
+      const res = await fetch("/api/bible-ai/explain", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ verse_ref: r, stream:false }),
+      });
+      const data = await res.json();
+      if (data?.explanation) { setEtudeAI({ ref: r, content: stripAI(data.explanation) }); setEtudeRef(r); }
+    } finally { setEtudeAILoading(false); }
+  }
+
+  function extractVerseRefs(text: string): string[] {
+    const pat = /\b(?:[1-3]\s*)?[A-ZÉÈÊa-zéèêàâùûîô]{2,20}(?:\s+\d+)?\s*:\s*\d+(?:\s*[-–]\s*\d+)?\b/g;
+    return Array.from(new Set(text.match(pat) ?? [])).slice(0, 8);
+  }
+
+  async function fetchVerseTexts(text: string): Promise<{ref:string;text:string}[]> {
+    const refs = extractVerseRefs(text);
+    if (!refs.length) return [];
+    try {
+      const res = await fetch("/api/bible-reader", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"fetch_refs", refs }),
+      });
+      const data = await res.json();
+      return data.verses ?? [];
+    } catch { return []; }
+  }
+
+  async function generateTheoItem(itemId: string, itemTitle: string) {
+    if (theoAILoading) return;
+    setTheoAILoading(itemId);
+    try {
+      const res = await fetch("/api/bible-ai/theology", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ question:`Explique le sujet théologique : "${itemTitle}"`, stream:false }),
+      });
+      const data = await res.json();
+      if (data?.answer) {
+        const answer = stripAI(data.answer);
+        setTheoAIContent(c => ({ ...c, [itemId]: answer }));
+        setTheoAILoading(null);
+        // Versets en arrière-plan (non bloquant)
+        fetchVerseTexts(answer).then(v => { if (v.length) setTheoItemVerses(p => ({ ...p, [itemId]: v })); }).catch(() => {});
+      }
+    } catch { /* silencieux */ }
+    finally { setTheoAILoading(null); }
+  }
+
+  async function askTheoQuestion() {
+    const q = theoQuestion.trim();
+    if (!q || theoAskLoading) return;
+    setTheoAskLoading(true); setTheoAnswer(null); setTheoAnsVerses([]);
+    try {
+      const res = await fetch("/api/bible-ai/theology", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ question: q, stream:false }),
+      });
+      const data = await res.json();
+      if (data?.answer) {
+        const answer = stripAI(data.answer);
+        setTheoAnswer(answer);
+        setTheoAskLoading(false);
+        // Versets en arrière-plan (non bloquant)
+        fetchVerseTexts(answer).then(v => { if (v.length) setTheoAnsVerses(v); }).catch(() => {});
+      }
+    } catch { /* silencieux */ }
+    finally { setTheoAskLoading(false); }
+  }
+
+  async function rechercherPersonne() {
+    const nom = personneQuery.trim();
+    if (!nom || personneLoading) return;
+    setPersonneLoading(true); setPersonneInfo(null); setPersonneVerses([]);
+    try {
+      // IA : biographie + rôle théologique
+      const resIA = await fetch("/api/bible-ai/theology", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          question: `Qui est ${nom} dans la Bible ? Présente sa vie, son rôle, les thèmes théologiques liés à ce personnage, et cite les passages bibliques clés (avec leurs références exactes).`,
+          stream: false,
+        }),
+      });
+      const dataIA = await resIA.json();
+      if (dataIA?.answer) {
+        const info = stripAI(dataIA.answer);
+        setPersonneInfo(info);
+        setPersonneLoading(false);
+        // Versets de la concordance en arrière-plan
+        fetch("/api/bible-reader", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ action:"concordance", query: nom }),
+        }).then(r => r.json()).then(d => {
+          if (d.verses?.length) setPersonneVerses(d.verses);
+        }).catch(() => {});
+      }
+    } catch { /* silencieux */ }
+    finally { setPersonneLoading(false); }
+  }
+
+  async function searchConcordance() {
+    const q = concordQuery.trim();
+    if (!q || concordLoading) return;
+    setConcordLoading(true); setConcordResults([]);
+    try {
+      const res = await fetch("/api/bible-reader", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"concordance", query: q }),
+      });
+      const data = await res.json();
+      setConcordResults(data.verses ?? []);
+    } finally { setConcordLoading(false); }
+  }
+
+  async function enrollPlanAndGenerate(planId: string) {
+    await enrollPlan(planId);
+    fetch("/api/reading-plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "generate_all_days", plan_id: planId }),
+    }).catch(() => {});
+  }
+
+  /* ── Plans IA personnels ────────────────────────────────────── */
+  function getAIPlanCurrentDay(plan: { started_at:string|null; duration_days:number }): number {
+    if (!plan.started_at) return 0;
+    const daysSince = Math.floor((Date.now() - new Date(plan.started_at).getTime()) / 86400000);
+    return Math.max(1, Math.min(daysSince + 1, plan.duration_days));
+  }
+
+  async function loadAIReadingPlans() {
+    setAiRpLoading(true);
+    try {
+      const res = await fetch("/api/bible-ai/plans", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"list" }),
+      });
+      const data = await res.json();
+      setAiRpPlans(data.plans ?? []);
+    } finally { setAiRpLoading(false); }
+  }
+
+  async function loadAIPlanDayContent(planId: string, currentDay: number) {
+    if (aiRpDayLoading[planId]) return;
+    setAiRpDayLoading(l => ({ ...l, [planId]: true }));
+    try {
+      const [daysRes, versesRes] = await Promise.all([
+        fetch("/api/bible-ai/plans", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"get_days", plan_id:planId }) }),
+        fetch("/api/bible-ai/plans", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"get_day_verses", plan_id:planId, day_number:currentDay }) }),
+      ]);
+      const [daysData, versesData] = await Promise.all([daysRes.json(), versesRes.json()]);
+      if (daysData.days)          setAiRpDays(d => ({ ...d, [planId]: daysData.days }));
+      if (versesData.verse_texts) setAiRpVerses(v => ({ ...v, [planId]: versesData.verse_texts }));
+    } finally { setAiRpDayLoading(l => ({ ...l, [planId]: false })); }
+  }
+
+  async function completeAIPlanDay(planId: string, dayNumber: number) {
+    await fetch("/api/bible-ai/plans", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ action:"complete_day", plan_id:planId, day_number:dayNumber }),
+    });
+    setAiRpDays(d => ({
+      ...d,
+      [planId]: (d[planId] ?? []).map(day => day.day_number === dayNumber ? { ...day, is_completed:true } : day),
+    }));
+    const plan = aiRpPlans.find(p => p.id === planId);
+    const isLast = dayNumber >= (plan?.duration_days ?? 9999);
+    fetch("/api/notifications/push", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        action:"self", type:"lecture",
+        title: isLast ? `🎉 Plan IA terminé : ${plan?.title ?? "Plan de lecture"} !` : `✅ Jour ${dayNumber} complété`,
+        body:  isLast ? "Félicitations ! Tu as achevé ton plan de lecture personnalisé." : `Continue sur ta lancée — jour ${dayNumber + 1} t'attend.`,
+        link:"/espace-membres?p=priere",
+        dedup_hours: isLast ? 168 : 20,
+      }),
+    }).catch(()=>{});
+  }
+
+  async function startAIPlan(planId: string) {
+    await fetch("/api/bible-ai/plans", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ action:"start_plan", plan_id:planId }),
+    });
+    const startedAt = new Date().toISOString();
+    setAiRpPlans(prev => prev.map(p => p.id === planId ? { ...p, started_at:startedAt } : p));
+    const plan = aiRpPlans.find(p => p.id === planId);
+    fetch("/api/notifications/push", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        action:"self", type:"lecture",
+        title:`📖 Plan démarré : ${plan?.title ?? "Plan de lecture"}`,
+        body:"Bonne lecture ! Que la Parole illumine ta journée.",
+        link:"/espace-membres?p=priere",
+        dedup_hours:168,
+      }),
+    }).catch(()=>{});
+  }
+
+  /* ── Journal spirituel ──────────────────────────────────────── */
+  async function loadJournal() {
+    if (jLoading) return;
+    setJLoading(true);
+    try {
+      const res = await fetch("/api/bible-ai/journal", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"list" }),
+      });
+      const data = await res.json();
+      setJEntries(data.entries ?? []);
+    } finally { setJLoading(false); }
+  }
+
+  async function saveJournalEntry() {
+    if (!jContent.trim() || jSaving) return;
+    setJSaving(true);
+    try {
+      const res = await fetch("/api/bible-ai/journal", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"upsert", content:jContent.trim(), mood:jMood||null }),
+      });
+      const data = await res.json();
+      if (data.entry) {
+        setJEntries(prev => [data.entry, ...prev.filter(e=>e.id!==data.entry.id)]);
+        setJContent(""); setJMood(""); setJSelected(data.entry);
+      }
+    } finally { setJSaving(false); }
+  }
+
+  async function reflectJournal(entryId: string) {
+    if (jReflecting) return;
+    setJReflecting(true);
+    try {
+      const res = await fetch("/api/bible-ai/journal", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"reflect", entry_id:entryId }),
+      });
+      const data = await res.json();
+      if (data.reflection) {
+        const cleaned = stripAI(data.reflection);
+        setJEntries(prev => prev.map(e => e.id===entryId ? {...e, ai_reflection:cleaned} : e));
+        setJSelected(prev => prev ? {...prev, ai_reflection:cleaned} : prev);
+      }
+    } finally { setJReflecting(false); }
   }
 
   /* ── Gestion des groupes ─────────────────────────────────── */
@@ -1151,7 +1634,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
                       <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                         <span style={{fontSize:17,lineHeight:"1.3",flexShrink:0}}>
-                          {({message:"✉",prayer:"🙏",event:"📅",rsvp:"✓",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
+                          {({message:"💬",prayer:"🙏",event:"📅",agenda:"📅",rsvp:"✅",stream:"🔴",mail:"📧",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
                         </span>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
@@ -1223,7 +1706,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
                       <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
                         <span style={{fontSize:17,lineHeight:"1.3",flexShrink:0}}>
-                          {({message:"✉",prayer:"🙏",event:"📅",rsvp:"✓",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
+                          {({message:"💬",prayer:"🙏",event:"📅",agenda:"📅",rsvp:"✅",stream:"🔴",mail:"📧",system:"🔔"} as Record<string,string>)[n.type] ?? "🔔"}
                         </span>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
@@ -1981,7 +2464,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {([
                 ["verset","✦ Verset du jour"],["lecteur","📖 Lecteur biblique"],
                 ["etude","🔍 Étude"],["theo","📜 Théologie"],
-                ["mur","🙏 Mur de prière"],["plans","📋 Plans de lecture"],
+                ["mur","🙏 Mur de prière"],["plans","📋 Plans de lecture"],["notes","📓 Journal"],
               ] as [BTab,string][]).map(([t,l]) => (
                 <button key={t} className={`em-tab${bTab===t?" active":""}`} onClick={() => setBTab(t)}>{l}</button>
               ))}
@@ -2002,10 +2485,19 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:14}}>✦ Verset du jour — {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}</div>
                   <div className="em-verset-card">&ldquo;{VERSET.text}&rdquo;</div>
                   <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:10,fontFamily:"Outfit,sans-serif"}}>— {VERSET.ref}</div>
-                  <div style={{display:"flex",gap:8,marginTop:14}}>
+                  <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {navigator.clipboard.writeText(VERSET.text);setToast("Verset copié !");}}> Copier</button>
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {setBTab("lecteur");setBBook(42);setBCh(3);}}>📖 Lire le contexte</button>
+                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={loadVersetMeditation} disabled={versetMedLoading}>
+                      {versetMedLoading ? "…" : versetMeditation ? "✦ Méditation" : "✦ Méditer"}
+                    </button>
                   </div>
+                  {versetMeditation && (
+                    <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"rgba(255,255,255,.5)",marginBottom:8}}>✦ Méditation guidée</div>
+                      <div style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{versetMeditation}</div>
+                    </div>
+                  )}
                 </div>
                 <div className="em-g2">
                   <div className="em-card">
@@ -2104,7 +2596,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       {bVerses.map(v => (
                         <div key={v.verse}
                           className={`em-bible-v${bHl===v.verse?" hl":""}`}
-                          onClick={()=>setBHl(bHl===v.verse?null:v.verse)}>
+                          onClick={()=>{setBHl(bHl===v.verse?null:v.verse);setBHlExplain(null);}}>
                           <sup>{v.verse}</sup>{v.text}
                         </div>
                       ))}
@@ -2116,18 +2608,131 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   )}
                 </div>
+                {/* Panneau d'analyse IA du verset sélectionné */}
+                {bHl && (
+                  <div className="em-card" style={{marginTop:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      <span style={{fontSize:13,fontWeight:700,color:"#1e2464"}}>📌 {BOOKS[bBook].n} {bCh}:{bHl}</span>
+                      <button className="em-btn em-btn-ghost em-btn-sm" onClick={()=>{setBHl(null);setBHlExplain(null);}}>✕</button>
+                    </div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadVerseExplanation(`${BOOKS[bBook].n} ${bCh}:${bHl}`)} disabled={bHlLoading}>
+                        {bHlLoading ? "Analyse…" : "🔍 Expliquer avec l'IA"}
+                      </button>
+                      <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeInput(`${BOOKS[bBook].n} ${bCh}:${bHl}`);setBTab("etude");setBHl(null);}}>
+                        Étude approfondie →
+                      </button>
+                    </div>
+                    {bHlLoading && (
+                      <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 0",color:"#8890aa",fontSize:13}}>
+                        <div style={{width:16,height:16,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
+                        Analyse en cours…
+                      </div>
+                    )}
+                    {bHlExplain && (
+                      <div style={{marginTop:12,fontSize:13.5,lineHeight:1.75,color:"#2d3461",whiteSpace:"pre-wrap"}}>
+                        {bHlExplain}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Étude approfondie */}
             {bTab==="etude" && (
               <div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+
+                {/* ── Personnages bibliques ──────────────────────────── */}
+                <div className="em-card" style={{marginBottom:16,background:"linear-gradient(135deg,#fff8f0 0%,#fff1e0 100%)",border:"1px solid #f0d8b0"}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#7a4a00",marginBottom:6}}>👤 Personnages bibliques</div>
+                  <div style={{fontSize:12,color:"#9a6a20",marginBottom:10}}>Recherchez un personnage de la Bible pour obtenir sa biographie et les passages clés</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <input
+                      className="em-input"
+                      style={{flex:1,minWidth:160,fontSize:13}}
+                      placeholder="Ex : Abraham, Marie, Moïse, Paul, David, Esther…"
+                      value={personneQuery}
+                      onChange={e=>setPersonneQuery(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter" && rechercherPersonne()}
+                    />
+                    <button className="em-btn em-btn-primary" style={{fontSize:12,flexShrink:0,background:"#c47a00"}} onClick={rechercherPersonne} disabled={personneLoading||!personneQuery.trim()}>
+                      {personneLoading ? "Recherche…" : "🔍 Rechercher"}
+                    </button>
+                  </div>
+
+                  {personneLoading && (
+                    <div style={{textAlign:"center",padding:"20px 0"}}>
+                      <div style={{width:28,height:28,border:"3px solid #f0d8b0",borderTopColor:"#c47a00",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}} />
+                      <div style={{fontSize:12,color:"#9a6a20"}}>Recherche de {personneQuery}…</div>
+                    </div>
+                  )}
+
+                  {!personneLoading && personneInfo && (
+                    <div style={{marginTop:12}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#7a4a00",marginBottom:8}}>📜 {personneQuery}</div>
+                      <p style={{fontSize:13,lineHeight:1.8,color:"#5a3a00",whiteSpace:"pre-wrap",marginBottom:12}}>{personneInfo}</p>
+                      {personneVerses.length > 0 && (
+                        <div>
+                          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#c47a00",marginBottom:8}}>Passages clés</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {personneVerses.map((v,i)=>(
+                              <div key={i} style={{background:"rgba(255,255,255,.7)",borderRadius:8,padding:"8px 10px",border:"1px solid #f0d8b0"}}>
+                                <div style={{fontSize:11,fontWeight:700,color:"#c47a00",marginBottom:3}}>{v.ref}</div>
+                                <div style={{fontSize:12.5,color:"#5a3a00",lineHeight:1.6}}>{v.text}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,fontSize:11}} onClick={()=>{setPersonneInfo(null);setPersonneVerses([]);setPersonneQuery("");}}>← Nouvelle recherche</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Champ libre — n'importe quelle référence */}
+                <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                  <input
+                    className="em-input"
+                    style={{flex:1,minWidth:160,fontSize:13}}
+                    placeholder="Ex: Romains 8:28, Psaumes 23, Ésaïe 40:31…"
+                    value={etudeInput}
+                    onChange={e=>setEtudeInput(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter" && generateEtudeAI(etudeInput)}
+                  />
+                  <button className="em-btn em-btn-primary" style={{fontSize:12,flexShrink:0}} onClick={()=>generateEtudeAI(etudeInput)} disabled={etudeAILoading}>
+                    {etudeAILoading ? "Analyse…" : "🔍 Analyser"}
+                  </button>
+                </div>
+                {/* Accès rapide aux études préconstruites */}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
                   {Object.keys(ETUDE_DB).map(ref => (
-                    <button key={ref} className={`em-btn${etudeRef===ref?" em-btn-primary":" em-btn-outline"}`} onClick={()=>setEtudeRef(ref)}>{ref}</button>
+                    <button key={ref} className={`em-btn em-btn-outline em-btn-sm${etudeRef===ref&&!etudeAI?" em-btn-primary":""}`} onClick={()=>{setEtudeRef(ref);setEtudeAI(null);setEtudeInput(ref);}}>{ref}</button>
                   ))}
                 </div>
-                {ETUDE_DB[etudeRef] && (
+
+                {/* Résultat IA — référence libre */}
+                {etudeAILoading && (
+                  <div className="em-card" style={{textAlign:"center",padding:"32px 0"}}>
+                    <div style={{width:32,height:32,border:"3px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}} />
+                    <div style={{fontSize:13,color:"#8890aa"}}>L&apos;IA analyse {etudeInput || etudeRef}…</div>
+                  </div>
+                )}
+                {!etudeAILoading && etudeAI && (
+                  <div>
+                    <div className="em-card-dark" style={{marginBottom:14}}>
+                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>✦ Étude AI — {etudeAI.ref}</div>
+                    </div>
+                    <div className="em-card" style={{marginBottom:12}}>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>🔍 Analyse biblique</div>
+                      <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070",whiteSpace:"pre-wrap"}}>{etudeAI.content}</p>
+                    </div>
+                    <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeAI(null);setEtudeInput("");}}>← Nouvelle étude</button>
+                  </div>
+                )}
+
+                {/* Études préconstruites (si pas de résultat IA actif) */}
+                {!etudeAI && !etudeAILoading && ETUDE_DB[etudeRef] && (
                   <div>
                     <div className="em-card-dark" style={{marginBottom:14}}>
                       <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>Passage étudié</div>
@@ -2144,6 +2749,9 @@ const [showSalle, setShowSalle]       = useState(false);
                         <p style={{fontSize:13.5,lineHeight:1.7,color:"#4a5070"}}>{s.content}</p>
                       </div>
                     ))}
+                    <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>generateEtudeAI(etudeRef)}>
+                      ✨ Approfondir avec l&apos;IA
+                    </button>
                   </div>
                 )}
               </div>
@@ -2151,48 +2759,166 @@ const [showSalle, setShowSalle]       = useState(false);
 
             {/* Bibliothèque théologique */}
             {bTab==="theo" && (
-              <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:16}}>
-                <div>
-                  {THEO_CATS.map(cat => (
-                    <button key={cat.id} className={`em-ni${theoCat===cat.id?" active":""}`}
-                      style={{width:"100%",background:theoCat===cat.id?"#eef1f8":"transparent",color:theoCat===cat.id?"#1e2464":"#4a5070",borderRadius:8,marginBottom:3}}
-                      onClick={()=>{setTheoCat(cat.id);setTheoItem(null);}}>
-                      <span>{cat.icon}</span><span style={{marginLeft:8,fontSize:13}}>{cat.title}</span>
+              <div>
+                {/* Concordance biblique */}
+                <div className="em-card" style={{marginBottom:12,background:"linear-gradient(135deg,#f8f9ff 0%,#eef1fb 100%)",border:"1px solid #d8ddf0"}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:8}}>📖 Concordance biblique</div>
+                  <div style={{fontSize:12,color:"#6b7394",marginBottom:10}}>Recherchez un thème, un mot ou un concept dans la Bible (BDS)</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <input
+                      className="em-input"
+                      style={{flex:1,fontSize:13}}
+                      placeholder="Ex: grâce, pardon, résurrection, alliance, foi..."
+                      value={concordQuery}
+                      onChange={e=>setConcordQuery(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter" && searchConcordance()}
+                    />
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={searchConcordance} disabled={concordLoading||!concordQuery.trim()} style={{flexShrink:0}}>
+                      {concordLoading ? "…" : "🔍 Chercher"}
                     </button>
-                  ))}
-                </div>
-                <div>
-                  {theoItem === null
-                    ? (
-                      <div>
-                        {THEO_CATS.find(c=>c.id===theoCat)?.items.map(item => (
-                          <div key={item.id} className="em-theo" onClick={()=>setTheoItem(item.id)}>
-                            <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{item.title}</div>
-                            <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>{item.sub}</div>
+                  </div>
+                  {concordLoading && (
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8890aa",fontSize:13}}>
+                      <div style={{width:14,height:14,border:"2px solid #d8ddf0",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
+                      Recherche dans la Bible…
+                    </div>
+                  )}
+                  {concordResults.length > 0 && (
+                    <div style={{marginTop:14}}>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                        {concordResults.length} résultat{concordResults.length>1?"s":""} — Bible du Semeur 2015
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:320,overflowY:"auto"}}>
+                        {concordResults.map((v,i) => (
+                          <div key={i} style={{background:"#fff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
+                            <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
+                            <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
                           </div>
                         ))}
                       </div>
-                    )
-                    : (
-                      <div className="em-card">
-                        <button className="em-btn em-btn-ghost em-btn-sm" style={{marginBottom:12}} onClick={()=>setTheoItem(null)}>← Retour</button>
-                        {(() => {
-                          const cat = THEO_CATS.find(c=>c.id===theoCat);
-                          const item = cat?.items.find(i=>i.id===theoItem);
-                          return item ? (
-                            <div>
-                              <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
-                              <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>{item.sub}</div>
-                              {"content" in item && item.content
-                                ? <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070"}}>{item.content as string}</p>
-                                : <p style={{fontSize:13.5,lineHeight:1.8,color:"#8890aa",fontStyle:"italic"}}>Contenu à venir — rédigé par l&apos;équipe pastorale.</p>
-                              }
+                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setConcordResults([]);setConcordQuery("");}}>✕ Effacer</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Question libre */}
+                <div className="em-card" style={{marginBottom:16}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>✦ Poser une question théologique</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <input
+                      className="em-input"
+                      style={{flex:1,fontSize:13}}
+                      placeholder="Ex: Qu'est-ce que la grâce irrésistible ? Différence entre grâce et miséricorde ?"
+                      value={theoQuestion}
+                      onChange={e=>setTheoQuestion(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter" && askTheoQuestion()}
+                    />
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={askTheoQuestion} disabled={theoAskLoading||!theoQuestion.trim()} style={{flexShrink:0}}>
+                      {theoAskLoading ? "…" : "Demander"}
+                    </button>
+                  </div>
+                  {theoAskLoading && (
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8890aa",fontSize:13}}>
+                      <div style={{width:16,height:16,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
+                      Réflexion en cours…
+                    </div>
+                  )}
+                  {theoAnswer && (
+                    <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #eef1f8"}}>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Réponse IA</div>
+                      <p style={{fontSize:13.5,lineHeight:1.8,color:"#2d3461",whiteSpace:"pre-wrap"}}>{theoAnswer}</p>
+                      {theoAnsVerses.length > 0 && (
+                        <div style={{marginTop:14}}>
+                          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                            {theoAnsVerses.map((v,i) => (
+                              <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
+                                <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
+                                <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setTheoAnswer(null);setTheoQuestion("");setTheoAnsVerses([]);}}>← Nouvelle question</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bibliothèque */}
+                <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:16}}>
+                  <div>
+                    {THEO_CATS.map(cat => (
+                      <button key={cat.id} className={`em-ni${theoCat===cat.id?" active":""}`}
+                        style={{width:"100%",background:theoCat===cat.id?"#eef1f8":"transparent",color:theoCat===cat.id?"#1e2464":"#4a5070",borderRadius:8,marginBottom:3}}
+                        onClick={()=>{setTheoCat(cat.id);setTheoItem(null);}}>
+                        <span>{cat.icon}</span><span style={{marginLeft:8,fontSize:13}}>{cat.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    {theoItem === null
+                      ? (
+                        <div>
+                          {THEO_CATS.find(c=>c.id===theoCat)?.items.map(item => (
+                            <div key={item.id} className="em-theo" onClick={()=>setTheoItem(item.id)}>
+                              <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{item.title}</div>
+                              <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>{item.sub}</div>
                             </div>
-                          ) : null;
-                        })()}
-                      </div>
-                    )
-                  }
+                          ))}
+                        </div>
+                      )
+                      : (
+                        <div className="em-card">
+                          <button className="em-btn em-btn-ghost em-btn-sm" style={{marginBottom:12}} onClick={()=>setTheoItem(null)}>← Retour</button>
+                          {(() => {
+                            const cat  = THEO_CATS.find(c=>c.id===theoCat);
+                            const item = cat?.items.find(i=>i.id===theoItem);
+                            if (!item) return null;
+                            const staticContent = "content" in item ? item.content as string : null;
+                            const aiContent = theoAIContent[item.id];
+                            const content = aiContent ?? staticContent;
+                            return (
+                              <div>
+                                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
+                                <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>{item.sub}</div>
+                                {content ? (
+                                  <>
+                                    <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070",whiteSpace:"pre-wrap"}}>{content}</p>
+                                    {aiContent && theoItemVerses[item.id]?.length > 0 && (
+                                      <div style={{marginTop:16}}>
+                                        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                          {theoItemVerses[item.id].map((v,i) => (
+                                            <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
+                                              <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
+                                              <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {aiContent && <div style={{fontSize:11,color:"#8890aa",marginTop:10,fontStyle:"italic"}}>✨ Généré par l&apos;IA ARC</div>}
+                                  </>
+                                ) : (
+                                  <div style={{textAlign:"center",padding:"16px 0"}}>
+                                    <p style={{fontSize:13,color:"#8890aa",marginBottom:12}}>Contenu en cours de rédaction par l&apos;équipe pastorale.</p>
+                                    <button
+                                      className="em-btn em-btn-primary em-btn-sm"
+                                      onClick={()=>generateTheoItem(item.id, item.title)}
+                                      disabled={theoAILoading===item.id}
+                                    >
+                                      {theoAILoading===item.id ? "Génération…" : "✨ Générer avec l'IA"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )
+                    }
+                  </div>
                 </div>
               </div>
             )}
@@ -2203,7 +2929,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
                   <div style={{fontSize:13,color:"#8890aa"}}>{prayers.filter(p=>!p.is_answered).length} demande(s) active(s)</div>
                   {canPost && (
-                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowNewPrayer(true)}>🙏 Partager une prière</button>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setPTitle("");setPDesc("");setPAnon(false);setPVisibility("all");setPTargetGroups([]);setPTargetMembers([]);setPMemberSearch("");setPMembersLoaded(false);setShowNewPrayer(true);}}>🙏 Partager une prière</button>
                   )}
                 </div>
                 {pLoading
@@ -2255,8 +2981,145 @@ const [showSalle, setShowSalle]       = useState(false);
             {/* Plans de lecture */}
             {bTab==="plans" && (
               <div>
+
+                {/* ── Plans personnels IA ────────────────────────────── */}
+                {aiRpLoading && <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa",fontSize:13}}>Chargement de vos plans…</div>}
+                {!aiRpLoading && aiRpPlans.length > 0 && (
+                  <div style={{marginBottom:20}}>
+                    <div style={{fontWeight:700,fontSize:13,color:"#5a3d8a",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                      <span>✨</span> Mes plans personnels
+                      <span style={{fontSize:10,color:"#8890aa",fontWeight:400}}>— créés dans l&apos;Assistant IA</span>
+                    </div>
+                    {aiRpPlans.map(plan => {
+                      const currentDay = getAIPlanCurrentDay(plan);
+                      const started    = currentDay > 0;
+                      const days       = aiRpDays[plan.id] ?? [];
+                      const curDayData = days.find(d => d.day_number === currentDay) ?? null;
+                      const pct        = started ? Math.round((currentDay / plan.duration_days) * 100) : 0;
+                      const done       = started && currentDay >= plan.duration_days;
+                      const expanded   = aiRpExpanded === plan.id;
+                      const dayLoading = aiRpDayLoading[plan.id];
+                      const verseTexts = aiRpVerses[plan.id] ?? [];
+                      return (
+                        <div key={plan.id} className="em-card" style={{marginBottom:12,border:"1px solid #e0d4f7",background:"linear-gradient(135deg,#fdfaff 0%,#f5eeff 100%)"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:700,fontSize:14,color:"#3d1f7a"}}>{plan.title}</div>
+                              {plan.focus && <div style={{fontSize:12,color:"#8870aa",marginTop:2}}>Thème : {plan.focus}</div>}
+                              <div style={{fontSize:11,color:"#8870aa",marginTop:3}}>{plan.duration_days} jour{plan.duration_days>1?"s":""} · {plan.language}</div>
+                            </div>
+                            {done && <span className="em-tag em-tag-vert" style={{fontSize:10,flexShrink:0}}>Terminé ✓</span>}
+                            {started && !done && <span style={{fontSize:10,background:"#ede4ff",color:"#5a3d8a",borderRadius:20,padding:"2px 8px",flexShrink:0,fontWeight:600}}>Actif · Jour {currentDay}</span>}
+                          </div>
+
+                          {started && (
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                              <div style={{flex:1,background:"#ede4ff",borderRadius:6,height:8}}>
+                                <div style={{background:"#7c3aed",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
+                              </div>
+                              <span style={{fontSize:11,color:"#8870aa",flexShrink:0}}>{pct}%</span>
+                            </div>
+                          )}
+
+                          {!started && (
+                            <button className="em-btn em-btn-outline em-btn-sm" style={{marginBottom:8,borderColor:"#c4b0ee",color:"#5a3d8a"}} onClick={()=>startAIPlan(plan.id)}>
+                              ▶ Commencer ce plan
+                            </button>
+                          )}
+
+                          {started && !done && (
+                            <>
+                              <button
+                                className="em-btn em-btn-outline em-btn-sm"
+                                style={{marginBottom:8,fontSize:12,borderColor:"#c4b0ee",color:"#5a3d8a"}}
+                                onClick={()=>{
+                                  if (expanded) { setAiRpExpanded(null); return; }
+                                  setAiRpExpanded(plan.id);
+                                  if (!curDayData) loadAIPlanDayContent(plan.id, currentDay);
+                                }}
+                              >
+                                {expanded ? "▲ Masquer" : "📖 Lire le jour " + currentDay}
+                              </button>
+
+                              {expanded && (
+                                <div style={{background:"rgba(237,228,255,.4)",borderRadius:10,padding:14,marginBottom:10}}>
+                                  {dayLoading && (
+                                    <div style={{textAlign:"center",padding:"12px 0",color:"#8870aa",fontSize:13}}>
+                                      <div style={{width:20,height:20,border:"2px solid #ede4ff",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
+                                      Chargement…
+                                    </div>
+                                  )}
+                                  {!dayLoading && curDayData && (
+                                    <>
+                                      <div style={{fontWeight:700,fontSize:13,color:"#3d1f7a",marginBottom:10}}>
+                                        Jour {currentDay}{curDayData.title ? ` — ${curDayData.title}` : ""}
+                                      </div>
+                                      {verseTexts.length > 0 ? verseTexts.map((vt,i) => (
+                                        <div key={i} style={{background:"rgba(124,58,237,.07)",borderLeft:"3px solid #7c3aed",borderRadius:"0 8px 8px 0",padding:"10px 12px",marginBottom:8}}>
+                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#7c3aed",marginBottom:5}}>{vt.reference}</div>
+                                          <div style={{fontSize:13.5,fontStyle:"italic",color:"#3d1f7a",lineHeight:1.65}}>&ldquo;{vt.text}&rdquo;</div>
+                                        </div>
+                                      )) : curDayData.passages.map((p,i) => (
+                                        <div key={i} style={{background:"rgba(124,58,237,.07)",borderLeft:"3px solid #7c3aed",borderRadius:"0 8px 8px 0",padding:"8px 12px",marginBottom:6}}>
+                                          <div style={{fontSize:12,fontWeight:700,color:"#7c3aed"}}>{p}</div>
+                                        </div>
+                                      ))}
+                                      {curDayData.reflection && (
+                                        <div style={{marginTop:10}}>
+                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8870aa",marginBottom:4}}>Réflexion</div>
+                                          <div style={{fontSize:13,color:"#4a3070",fontStyle:"italic"}}>{curDayData.reflection}</div>
+                                        </div>
+                                      )}
+                                      {curDayData.prayer_guide && (
+                                        <div style={{marginTop:10,background:"#fef9ee",borderRadius:8,padding:"8px 12px"}}>
+                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#b7791f",marginBottom:4}}>Guide de prière</div>
+                                          <div style={{fontSize:13,color:"#744210"}}>{curDayData.prayer_guide}</div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                  {!dayLoading && !curDayData && !aiRpDays[plan.id] && (
+                                    <div style={{fontSize:12,color:"#8870aa",textAlign:"center",padding:"8px 0"}}>
+                                      Ce jour n&apos;a pas encore été généré. Ouvre l&apos;Assistant IA pour générer le plan.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <button
+                                className="em-btn em-btn-sm"
+                                style={{background:"#7c3aed",color:"#fff",fontSize:12}}
+                                onClick={()=>{
+                                  completeAIPlanDay(plan.id, currentDay);
+                                  // Avancer le started_at d'un jour pour simuler le progrès
+                                  const newStart = new Date(plan.started_at!);
+                                  newStart.setDate(newStart.getDate() - 1);
+                                  setAiRpPlans(prev => prev.map(p => p.id === plan.id ? { ...p, started_at: newStart.toISOString() } : p));
+                                  setAiRpExpanded(null);
+                                  setAiRpDays(d => { const n = {...d}; delete n[plan.id]; return n; });
+                                  setAiRpVerses(v => { const n = {...v}; delete n[plan.id]; return n; });
+                                }}
+                                disabled={curDayData?.is_completed}
+                              >
+                                {curDayData?.is_completed ? "✓ Déjà complété" : `✓ Jour ${currentDay} terminé → Jour ${currentDay+1}`}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Séparateur si les deux sources ont des plans */}
+                {!aiRpLoading && aiRpPlans.length > 0 && rpPlans.length > 0 && (
+                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10,paddingTop:4,borderTop:"1px solid #eef1fb"}}>
+                    📋 Plans communautaires
+                  </div>
+                )}
+
                 {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des plans…</div>}
-                {!rpLoading && rpPlans.length === 0 && (
+                {!rpLoading && rpPlans.length === 0 && aiRpPlans.length === 0 && (
                   <div className="em-card" style={{textAlign:"center",color:"#8890aa",padding:24}}>Aucun plan de lecture disponible pour le moment.</div>
                 )}
                 {!rpLoading && rpPlans.map(plan => {
@@ -2264,6 +3127,9 @@ const [showSalle, setShowSalle]       = useState(false);
                   const enrolled   = currentDay !== undefined;
                   const pct        = enrolled ? Math.round((currentDay / plan.total_days) * 100) : 0;
                   const done       = enrolled && currentDay >= plan.total_days;
+                  const expanded   = rpExpanded === plan.id;
+                  const dayContent = rpDayContent[plan.id];
+                  const dayLoading = rpDayLoading[plan.id];
 
                   return (
                     <div key={plan.id} className="em-card" style={{marginBottom:14}}>
@@ -2284,6 +3150,59 @@ const [showSalle, setShowSalle]       = useState(false);
                             </div>
                             <span style={{fontSize:11,color:"#8890aa",flexShrink:0}}>{pct}%</span>
                           </div>
+
+                          {/* Bouton pour afficher le verset du jour */}
+                          {!done && (
+                            <button
+                              className="em-btn em-btn-outline em-btn-sm"
+                              style={{marginBottom:8,fontSize:12}}
+                              onClick={() => {
+                                if (expanded) { setRpExpanded(null); return; }
+                                setRpExpanded(plan.id);
+                                if (!dayContent) loadDayContent(plan.id, currentDay);
+                              }}
+                            >
+                              {expanded ? "▲ Masquer" : "📖 Lire le verset du jour"}
+                            </button>
+                          )}
+
+                          {/* Contenu du jour — versets + réflexion + guide */}
+                          {expanded && (
+                            <div style={{background:"#f7f8fc",borderRadius:10,padding:14,marginBottom:10}}>
+                              {dayLoading && (
+                                <div style={{textAlign:"center",padding:"12px 0",color:"#8890aa",fontSize:13}}>
+                                  <div style={{width:20,height:20,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
+                                  Chargement du passage…
+                                </div>
+                              )}
+                              {!dayLoading && dayContent && (
+                                <>
+                                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>
+                                    Jour {currentDay} — {dayContent.title}
+                                  </div>
+                                  {dayContent.verse_texts.map((vt, i) => (
+                                    <div key={i} style={{background:"rgba(30,36,100,.06)",borderLeft:"3px solid #1e2464",borderRadius:"0 8px 8px 0",padding:"10px 12px",marginBottom:8}}>
+                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#1e2464",marginBottom:5}}>{vt.reference}</div>
+                                      <div style={{fontSize:13.5,fontStyle:"italic",color:"#2d3461",lineHeight:1.65}}>&ldquo;{vt.text}&rdquo;</div>
+                                    </div>
+                                  ))}
+                                  {dayContent.reflection && (
+                                    <div style={{marginTop:10}}>
+                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:4}}>Réflexion</div>
+                                      <div style={{fontSize:13,color:"#4a5070",fontStyle:"italic"}}>{dayContent.reflection}</div>
+                                    </div>
+                                  )}
+                                  {dayContent.prayer_guide && (
+                                    <div style={{marginTop:10,background:"#fefceb",borderRadius:8,padding:"8px 12px"}}>
+                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#b7791f",marginBottom:4}}>Guide de prière</div>
+                                      <div style={{fontSize:13,color:"#744210"}}>{dayContent.prayer_guide}</div>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           {!done && (
                             <button className="em-btn em-btn-sm" style={{background:"#1e2464",color:"#fff",fontSize:12}} onClick={()=>advancePlan(plan.id, plan.total_days)}>
                               ✓ Jour {currentDay} terminé → Jour {currentDay+1}
@@ -2292,13 +3211,109 @@ const [showSalle, setShowSalle]       = useState(false);
                         </>
                       )}
                       {!enrolled && (
-                        <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>enrollPlan(plan.id)}>
+                        <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>enrollPlanAndGenerate(plan.id)}>
                           + S&apos;inscrire à ce plan
                         </button>
                       )}
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+
+            {/* ── Journal spirituel ────────────────────────────── */}
+            {bTab==="notes" && (
+              <div>
+                {/* Vue détail d'une entrée */}
+                {jSelected ? (
+                  <div>
+                    <button className="em-btn em-btn-outline em-btn-sm" style={{marginBottom:12}} onClick={()=>setJSelected(null)}>← Retour</button>
+                    <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:4}}>
+                      {new Date(jSelected.date).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+                    </div>
+                    {jSelected.mood && <div style={{fontSize:11,color:"#8890aa",marginBottom:10}}>Humeur : {jSelected.mood}</div>}
+                    <div className="em-card" style={{marginBottom:12}}>
+                      <p style={{fontSize:13.5,lineHeight:1.8,color:"#3a3d5c",whiteSpace:"pre-wrap"}}>{jSelected.content}</p>
+                    </div>
+                    {jSelected.ai_reflection ? (
+                      <div className="em-card" style={{background:"linear-gradient(135deg,#f0f4ff 0%,#e8edff 100%)",border:"1px solid #c5d0f0"}}>
+                        <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"#1e2464",marginBottom:8}}>✦ Réflexion IA</div>
+                        <p style={{fontSize:13.5,lineHeight:1.8,color:"#3a3d5c",fontStyle:"italic"}}>{jSelected.ai_reflection}</p>
+                      </div>
+                    ) : (
+                      <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%"}} onClick={()=>reflectJournal(jSelected.id)} disabled={jReflecting}>
+                        {jReflecting ? "Génération…" : "✦ Générer une réflexion IA"}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Formulaire nouvelle entrée */}
+                    <div className="em-card" style={{marginBottom:14}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>📓 Nouvelle entrée du jour</div>
+                      <textarea
+                        className="em-input"
+                        style={{width:"100%",minHeight:90,resize:"vertical",fontSize:13,lineHeight:1.7,fontFamily:"inherit"}}
+                        placeholder="Ce que Dieu m'a parlé aujourd'hui…"
+                        value={jContent}
+                        onChange={e=>setJContent(e.target.value)}
+                      />
+                      <div style={{display:"flex",gap:10,alignItems:"center",marginTop:10,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",gap:6,alignItems:"center",flex:1}}>
+                          <span style={{fontSize:11,color:"#8890aa",flexShrink:0}}>Humeur :</span>
+                          <select className="em-select" style={{fontSize:12,flex:1}} value={jMood} onChange={e=>setJMood(e.target.value)}>
+                            <option value="">—</option>
+                            {["Serein(e)","Reconnaissant(e)","Inquiet(e)","En deuil","Joyeux(se)","Confiant(e)","Questionneur(se)"].map(m=>(
+                              <option key={m} value={m}>{m}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          className="em-btn em-btn-primary"
+                          style={{fontSize:12,flexShrink:0}}
+                          onClick={saveJournalEntry}
+                          disabled={!jContent.trim()||jSaving}
+                        >
+                          {jSaving ? "Enregistrement…" : "💾 Enregistrer"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Liste des entrées */}
+                    {jLoading && (
+                      <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:13}}>
+                        <div style={{width:24,height:24,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
+                        Chargement…
+                      </div>
+                    )}
+                    {!jLoading && jEntries.length === 0 && (
+                      <div className="em-card" style={{textAlign:"center",color:"#8890aa",padding:"28px 0"}}>
+                        <div style={{fontSize:32,marginBottom:8}}>📓</div>
+                        <div style={{fontWeight:600,marginBottom:4}}>Journal vide</div>
+                        <div style={{fontSize:12}}>Commencez à noter vos pensées et réflexions spirituelles</div>
+                      </div>
+                    )}
+                    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                      {jEntries.map(e => (
+                        <div key={e.id} className="em-card" style={{cursor:"pointer"}} onClick={()=>setJSelected(e)}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                            <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>
+                              {new Date(e.date).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}
+                            </div>
+                            {e.mood && <span style={{fontSize:10,color:"#8890aa",flexShrink:0,marginLeft:8}}>{e.mood}</span>}
+                          </div>
+                          <p style={{fontSize:13,color:"#4a5070",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{e.content}</p>
+                          {e.ai_reflection && (
+                            <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #eef1fb",fontSize:12,color:"#8890aa",fontStyle:"italic",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
+                              ✦ {e.ai_reflection}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -2956,30 +3971,111 @@ const [showSalle, setShowSalle]       = useState(false);
       {/* Nouvelle prière */}
       {showNewPrayer && (
         <div className="em-overlay" onClick={()=>setShowNewPrayer(false)}>
-          <div className="em-modal" onClick={e=>e.stopPropagation()} style={{maxWidth:480}}>
+          <div className="em-modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
             <div className="em-modal-hdr">
               <span className="em-modal-title">🙏 Partager une prière</span>
               <button className="em-modal-close" onClick={()=>setShowNewPrayer(false)}>✕</button>
             </div>
-            <div className="em-modal-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div className="em-modal-body" style={{display:"flex",flexDirection:"column",gap:14,maxHeight:"80vh",overflowY:"auto"}}>
               <div>
                 <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:4}}>Titre *</label>
                 <input className="em-input" placeholder="Prière pour…" value={pTitle} onChange={e=>setPTitle(e.target.value)} />
               </div>
               <div>
                 <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:4}}>Détails (optionnel)</label>
-                <textarea className="em-textarea" rows={4} placeholder="Décris ta situation…" value={pDesc} onChange={e=>setPDesc(e.target.value)} />
+                <textarea className="em-textarea" rows={3} placeholder="Décris ta situation…" value={pDesc} onChange={e=>setPDesc(e.target.value)} />
               </div>
+
+              {/* Visibilité */}
+              <div>
+                <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8899cc",display:"block",marginBottom:8}}>Partager avec</label>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {([
+                    {val:"all",     label:"Tous les membres d'ARC",    icon:"🌍"},
+                    {val:"groups",  label:"Groupes de fonctions",       icon:"👥"},
+                    {val:"members", label:"Membres spécifiques",        icon:"🙍"},
+                    {val:"pasteur", label:"Pasteurs uniquement",         icon:"⛪"},
+                  ] as const).map(opt=>(
+                    <label key={opt.val} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",padding:"6px 10px",borderRadius:8,transition:"background .15s",background:pVisibility===opt.val?"#eff6ff":"transparent",border:pVisibility===opt.val?"1px solid #bfdbfe":"1px solid transparent"}}>
+                      <input type="radio" name="pVisibility" value={opt.val} checked={pVisibility===opt.val}
+                        onChange={()=>{setPVisibility(opt.val);setPTargetGroups([]);setPTargetMembers([]);}}
+                        style={{accentColor:"#2563eb"}} />
+                      <span>{opt.icon} {opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Groupes supplémentaires */}
+              {pVisibility==="groups" && (
+                <div style={{background:"#f8fafc",borderRadius:10,padding:12,border:"1px solid #e2e8f0"}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#8899cc",marginBottom:4}}>Groupes supplémentaires</div>
+                  <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>Tes propres groupes sont inclus automatiquement ✓</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {GROUPES.map(g=>{
+                      const isOwn = userGroups.includes(g.slug);
+                      const isChecked = isOwn || pTargetGroups.includes(g.slug);
+                      return (
+                        <label key={g.slug} style={{display:"flex",alignItems:"center",gap:4,fontSize:12,cursor:isOwn?"default":"pointer",padding:"3px 8px",borderRadius:20,background:isChecked?g.hexBg:"#f1f5f9",border:`1px solid ${isChecked?g.hex:"#e2e8f0"}`,color:isChecked?g.hex:"#64748b"}}>
+                          <input type="checkbox" checked={isChecked} disabled={isOwn}
+                            onChange={e=>{if(e.target.checked)setPTargetGroups(p=>[...p,g.slug]);else setPTargetGroups(p=>p.filter(x=>x!==g.slug));}}
+                            style={{width:12,height:12}} />
+                          {g.name}{isOwn?" ✓":""}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Membres spécifiques */}
+              {pVisibility==="members" && (
+                <div style={{background:"#f8fafc",borderRadius:10,padding:12,border:"1px solid #e2e8f0"}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#8899cc",marginBottom:8}}>Sélectionner des membres</div>
+                  {!pMembersLoaded ? (
+                    <button className="em-btn em-btn-outline" style={{fontSize:12,padding:"4px 12px"}} onClick={loadPMembersRef}>
+                      Charger la liste des membres
+                    </button>
+                  ) : (
+                    <div>
+                      <input className="em-input" placeholder="Rechercher un membre…" value={pMemberSearch} onChange={e=>setPMemberSearch(e.target.value)} style={{marginBottom:8,fontSize:12,padding:"5px 10px"}} />
+                      <div style={{maxHeight:130,overflowY:"auto",display:"flex",flexDirection:"column",gap:3}}>
+                        {pMembersList.filter(m=>m.name.toLowerCase().includes(pMemberSearch.toLowerCase())).map(m=>{
+                          const sel=pTargetMembers.includes(m.id);
+                          return (
+                            <label key={m.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,cursor:"pointer",padding:"3px 8px",borderRadius:6,background:sel?"#eff6ff":"transparent"}}>
+                              <input type="checkbox" checked={sel}
+                                onChange={e=>{if(e.target.checked)setPTargetMembers(p=>[...p,m.id]);else setPTargetMembers(p=>p.filter(x=>x!==m.id));}} />
+                              {m.name}
+                              {sel&&<span style={{marginLeft:"auto",color:"#2563eb",fontSize:11}}>✓</span>}
+                            </label>
+                          );
+                        })}
+                        {pMembersList.filter(m=>m.name.toLowerCase().includes(pMemberSearch.toLowerCase())).length===0&&(
+                          <div style={{fontSize:12,color:"#94a3b8",padding:"4px 8px"}}>Aucun résultat</div>
+                        )}
+                      </div>
+                      {pTargetMembers.length>0&&(
+                        <div style={{fontSize:11,color:"#2563eb",marginTop:6}}>{pTargetMembers.length} membre{pTargetMembers.length>1?"s":""} sélectionné{pTargetMembers.length>1?"s":""}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
                 <input type="checkbox" checked={pAnon} onChange={e=>setPAnon(e.target.checked)} />
                 Rester anonyme
               </label>
               <div style={{display:"flex",gap:8,marginTop:4}}>
-                <button className="em-btn em-btn-primary" style={{flex:1,justifyContent:"center"}} disabled={pSubmitting||!pTitle.trim()} onClick={submitPrayer}>
+                <button className="em-btn em-btn-primary" style={{flex:1,justifyContent:"center"}} disabled={pSubmitting||!pTitle.trim()||(pVisibility==="members"&&pTargetMembers.length===0)} onClick={submitPrayer}>
                   {pSubmitting ? "Envoi…" : "🙏 Soumettre"}
                 </button>
                 <button className="em-btn em-btn-outline" onClick={()=>setShowNewPrayer(false)}>Annuler</button>
               </div>
+              {pVisibility==="members"&&pTargetMembers.length===0&&(
+                <div style={{fontSize:11,color:"#f59e0b",textAlign:"center",marginTop:-8}}>Sélectionne au moins un membre</div>
+              )}
             </div>
           </div>
         </div>
@@ -3066,7 +4162,20 @@ const [showSalle, setShowSalle]       = useState(false);
               <div style={{marginTop:16,padding:14,background:"#fff0f0",borderRadius:12}}>
                 <div style={{fontWeight:700,color:"#e53e3e",marginBottom:6}}>🔴 Démarrer le Live</div>
                 <div style={{fontSize:12,color:"#8890aa",marginBottom:10}}>Cette action démarre la diffusion Zoom + YouTube simultanément.</div>
-                <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={()=>{setToast("🔴 Stream démarré !");setShowGS(false);}}>
+                <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={async()=>{
+                  setToast("🔴 Stream démarré !");
+                  setShowGS(false);
+                  fetch("/api/notifications/push", {
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({
+                      action:"broadcast", type:"stream",
+                      title:"🔴 Live ARC en cours !",
+                      body:"Le streaming ARC est maintenant en direct — rejoins-nous !",
+                      link:"/espace-membres?p=streaming",
+                    }),
+                  }).then(r=>r.json()).then(d=>{ if(d.sent) setToast(`🔴 Stream démarré — ${d.sent} membres notifiés !`); }).catch(()=>{});
+                }}>
                   🔴 Démarrer le streaming
                 </button>
               </div>

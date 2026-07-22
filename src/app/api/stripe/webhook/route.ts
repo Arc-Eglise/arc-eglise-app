@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data.object as Stripe.PaymentIntent;
-    console.log(`[stripe/webhook] Don reçu : CHF ${pi.amount / 100} (${pi.id})`);
+    const amountCHF = (pi.amount / 100).toFixed(2);
+    console.log(`[stripe/webhook] Don reçu : CHF ${amountCHF} (${pi.id})`);
 
     const admin = createAdminClient();
     const { error } = await admin.from("donations").upsert({
@@ -41,6 +42,40 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[stripe/webhook] Échec enregistrement don:", error.message);
+    }
+
+    // Notif au donateur (si compte trouvé)
+    const donorEmail = pi.receipt_email ?? pi.metadata?.email;
+    if (donorEmail) {
+      const { data: donor } = await admin
+        .from("profiles").select("id").eq("email", donorEmail).maybeSingle();
+      if (donor?.id) {
+        await admin.from("notifications").insert({
+          user_id: donor.id, type: "don",
+          title:   `💝 Don reçu — merci !`,
+          body:    `CHF ${amountCHF} reçu. Que Dieu bénisse ton offrande généreuse.`,
+          link:    "/espace-membres",
+        });
+      }
+    }
+
+    // Notif aux admins/finance
+    const { data: adminUsers } = await admin
+      .from("profiles")
+      .select("id")
+      .or("role.in.(admin,pasteur),groups.cs.{finance}")
+      .eq("validated", true)
+      .limit(20);
+    if (adminUsers?.length) {
+      const donorName = pi.metadata?.name ?? donorEmail ?? "Donateur anonyme";
+      await admin.from("notifications").insert(
+        adminUsers.map((a: { id: string }) => ({
+          user_id: a.id, type: "don",
+          title:   `💝 Nouveau don : CHF ${amountCHF}`,
+          body:    donorName,
+          link:    "/admin",
+        }))
+      );
     }
   }
 

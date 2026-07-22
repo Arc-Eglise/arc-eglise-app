@@ -14,7 +14,9 @@ type Notif = {
 };
 
 const TYPE_ICON: Record<string, string> = {
-  message: "✉", prayer: "🙏", event: "📅", rsvp: "✓", system: "🔔",
+  message: "💬", prayer: "🙏", event: "📅", agenda: "📅",
+  rsvp: "✅", stream: "🔴", mail: "📧", system: "🔔",
+  sermon: "🎙", don: "💝", lecture: "📖",
 };
 
 export default function NotifBell({ userId }: { userId: string }) {

@@ -2,6 +2,9 @@
 
 export type BibleLevel = "enfant" | "debutant" | "intermediaire" | "avance" | "enseignant"
 
+const PLAIN_TEXT_RULE = `
+FORMAT OBLIGATOIRE : Texte brut uniquement. N'utilise JAMAIS de balises HTML (<b>, <i>, <br>, <p>, etc.) ni de Markdown (**, *, #, _, \`\`\`, etc.). Aucune mise en forme. Du texte simple, propre et lisible directement.`
+
 export const LEVEL_LABELS: Record<BibleLevel, string> = {
   enfant:        "Enfant (6-10 ans)",
   debutant:      "Débutant",
@@ -72,7 +75,8 @@ ${profile}${memory}${interests}
 LIMITES :
 - Sur les sujets théologiques très débattus (eschatologie, dons charismatiques), présente les différentes positions chrétiennes
 - Pour les crises pastorales graves (deuil profond, abus, crise de foi sévère), oriente vers le Pasteur Pedro Obova
-- N'invente jamais de versets bibliques — cite uniquement des passages réels`
+- N'invente jamais de versets bibliques — cite uniquement des passages réels
+${PLAIN_TEXT_RULE}`
 }
 
 export function buildSearchSystemPrompt(
@@ -130,7 +134,8 @@ PRINCIPES :
 - Méthode grammatico-historique
 - L'Écriture interprète l'Écriture
 - Citer les passages connexes avec leur référence complète
-- Aucune interprétation sans base textuelle`
+- Aucune interprétation sans base textuelle
+${PLAIN_TEXT_RULE}`
 }
 
 export function buildTheologySystemPrompt(level: BibleLevel, language: string, recentSummaries: string[] = []): string {
@@ -164,7 +169,8 @@ FORMAT :
 1. Affirmation principale + référence biblique
 2. Développement sourcé
 3. Perspectives différentes si sujet débattu
-4. Application pratique`
+4. Application pratique
+${PLAIN_TEXT_RULE}`
 }
 
 export function buildMeditationSystemPrompt(
@@ -205,7 +211,8 @@ RÈGLES :
 - Laisser du silence (indiquer "[Pause]" aux moments clés)
 - Ne jamais décider ce que Dieu "dit" à l'utilisateur
 - Inviter, ne pas imposer
-- Terminer par une courte prière de remerciement`
+- Terminer par une courte prière de remerciement
+${PLAIN_TEXT_RULE}`
 }
 
 export function buildSermonSystemPrompt(language: string, audience: string, duration: number): string {

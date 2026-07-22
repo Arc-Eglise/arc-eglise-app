@@ -177,7 +177,7 @@ export async function getCachedResponse(key: string): Promise<string | null> {
     if (data?.response) {
       // Incrémenter hit_count (non bloquant)
       admin.from("ai_response_cache").update({ hit_count: (data.hit_count ?? 0) + 1 }).eq("cache_key", key).then(() => {})
-      return data.response as string
+      return stripAIFormatting(data.response as string)
     }
     return null
   } catch {
@@ -266,6 +266,35 @@ export function extractVerseRefs(text: string): string[] {
   return Array.from(new Set(matches)).slice(0, 20)
 }
 
+// ── Nettoyage des réponses IA ───────────────────────────────────────
+
+export function stripAIFormatting(text: string): string {
+  return text
+    // Balises HTML
+    .replace(/<[^>]+>/g, "")
+    // Markdown gras/italique (**bold**, *italic*, __bold__, _italic_)
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1")
+    .replace(/__([\s\S]+?)__/g, "$1")
+    .replace(/\*([\s\S]+?)\*/g, "$1")
+    .replace(/_([\s\S]+?)_/g, "$1")
+    // Titres Markdown (# ## ###)
+    .replace(/^#{1,6}\s+/gm, "")
+    // Listes à puces (* - •)
+    .replace(/^[*\-•]\s+/gm, "")
+    // Liens Markdown [texte](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Code inline `code`
+    .replace(/`([^`]+)`/g, "$1")
+    // Blocs de code ```...```
+    .replace(/```[\s\S]*?```/g, "")
+    // Entités HTML courantes
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    // Lignes multiples consécutives → max 2 sauts de ligne
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 // ── ARC AI helpers ──────────────────────────────────────────────────
 
 // Non-stream : retourne le texte de réponse de l'ARC engine
@@ -280,7 +309,12 @@ export async function arcAIRequest(
     system,
     provider: "auto",
   })
-  return result.content
+  return stripAIFormatting(result.content)
+}
+
+// Strip léger par chunk (HTML uniquement — suffisant pour les tags courts comme <b></b>)
+function stripChunk(text: string): string {
+  return text.replace(/<[^>]{0,40}>/g, "")
 }
 
 // Stream : retourne une Response SSE avec fallback multi-provider
@@ -307,7 +341,8 @@ export async function streamArcAI(
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const text = dec.decode(value, { stream: true })
+        const raw  = dec.decode(value, { stream: true })
+        const text = stripChunk(raw)
         if (onChunk && text) onChunk(text)
         await writer.write(enc.encode(`data: ${JSON.stringify({ type: "chunk", content: text })}\n\n`))
       }

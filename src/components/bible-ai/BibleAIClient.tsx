@@ -7,6 +7,17 @@ import DictionaryPanel from "@/components/bible-ai/DictionaryPanel"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
 import type { AIUserPreferences } from "@/lib/bible-ai"
 
+// Nettoyage des balises HTML et Markdown côté client
+function stripAI(text: string): string {
+  return text
+    .replace(/<[^>]{0,40}>/g, "")
+    .replace(/\*\*([\s\S]+?)\*\*/g, "$1")
+    .replace(/__([\s\S]+?)__/g, "$1")
+    .replace(/\*([\s\S]+?)\*/g, "$1")
+    .replace(/_([\s\S]+?)_/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+}
+
 /* ─── Types ─────────────────────────────────────────────────── */
 type Tab = "chat" | "search" | "plans" | "journal" | "events" | "media" | "groups" | "sermons" | "dictionary"
 
@@ -181,10 +192,10 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
             const ev = JSON.parse(line.slice(6))
             if (ev.type === "chunk" && ev.content) {
               full += ev.content
-              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full } : m))
+              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: stripAI(full) } : m))
             }
             if (ev.type === "end" || ev.type === "done") {
-              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: full || "…", streaming: false } : m))
+              setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: stripAI(full) || "…", streaming: false } : m))
             }
             if (ev.type === "error") {
               setMessages(prev => prev.map(m => m.id === aiId ? { ...m, content: "Le service IA est temporairement indisponible. Veuillez réessayer dans quelques minutes.", streaming: false } : m))
@@ -223,7 +234,27 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     } finally { setSearchLoading(false) }
   }
 
-  /* ══ PLANS ═════════════════════════════════════════════════ */
+  /* ══ PLANS COMMUNAUTAIRES ═══════════════════════════════════ */
+  interface CommunityPlan { id:string; titre:string; description:string|null; total_days:number }
+  interface CommunityDayContent { title:string; passages:string[]; reflection:string|null; prayer_guide:string|null; verse_texts:{reference:string;text:string}[] }
+  const [communityPlans, setCommunityPlans]           = useState<CommunityPlan[]>([])
+  const [communityProg, setCommunityProg]             = useState<Record<string,number>>({})
+  const [communityLoading, setCommunityLoading]       = useState(false)
+  const [communityExpanded, setCommunityExpanded]     = useState<string|null>(null)
+  const [communityDayContent, setCommunityDayContent] = useState<Record<string,CommunityDayContent>>({})
+  const [communityDayLoading, setCommunityDayLoading] = useState<Record<string,boolean>>({})
+
+  /* ══ PRIÈRES COMMUNAUTAIRES ══════════════════════════════════ */
+  interface PrayerReq { id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles:{first_name:string|null;last_name:string|null}|null }
+  const [prayers, setPrayers]           = useState<PrayerReq[]>([])
+  const [prayersLoading, setPrayersLoading] = useState(false)
+  const [prayerTitle, setPrayerTitle]   = useState("")
+  const [prayerDesc, setPrayerDesc]     = useState("")
+  const [prayerAnon, setPrayerAnon]     = useState(false)
+  const [prayerSubmitting, setPrayerSubmitting] = useState(false)
+  const [showPrayerForm, setShowPrayerForm] = useState(false)
+
+  /* ══ PLANS IA PERSONNELS ════════════════════════════════════ */
   const [plans, setPlans]               = useState<ReadingPlan[]>([])
   const [plansLoading, setPlansLoading] = useState(false)
   const [activePlan, setActivePlan]     = useState<ReadingPlan | null>(null)
@@ -237,6 +268,69 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
   const [expandedDay, setExpandedDay]   = useState<string | null>(null)
   const [dayVerseTexts, setDayVerseTexts] = useState<Record<string, { reference: string; text: string }[]>>({})
   const [verseLoadingKey, setVerseLoadingKey] = useState<string | null>(null)
+
+  const loadCommunityPlans = useCallback(async () => {
+    setCommunityLoading(true)
+    try {
+      const [{ data: plansData }, { data: progressData }] = await Promise.all([
+        supabase.from("reading_plans").select("id,titre,description,total_days").eq("is_active",true).order("total_days",{ascending:true}),
+        supabase.from("reading_plan_progress").select("plan_id,current_day").eq("user_id",userId),
+      ])
+      setCommunityPlans(plansData ?? [])
+      const prog: Record<string,number> = {}
+      for (const r of progressData ?? []) prog[r.plan_id] = r.current_day
+      setCommunityProg(prog)
+    } finally { setCommunityLoading(false) }
+  }, [supabase, userId])
+
+  const loadCommunityDayContent = async (planId: string, dayNumber: number) => {
+    if (communityDayLoading[planId]) return
+    setCommunityDayLoading(l => ({...l,[planId]:true}))
+    try {
+      const res = await fetch("/api/reading-plans", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"get_day_content", plan_id:planId, day_number:dayNumber }) })
+      const data = await res.json()
+      if (data.day) setCommunityDayContent(c => ({...c,[planId]:data.day}))
+    } finally { setCommunityDayLoading(l => ({...l,[planId]:false})) }
+  }
+
+  const enrollCommunityPlan = async (planId: string, totalDays: number) => {
+    await supabase.from("reading_plan_progress").upsert({ plan_id:planId, user_id:userId, current_day:1 },{ onConflict:"plan_id,user_id" })
+    setCommunityProg(p => ({...p,[planId]:1}))
+    fetch("/api/reading-plans", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"generate_all_days", plan_id:planId }) }).catch(()=>{})
+    void totalDays
+  }
+
+  const advanceCommunityPlan = async (planId: string, totalDays: number) => {
+    const next = Math.min((communityProg[planId] ?? 0) + 1, totalDays)
+    await supabase.from("reading_plan_progress").update({ current_day:next, updated_at: new Date().toISOString() }).eq("plan_id",planId).eq("user_id",userId)
+    setCommunityProg(p => ({...p,[planId]:next}))
+    setCommunityDayContent(c => { const n={...c}; delete n[planId]; return n })
+    setCommunityExpanded(null)
+  }
+
+  const loadPrayers = useCallback(async () => {
+    setPrayersLoading(true)
+    try {
+      const { data } = await supabase.from("prayer_requests").select("id,title,description,is_anonymous,is_answered,prayer_count,created_at,profiles(first_name,last_name)").eq("is_active",true).order("created_at",{ascending:false}).limit(20)
+      setPrayers((data ?? []) as unknown as PrayerReq[])
+    } finally { setPrayersLoading(false) }
+  }, [supabase])
+
+  const submitPrayer = async () => {
+    if (!prayerTitle.trim() || prayerSubmitting) return
+    setPrayerSubmitting(true)
+    try {
+      await supabase.from("prayer_requests").insert({ user_id:userId, title:prayerTitle.trim(), description:prayerDesc.trim()||null, is_anonymous:prayerAnon, prayer_count:0 })
+      setPrayerTitle(""); setPrayerDesc(""); setPrayerAnon(false); setShowPrayerForm(false)
+      await loadPrayers()
+    } finally { setPrayerSubmitting(false) }
+  }
+
+  const prayForRequest = async (id: string) => {
+    const current = prayers.find(p => p.id === id)?.prayer_count ?? 0
+    await supabase.from("prayer_requests").update({ prayer_count: current + 1 }).eq("id", id)
+    setPrayers(prev => prev.map(p => p.id===id ? {...p, prayer_count:p.prayer_count+1} : p))
+  }
 
   const loadTodayReading = useCallback(async () => {
     setTodayLoading(true)
@@ -260,6 +354,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     if (tab === "plans") {
       loadPlans()
       loadTodayReading()
+      loadCommunityPlans()
     }
   }, [tab, loadPlans, loadTodayReading])
 
@@ -372,8 +467,9 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
       const res = await fetch("/api/bible-ai/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reflect", journal_id: id }) })
       const data = await res.json()
       if (data.reflection) {
-        setJournalEntries(prev => prev.map(e => e.id === id ? { ...e, ai_reflection: data.reflection } : e))
-        if (selectedEntry?.id === id) setSelectedEntry(prev => prev ? { ...prev, ai_reflection: data.reflection } : prev)
+        const cleaned = stripAI(data.reflection)
+        setJournalEntries(prev => prev.map(e => e.id === id ? { ...e, ai_reflection: cleaned } : e))
+        if (selectedEntry?.id === id) setSelectedEntry(prev => prev ? { ...prev, ai_reflection: cleaned } : prev)
       }
     } finally { setReflLoading(false) }
   }
@@ -440,7 +536,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     } finally { setGroupsLoading(false) }
   }, [])
 
-  useEffect(() => { if (tab === "groups") loadGroups() }, [tab, loadGroups])
+  useEffect(() => { if (tab === "groups") { loadGroups(); if (prayers.length === 0) loadPrayers() } }, [tab, loadGroups, loadPrayers, prayers.length])
 
   const loadGroupMessages = async (groupId: string) => {
     setGroupMsgsLoading(true)
@@ -589,7 +685,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     try {
       const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "get_summary", sermon_id: sermon.id }) })
       const data = await res.json()
-      if (data.summary) setSermonSummary(data)
+      if (data.summary) setSermonSummary({ ...data, summary: stripAI(data.summary) })
     } finally { setSummaryLoading(false) }
   }
 
@@ -600,7 +696,7 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
       const res = await fetch("/api/bible-ai/sermons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "summarize", sermon_id: activeSermon.id, title: activeSermon.title, pastor: activeSermon.pastor, language }) })
       const data = await res.json()
       if (data.summary) {
-        setSermonSummary(data)
+        setSermonSummary({ ...data, summary: stripAI(data.summary) })
         setDbSermons(prev => prev.map(s => s.id === activeSermon.id ? { ...s, has_summary: true } : s))
       }
     } finally { setSummaryLoading(false) }
@@ -934,6 +1030,85 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
               </div>
             </div>
           ))}
+
+          {/* ── Plans communautaires de l'église ─────────────── */}
+          {communityLoading && <div className="text-center py-4 text-arc-text2 text-sm">Chargement des plans communautaires…</div>}
+          {!communityLoading && communityPlans.length > 0 && !activePlan && (
+            <div className="mb-6">
+              <p className="text-xs font-bold text-arc-text2 uppercase tracking-widest mb-3">⛪ Plans communautaires</p>
+              <div className="space-y-3">
+                {communityPlans.map(plan => {
+                  const currentDay = communityProg[plan.id]
+                  const enrolled   = currentDay !== undefined
+                  const pct        = enrolled ? Math.round((currentDay / plan.total_days) * 100) : 0
+                  const done       = enrolled && currentDay >= plan.total_days
+                  const expanded   = communityExpanded === plan.id
+                  const dayContent = communityDayContent[plan.id]
+                  const dayLoading = communityDayLoading[plan.id]
+                  return (
+                    <div key={plan.id} className="bg-white border border-arc-border rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-arc-navy text-sm">{plan.titre}</p>
+                          {plan.description && <p className="text-xs text-arc-text2 mt-0.5">{plan.description}</p>}
+                          <p className="text-xs text-arc-text3 mt-1">{plan.total_days} jour{plan.total_days>1?"s":""}</p>
+                        </div>
+                        {done && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold ml-2 shrink-0">Terminé ✓</span>}
+                        {enrolled && !done && <span className="text-[10px] bg-arc-blueBg text-arc-blue px-2 py-0.5 rounded-full font-semibold ml-2 shrink-0">Jour {currentDay}</span>}
+                      </div>
+
+                      {enrolled && (
+                        <div className="w-full bg-arc-border rounded-full h-1.5 mb-3">
+                          <div className="bg-arc-navy h-1.5 rounded-full transition-all" style={{width:`${pct}%`}} />
+                        </div>
+                      )}
+
+                      {!enrolled && (
+                        <button onClick={()=>enrollCommunityPlan(plan.id, plan.total_days)}
+                          className="w-full py-2 rounded-lg bg-arc-navy text-white text-xs font-semibold hover:bg-arc-blue transition mt-1">
+                          + S&apos;inscrire
+                        </button>
+                      )}
+
+                      {enrolled && !done && (
+                        <div className="space-y-2 mt-1">
+                          <button onClick={()=>{ if(expanded){setCommunityExpanded(null);return} setCommunityExpanded(plan.id); if(!dayContent) loadCommunityDayContent(plan.id,currentDay) }}
+                            className="w-full py-2 rounded-lg border border-arc-border text-xs font-semibold text-arc-navy hover:bg-arc-blueBg transition">
+                            {expanded ? "▲ Masquer" : "📖 Lire le passage du jour"}
+                          </button>
+
+                          {expanded && (
+                            <div className="bg-arc-blueBg rounded-xl p-3">
+                              {dayLoading && <p className="text-xs text-arc-text2 text-center py-3">Chargement…</p>}
+                              {!dayLoading && dayContent && (
+                                <>
+                                  <p className="text-xs font-bold text-arc-navy mb-2">Jour {currentDay} — {dayContent.title}</p>
+                                  {dayContent.verse_texts.map((vt,i)=>(
+                                    <div key={i} className="bg-white rounded-xl p-3 mb-2 border-l-4 border-arc-navy">
+                                      <p className="text-[10px] font-bold uppercase tracking-wider text-arc-navy mb-1">{vt.reference}</p>
+                                      <p className="text-xs text-slate-700 italic leading-relaxed">&ldquo;{vt.text}&rdquo;</p>
+                                    </div>
+                                  ))}
+                                  {dayContent.reflection && <p className="text-xs text-arc-text2 italic mt-2">{dayContent.reflection}</p>}
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          <button onClick={()=>advanceCommunityPlan(plan.id, plan.total_days)}
+                            className="w-full py-2 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition">
+                            ✓ Jour {currentDay} complété → Jour {currentDay+1}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="my-4 border-t border-arc-border" />
+              <p className="text-xs font-bold text-arc-text2 uppercase tracking-widest mb-3">✨ Mes plans personnels</p>
+            </div>
+          )}
 
           {plansLoading && <div className="text-center py-8 text-arc-text2 text-sm">Chargement…</div>}
 
@@ -1398,6 +1573,58 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
               </div>
             ))}
           </div>
+
+          {/* ── Mur de prière communautaire ──────────────────── */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-arc-text2 uppercase tracking-widest">🙏 Mur de prière</p>
+              <button onClick={()=>setShowPrayerForm(v=>!v)} className="text-xs px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition font-semibold">
+                {showPrayerForm ? "✕ Annuler" : "+ Demande"}
+              </button>
+            </div>
+
+            {showPrayerForm && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 space-y-2">
+                <input value={prayerTitle} onChange={e=>setPrayerTitle(e.target.value)}
+                  placeholder="Titre de la demande *" className="w-full px-3 py-2 rounded-lg border border-amber-200 text-sm outline-none" />
+                <textarea value={prayerDesc} onChange={e=>setPrayerDesc(e.target.value)}
+                  placeholder="Détails (optionnel)" rows={2} className="w-full px-3 py-2 rounded-lg border border-amber-200 text-sm resize-none outline-none" />
+                <label className="flex items-center gap-2 text-xs text-amber-800">
+                  <input type="checkbox" checked={prayerAnon} onChange={e=>setPrayerAnon(e.target.checked)} />
+                  Soumettre anonymement
+                </label>
+                <button onClick={submitPrayer} disabled={!prayerTitle.trim()||prayerSubmitting}
+                  className="w-full py-2 rounded-lg bg-amber-600 text-white text-xs font-bold disabled:opacity-40 hover:bg-amber-700 transition">
+                  {prayerSubmitting ? "Envoi…" : "🙏 Soumettre la demande"}
+                </button>
+              </div>
+            )}
+
+            {prayersLoading && <p className="text-xs text-arc-text2 text-center py-4">Chargement…</p>}
+            <div className="space-y-2">
+              {prayers.slice(0,8).map(p => (
+                <div key={p.id} className={`rounded-xl p-3 border ${p.is_answered ? "bg-green-50 border-green-200" : "bg-white border-arc-border"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {p.is_answered && <span className="text-[10px] font-bold text-green-700 mr-1">✓ Exaucée</span>}
+                      <p className="text-xs font-semibold text-arc-navy inline">{p.title}</p>
+                      {!p.is_anonymous && p.profiles && (
+                        <p className="text-[10px] text-arc-text3 mt-0.5">{p.profiles.first_name} {p.profiles.last_name}</p>
+                      )}
+                      {p.description && <p className="text-[10px] text-arc-text2 mt-1 line-clamp-2">{p.description}</p>}
+                    </div>
+                    <button onClick={()=>prayForRequest(p.id)} className="shrink-0 text-[10px] px-2 py-1 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition font-semibold border border-amber-200">
+                      🙏 {p.prayer_count}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!prayersLoading && prayers.length === 0 && (
+                <p className="text-xs text-arc-text2 text-center py-4">Aucune demande de prière pour le moment</p>
+              )}
+            </div>
+          </div>
+
         </div>
       )}
 
