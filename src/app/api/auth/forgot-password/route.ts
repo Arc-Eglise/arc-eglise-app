@@ -21,33 +21,20 @@ export async function POST(request: NextRequest) {
   try {
     const admin = createAdminClient();
 
-    // Génère le lien de recovery via le SDK admin (lien à usage unique, expiration Supabase)
-    // Note: redirectTo est utilisé pour les flux OAuth, pas pour recovery.
-    // On le met quand même pour d'autres flux, mais pour recovery on ajoute 'next' au fragment.
+    // Génère le lien de recovery via le SDK admin (lien à usage unique, expiration Supabase).
+    // redirectTo encode la destination finale dans l'URL Supabase : après vérification du token,
+    // Supabase redirige vers cette URL en ajoutant #access_token=... en fragment.
+    // Le callback lit ?next= depuis la query string pour savoir où rediriger l'utilisateur.
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
       email,
       options: {
-        redirectTo: `${SITE_URL}/auth/callback`,
+        redirectTo: `${SITE_URL}/auth/callback?next=/nouveau-mot-de-passe`,
       },
     });
 
     // Si l'utilisateur n'existe pas ou toute autre erreur → réponse neutre identique
     if (error || !data?.properties?.action_link) return OK;
-
-    // ── CORRECTION CLÉE: Ajouter 'next' au fragment du lien ──────────
-    // Supabase génère: https://arc-eglise.ch/auth/callback#access_token=...&type=recovery&...
-    // On le transforme en: https://arc-eglise.ch/auth/callback#access_token=...&type=recovery&...&next=/nouveau-mot-de-passe
-    let actionLink = data.properties.action_link;
-    
-    // Vérifier que le lien contient un fragment
-    if (actionLink.includes("#")) {
-      // Ajouter 'next' à la fin du fragment (avant &expires_in ou autre)
-      actionLink = actionLink + "&next=/nouveau-mot-de-passe";
-    } else {
-      // Au cas où (ne devrait pas arriver)
-      actionLink = actionLink + "#next=/nouveau-mot-de-passe";
-    }
 
     // Récupérer le prénom depuis user_metadata (renseigné à l'inscription)
     const firstName =
@@ -65,8 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Envoyer via Resend avec le template brandé ARC
-    // Le lien contient maintenant: #access_token=...&type=recovery&...&next=/nouveau-mot-de-passe
-    await sendPasswordResetEmail(email, displayName, actionLink);
+    await sendPasswordResetEmail(email, displayName, data.properties.action_link);
   } catch {
     // Absorber toutes les erreurs — réponse toujours neutre
   }
