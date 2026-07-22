@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { useChurchInfo } from "@/hooks/useChurchInfo";
 
 const STEPS = ["Identité", "Compte", "Confirmation"];
 
 export default function InscriptionPage() {
   const supabase = createClient();
+  const { data: churchInfo } = useChurchInfo();
 
   const [step,    setStep]    = useState(0);
   const [success, setSuccess] = useState(false);
@@ -117,7 +119,9 @@ export default function InscriptionPage() {
 
       <div className="relative z-10">
         <h2 className="font-serif text-[28px] font-bold text-white mb-2">Rejoins la famille ARC</h2>
-        <p className="text-sm text-white/60 mb-8">Une communauté de 250 membres issus de 32 nations.</p>
+        <p className="text-sm text-white/60 mb-8">
+          Une communauté de {churchInfo?.total_members ?? 250} membres issus de {churchInfo?.total_nations ?? 32} nations.
+        </p>
         <div className="flex flex-col gap-4">
           {[
             { icon: "✍️", title: "Tu remplis le formulaire", desc: "Prénom, nom, email, mot de passe." },

@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { createEvent, updateEvent, deleteEvent } from "@/lib/actions/cms";
+import { useChurchInfo } from "@/hooks/useChurchInfo";
 
 interface EventRow {
   id: string;
@@ -33,7 +34,7 @@ const REC_LABELS: Record<string, string> = {
   indefinite: "Indéfiniment",
 };
 
-const DEFAULT_LOCATION = "Av. Charles-Naine 39, La Chaux-de-Fonds";
+const DEFAULT_LOCATION = "Av. Charles-Naine 39, La Chaux-de-Fonds"; // fallback statique
 
 interface FormState {
   title: string;
@@ -53,12 +54,12 @@ interface FormState {
   recurrence_end_date: string;
 }
 
-const emptyForm = (): FormState => ({
+const emptyForm = (defaultLoc = DEFAULT_LOCATION): FormState => ({
   title: "",
   date: "",
   time_start: "09:30",
   time_end: "",
-  location: DEFAULT_LOCATION,
+  location: defaultLoc,
   description: "",
   tags: "",
   capacity: "",
@@ -94,13 +95,13 @@ function formStateToFormData(f: FormState): FormData {
   return fd;
 }
 
-function eventToFormState(ev: EventRow): FormState {
+function eventToFormState(ev: EventRow, defaultLoc = DEFAULT_LOCATION): FormState {
   return {
     title: ev.title,
     date: ev.date,
     time_start: ev.time_start ?? "09:30",
     time_end: ev.time_end ?? "",
-    location: ev.location ?? DEFAULT_LOCATION,
+    location: ev.location ?? defaultLoc,
     description: ev.description ?? "",
     tags: (ev.tags ?? []).join(", "),
     capacity: ev.capacity != null ? String(ev.capacity) : "",
@@ -120,6 +121,9 @@ interface Props {
 
 export function EventsManagerClient({ canManage }: Props) {
   const router = useRouter();
+  const { data: churchInfo } = useChurchInfo();
+  const churchAddress = churchInfo ? `${churchInfo.address}, ${churchInfo.city}` : DEFAULT_LOCATION;
+
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -153,7 +157,7 @@ export function EventsManagerClient({ canManage }: Props) {
 
   function openAdd() {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(churchAddress));
     setImageFile(null);
     setImagePreview(null);
     setError(null);
@@ -163,7 +167,7 @@ export function EventsManagerClient({ canManage }: Props) {
 
   function openEdit(ev: EventRow) {
     setEditingId(ev.id);
-    setForm(eventToFormState(ev));
+    setForm(eventToFormState(ev, churchAddress));
     setImageFile(null);
     setImagePreview(ev.image_url ?? null);
     setError(null);
