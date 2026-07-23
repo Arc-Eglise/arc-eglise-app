@@ -1995,13 +1995,12 @@ const [showSalle, setShowSalle]       = useState(false);
                 {(profile?.groups ?? []).length > 0
                   ? (profile?.groups ?? []).map(g => {
                     const gd = getGroup(g);
-                    const Icon = gd.Icon;
                     return (
                     <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
                       <span style={{width:26,height:26,borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center",background:gd.hexBg,border:`1px solid ${gd.hex}30`,flexShrink:0}}>
-                        <Icon size={13} strokeWidth={2} color={gd.hex} />
+                        <Icon name={gd.icon} variant="line" size={16} alt={gd.name} />
                       </span>
-                      <span style={{fontSize:12,fontWeight:600,color:gd.hex}}>{g}</span>
+                      <span style={{fontSize:12,fontWeight:600,color:gd.hex}}>{gd.name}</span>
                     </div>
                     );
                   })
@@ -3737,13 +3736,12 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div className="em-g3">
                       {GROUPES.map(g => {
                         const gDef      = getGroup(g.slug);
-                        const Icon      = gDef.Icon;
                         const count     = members.filter(m => (m.groups ?? []).includes(g.slug)).length;
                         const mgrCount  = members.filter(m => (m.managed_groups ?? []).includes(g.slug)).length;
                         return (
                           <div key={g.slug} className="em-card-sm" style={{display:"flex",flexDirection:"column"}}>
                             <div style={{width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,background:g.hexBg,border:`1px solid ${g.hex}30`,flexShrink:0}}>
-                              <Icon size={20} strokeWidth={2} color={g.hex} />
+                              <Icon name={gDef.icon} variant="line" size={24} alt={g.name} />
                             </div>
                             <div style={{fontWeight:700,fontSize:13,color:"#1e2464",flex:1}}>{g.name}</div>
                             <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>
@@ -5327,7 +5325,6 @@ const [showSalle, setShowSalle]       = useState(false);
       {selectedGroupSlug && canAdmin && (() => {
         const gInfo     = GROUPES.find(x => x.slug === selectedGroupSlug);
         const gDef      = getGroup(gInfo?.slug ?? selectedGroupSlug);
-        const GIcon     = gDef.Icon;
         const groupMembers  = members.filter(m => (m.groups        ?? []).includes(selectedGroupSlug));
         const groupManagers = members.filter(m => (m.managed_groups ?? []).includes(selectedGroupSlug));
         const groupManagerIds = new Set(groupManagers.map(m => m.id));
@@ -5345,7 +5342,7 @@ const [showSalle, setShowSalle]       = useState(false);
               <div className="em-modal-hdr">
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:gInfo?.hexBg ?? "#f7f8fc",border:`1px solid ${gInfo?.hex ?? "#ccc"}30`,flexShrink:0}}>
-                    <GIcon size={18} strokeWidth={2} color={gInfo?.hex ?? "#8890aa"} />
+                    <Icon name={gDef.icon} variant="line" size={22} alt={gDef.name} />
                   </div>
                   <span className="em-modal-title">{label} — {groupMembers.length} membre{groupMembers.length !== 1 ? "s" : ""}</span>
                 </div>

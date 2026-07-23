@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import AdminCheckInPanel from "./AdminCheckInPanel";
 import { getGroup, GROUPS } from "@/lib/groups";
+import Icon from "@/components/ui/Icon";
 
 export default async function PresenceEventPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -198,14 +199,13 @@ function GroupSection({ groupName, members, type }: {
   type: "present" | "absent";
 }) {
   const g    = getGroup(groupName);
-  const Icon = g.Icon;
   return (
     <div className="bg-white border border-arc-border rounded-xl overflow-hidden">
       <div className={`px-3 py-2.5 flex items-center gap-2.5 border-b border-arc-border ${type === "present" ? "bg-green-50/50" : "bg-red-50/50"}`}>
         <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${g.bg} ${g.border} border`}>
-          <Icon size={14} strokeWidth={2} className={g.color} />
+          <Icon name={g.icon} variant="line" size={17} alt={g.name} />
         </span>
-        <span className="text-xs font-bold text-arc-navy">{groupName}</span>
+        <span className="text-xs font-bold text-arc-navy">{g.name}</span>
         <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${type === "present" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-500"}`}>
           {members.length}
         </span>

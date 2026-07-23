@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import GroupBadge from "@/components/GroupBadge";
 
 const ROLE_STYLE: Record<string, string> = {
   admin:    "text-red-700 bg-red-50 border-red-200",
@@ -303,6 +304,13 @@ function MemberRow({ member: m, noteCount, pending }: {
           {m.country && <span className="text-[11px] text-arc-text3">📍 {m.country}</span>}
           <span className="text-[11px] text-arc-text3">Inscrit le {new Date(m.created_at).toLocaleDateString("fr-CH")}</span>
         </div>
+        {(m.groups ?? []).length > 0 && (
+          <div className="flex gap-1 mt-1.5 flex-wrap">
+            {(m.groups ?? []).map((g) => (
+              <GroupBadge key={g} name={g} size="sm" showLabel={false} />
+            ))}
+          </div>
+        )}
         {tags.length > 0 && (
           <div className="flex gap-1 mt-1.5 flex-wrap">
             {tags.map((t, i) => (

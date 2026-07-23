@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { GROUPS, getGroup } from "@/lib/groups";
+import Icon from "@/components/ui/Icon";
 
 export default async function PresencesStatsPage() {
   const supabase = createClient();
@@ -141,15 +142,14 @@ export default async function PresencesStatsPage() {
           <div className="space-y-2">
             {groupStats.map(gs => {
             const g = getGroup(gs.group);
-            const Icon = g.Icon;
             return (
               <div key={gs.group} className="flex items-center gap-3">
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border ${g.bg} ${g.border}`}>
-                  <Icon size={14} strokeWidth={2} className={g.color} />
+                  <Icon name={g.icon} variant="line" size={17} alt={g.name} />
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-xs font-semibold text-arc-navy truncate">{gs.group}</span>
+                    <span className="text-xs font-semibold text-arc-navy truncate">{g.name}</span>
                     <span className={`text-xs font-bold ${gs.avgRate >= 60 ? "text-green-600" : gs.avgRate >= 35 ? "text-amber-600" : "text-red-500"}`}>
                       {gs.avgRate}%
                     </span>

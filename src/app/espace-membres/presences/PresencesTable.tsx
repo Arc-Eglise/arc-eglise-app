@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkInEvent, cancelCheckIn } from "@/lib/actions/membres";
 import { getGroup, GROUPS } from "@/lib/groups";
+import Icon from "@/components/ui/Icon";
 
 interface EventCol {
   id: string;
@@ -242,7 +243,6 @@ export default function PresencesTable({
                   <>
                     {activeGroups.map((groupName, gi) => {
                       const gDef = getGroup(groupName);
-                      const Icon = gDef.Icon;
                       const groupMembers = members.filter(m => m.groups.includes(groupName));
                       const overallRate = events.length > 0
                         ? Math.round(events.reduce((s, e) => s + (getRate(e.id, groupMembers)?.pct ?? 0), 0) / events.length) : 0;
@@ -253,9 +253,9 @@ export default function PresencesTable({
                           <td className="px-4 py-2.5 border-b border-arc-border/50">
                             <div className="flex items-center gap-2">
                               <span className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border ${gDef.bg} ${gDef.border}`}>
-                                <Icon size={12} strokeWidth={2} className={gDef.color} />
+                                <Icon name={gDef.icon} variant="line" size={15} alt={gDef.name} />
                               </span>
-                              <span className="text-xs font-bold text-arc-navy">{groupName}</span>
+                              <span className="text-xs font-bold text-arc-navy">{gDef.name}</span>
                               <span className="text-[10px] text-arc-text3 ml-1">({groupMembers.length})</span>
                             </div>
                           </td>
