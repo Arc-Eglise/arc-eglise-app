@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import PushToggle from "@/components/membres/PushToggle";
 
 type Notif = {
   id: string;
@@ -99,9 +100,12 @@ export default function NotifBell({ userId }: { userId: string }) {
             display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1d3a" }}>Notifications</span>
-            <span style={{ fontSize: 11, color: "#8890aa" }}>
-              {unread === 0 ? "Tout lu" : `${unread} non lu${unread > 1 ? "s" : ""}`}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <PushToggle />
+              <span style={{ fontSize: 11, color: "#8890aa" }}>
+                {unread === 0 ? "Tout lu" : `${unread} non lu${unread > 1 ? "s" : ""}`}
+              </span>
+            </div>
           </div>
 
           <div style={{ maxHeight: 360, overflowY: "auto" }}>
