@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { notifyMany } from "@/lib/notify";
 
 export async function getOrCreateConversation(otherUserId: string) {
   const supabase = createClient();
@@ -76,6 +77,26 @@ export async function sendMessage(conversationId: string, content: string) {
 
   const admin = createAdminClient();
   await admin.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+
+  // Notifier les autres participants (push + in-app)
+  try {
+    const [{ data: others }, { data: me }] = await Promise.all([
+      admin.from("conversation_participants")
+        .select("user_id").eq("conversation_id", conversationId).neq("user_id", user.id),
+      admin.from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle(),
+    ]);
+    const senderName =
+      [me?.first_name, me?.last_name].filter(Boolean).join(" ").trim() || "Un membre";
+    const ids = (others ?? []).map((o: { user_id: string }) => o.user_id);
+    if (ids.length) {
+      await notifyMany(ids, {
+        type: "message",
+        title: `💬 ${senderName}`,
+        body: trimmed.slice(0, 90),
+        link: `/espace-membres/messagerie/${conversationId}`,
+      });
+    }
+  } catch { /* best-effort */ }
 
   revalidatePath(`/espace-membres/messagerie/${conversationId}`);
   return { success: true };

@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { notifyUser, notifyMany } from "@/lib/notify";
+import { notifyUser, notifyMany, broadcastNotify } from "@/lib/notify";
 import {
   sendWelcomeMemberEmail,
   sendProfileUpdateEmail,
@@ -50,6 +50,63 @@ export async function updateProfile(formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Notifie l'audience d'une nouvelle demande de prière selon sa visibilité
+ * (all | pasteur | groups | members). Remplace le trigger v1 trig_new_prayer_notif.
+ */
+async function notifyPrayerAudience(row: {
+  userId: string;
+  title: string;
+  isAnonymous: boolean;
+  visibility: string | null;
+  targetGroups: string[];
+  targetMembers: string[];
+}) {
+  const admin = createAdminClient();
+
+  let author = "Un membre";
+  if (!row.isAnonymous) {
+    const { data: p } = await admin
+      .from("profiles").select("first_name, last_name").eq("id", row.userId).maybeSingle();
+    const name = [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim();
+    if (name) author = name;
+  }
+
+  const vis = row.visibility ?? "all";
+  let recipientIds: string[] = [];
+  let title = `🙏 Prière de ${author}`;
+
+  if (vis === "all") {
+    const { data } = await admin.from("profiles")
+      .select("id").eq("validated", true).neq("id", row.userId).limit(500);
+    recipientIds = (data ?? []).map((r: { id: string }) => r.id);
+  } else if (vis === "pasteur") {
+    const { data } = await admin.from("profiles")
+      .select("id").in("role", ["pasteur", "admin"]).neq("id", row.userId);
+    recipientIds = (data ?? []).map((r: { id: string }) => r.id);
+    title = `🙏 Prière (pasteurs) — ${author}`;
+  } else if (vis === "groups" && row.targetGroups.length) {
+    const { data } = await admin.from("profiles")
+      .select("id, groups").eq("validated", true).neq("id", row.userId);
+    recipientIds = (data ?? [])
+      .filter((r: { groups: string[] | null }) => (r.groups ?? []).some((g) => row.targetGroups.includes(g)))
+      .map((r: { id: string }) => r.id);
+    title = `🙏 Prière dans ton groupe — ${author}`;
+  } else if (vis === "members" && row.targetMembers.length) {
+    recipientIds = row.targetMembers.filter((id) => id !== row.userId);
+    title = `🙏 ${author} partage une prière avec toi`;
+  }
+
+  if (recipientIds.length) {
+    await notifyMany(recipientIds, {
+      type: "prayer",
+      title,
+      body: row.title.slice(0, 90),
+      link: "/espace-membres?p=priere",
+    });
+  }
+}
+
 export async function createPrayerRequest(formData: FormData) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -58,15 +115,67 @@ export async function createPrayerRequest(formData: FormData) {
   const title = (formData.get("title") as string)?.trim();
   if (!title) return { error: "Le titre est obligatoire" };
 
+  const isAnonymous = formData.get("is_anonymous") === "on";
   const { error } = await supabase.from("prayer_requests").insert({
     user_id:      user.id,
     title,
     description:  (formData.get("description") as string)?.trim() || null,
-    is_anonymous: formData.get("is_anonymous") === "on",
+    is_anonymous: isAnonymous,
   });
 
   if (error) return { error: error.message };
+
+  await notifyPrayerAudience({
+    userId: user.id, title, isAnonymous,
+    visibility: "all", targetGroups: [], targetMembers: [],
+  }).catch(() => {});
+
   revalidatePath("/espace-membres/priere");
+  return { success: true };
+}
+
+/**
+ * Création d'une demande de prière avec visibilité (appelée par les composants
+ * client à la place d'un insert direct). Insère + notifie l'audience.
+ */
+export async function submitPrayerRequest(input: {
+  title: string;
+  description?: string | null;
+  isAnonymous?: boolean;
+  visibility?: string;
+  targetGroups?: string[];
+  targetMembers?: string[];
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const title = input.title?.trim();
+  if (!title) return { error: "Le titre est obligatoire" };
+
+  const visibility = input.visibility ?? "all";
+  const targetGroups = input.targetGroups ?? [];
+  const targetMembers = input.targetMembers ?? [];
+  const isAnonymous = !!input.isAnonymous;
+
+  const { error } = await supabase.from("prayer_requests").insert({
+    user_id: user.id,
+    title,
+    description: input.description?.trim() || null,
+    is_anonymous: isAnonymous,
+    visibility,
+    target_groups: targetGroups,
+    target_members: targetMembers,
+  });
+
+  if (error) return { error: error.message };
+
+  await notifyPrayerAudience({
+    userId: user.id, title, isAnonymous, visibility, targetGroups, targetMembers,
+  }).catch(() => {});
+
+  revalidatePath("/espace-membres/priere");
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 
@@ -527,6 +636,18 @@ export async function createEvent(data: {
   });
 
   if (error) return { error: error.message };
+
+  // Nouvel événement à venir → diffuser aux membres validés (push + in-app)
+  if (data.date >= new Date().toISOString().slice(0, 10)) {
+    await broadcastNotify({
+      type: "event",
+      title: `📅 Nouvel événement : ${data.title.trim()}`,
+      body: data.location?.trim() ? `${data.date} · ${data.location.trim()}` : data.date,
+      link: "/espace-membres/agenda",
+      exclude: user.id,
+    }).catch(() => {});
+  }
+
   revalidatePath("/espace-membres");
   revalidatePath("/");
   return { success: true };

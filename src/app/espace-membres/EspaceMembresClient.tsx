@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVerset } from "@/lib/verses";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
@@ -973,12 +973,13 @@ const [showSalle, setShowSalle]       = useState(false);
     const finalGroups = pVisibility === "groups"
       ? Array.from(new Set([...ownGroups, ...pTargetGroups]))
       : [];
-    await supabase.from("prayer_requests").insert({
-      user_id: userId, title: pTitle.trim(),
-      description: pDesc.trim() || null, is_anonymous: pAnon,
+    await submitPrayerRequest({
+      title: pTitle.trim(),
+      description: pDesc.trim() || null,
+      isAnonymous: pAnon,
       visibility: pVisibility,
-      target_groups: finalGroups,
-      target_members: pVisibility === "members" ? pTargetMembers : [],
+      targetGroups: finalGroups,
+      targetMembers: pVisibility === "members" ? pTargetMembers : [],
     });
     await loadPrayers();
     setPTitle(""); setPDesc(""); setPAnon(false);
@@ -1004,14 +1005,14 @@ const [showSalle, setShowSalle]       = useState(false);
   async function prayFor(id: string) {
     const prayer = prayers.find(p => p.id === id);
     if (!prayer) return;
-    await supabase.from("prayer_requests").update({ prayer_count: prayer.prayer_count + 1 }).eq("id", id);
     setPrayers(prev => prev.map(p => p.id === id ? { ...p, prayer_count: p.prayer_count + 1 } : p));
+    await prayForRequest(id);
     setToast("Tu as prié pour cette demande 🙏");
   }
 
   async function markAnswered(id: string) {
-    await supabase.from("prayer_requests").update({ is_answered: true }).eq("id", id);
     setPrayers(prev => prev.map(p => p.id === id ? { ...p, is_answered: true } : p));
+    await markPrayerAnswered(id);
     setToast("Prière marquée comme exaucée ✅");
   }
 

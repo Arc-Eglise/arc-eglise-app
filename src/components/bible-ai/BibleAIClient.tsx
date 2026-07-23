@@ -6,6 +6,7 @@ import LangSelector from "@/components/bible-ai/LangSelector"
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel"
 import type { BibleLevel } from "@/lib/bible-ai-prompts"
 import type { AIUserPreferences } from "@/lib/bible-ai"
+import { submitPrayerRequest, prayForRequest as prayForRequestAction } from "@/lib/actions/membres"
 
 // Nettoyage des balises HTML et Markdown côté client
 function stripAI(text: string): string {
@@ -320,16 +321,15 @@ export default function BibleAIClient({ userId, prefs, role }: Props) {
     if (!prayerTitle.trim() || prayerSubmitting) return
     setPrayerSubmitting(true)
     try {
-      await supabase.from("prayer_requests").insert({ user_id:userId, title:prayerTitle.trim(), description:prayerDesc.trim()||null, is_anonymous:prayerAnon, prayer_count:0 })
+      await submitPrayerRequest({ title: prayerTitle.trim(), description: prayerDesc.trim() || null, isAnonymous: prayerAnon })
       setPrayerTitle(""); setPrayerDesc(""); setPrayerAnon(false); setShowPrayerForm(false)
       await loadPrayers()
     } finally { setPrayerSubmitting(false) }
   }
 
   const prayForRequest = async (id: string) => {
-    const current = prayers.find(p => p.id === id)?.prayer_count ?? 0
-    await supabase.from("prayer_requests").update({ prayer_count: current + 1 }).eq("id", id)
     setPrayers(prev => prev.map(p => p.id===id ? {...p, prayer_count:p.prayer_count+1} : p))
+    await prayForRequestAction(id)
   }
 
   const loadTodayReading = useCallback(async () => {

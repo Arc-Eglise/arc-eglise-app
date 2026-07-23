@@ -1,0 +1,4 @@
+-- Rollback : recréer les 4 triggers v1.
+-- Ré-exécuter le fichier d'origine :
+--   supabase/migrations/notification_triggers.sql
+-- (⚠️ crée alors des doublons in-app si le service applicatif est actif)

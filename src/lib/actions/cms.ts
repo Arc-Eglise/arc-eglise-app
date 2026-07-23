@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-import { broadcastNotify } from "@/lib/notify";
+import { broadcastNotify, notifyMany } from "@/lib/notify";
 
 function sermonBody(pastor: string | null) {
   return pastor ? `Prêché par ${pastor}` : "Nouveau sermon disponible";
@@ -166,19 +166,24 @@ export async function createEvent(formData: FormData) {
     image_url = await uploadToStorage("media", `events/${Date.now()}.${ext}`, imageFile);
   }
 
+  const evTitle = formData.get("title") as string;
+  const evDate = formData.get("date") as string;
+  const evLocation = formData.get("location") as string;
+  const evPublished = formData.get("is_published") !== "off";
+
   const { error } = await supabase.from("events").insert({
-    title:               formData.get("title")       as string,
+    title:               evTitle,
     description:         formData.get("description") as string || null,
-    date:                formData.get("date")        as string,
+    date:                evDate,
     time_start:          formData.get("time_start")  as string,
     time_end:            formData.get("time_end")    as string || null,
-    location:            formData.get("location")    as string,
+    location:            evLocation,
     capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
     price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
     tags,
     image_url,
     is_public:           formData.get("is_public")    !== "off",
-    is_published:        formData.get("is_published") !== "off",
+    is_published:        evPublished,
     recurrence_type:     recType,
     recurrence_interval: recType !== "none" ? (Number(formData.get("recurrence_interval")) || 1) : 1,
     recurrence_end_date: recType !== "none" && recType !== "indefinite" ? (formData.get("recurrence_end_date") as string || null) : null,
@@ -186,6 +191,18 @@ export async function createEvent(formData: FormData) {
   });
 
   if (error) return { error: error.message };
+
+  // Nouvel événement publié à venir → diffuser aux membres validés
+  if (evPublished && evDate >= new Date().toISOString().slice(0, 10)) {
+    await broadcastNotify({
+      type: "event",
+      title: `📅 Nouvel événement : ${evTitle}`,
+      body: evLocation ? `${evDate} · ${evLocation}` : evDate,
+      link: "/espace-membres/agenda",
+      exclude: userId,
+    }).catch(() => {});
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/evenements");
   revalidatePath("/espace-membres/agenda");
@@ -209,25 +226,58 @@ export async function updateEvent(id: string, formData: FormData) {
     image_url = await uploadToStorage("media", `events/${Date.now()}.${ext}`, imageFile);
   }
 
+  const evTitle = formData.get("title") as string;
+  const evDate = formData.get("date") as string;
+  const evTime = formData.get("time_start") as string;
+  const evLocation = formData.get("location") as string;
+  const evPublished = formData.get("is_published") !== "off";
+
+  // Valeurs AVANT modification (pour détecter un changement date/heure/lieu)
+  const { data: prev } = await supabase
+    .from("events").select("date, time_start, location, is_published").eq("id", id).maybeSingle();
+
   const { error } = await supabase.from("events").update({
-    title:               formData.get("title")       as string,
+    title:               evTitle,
     description:         formData.get("description") as string || null,
-    date:                formData.get("date")        as string,
-    time_start:          formData.get("time_start")  as string,
+    date:                evDate,
+    time_start:          evTime,
     time_end:            formData.get("time_end")    as string || null,
-    location:            formData.get("location")    as string,
+    location:            evLocation,
     capacity:            formData.get("capacity")    ? Number(formData.get("capacity")) : null,
     price_chf:           formData.get("price_chf")   ? Number(formData.get("price_chf")) : 0,
     tags,
     image_url,
     is_public:           formData.get("is_public")    !== "off",
-    is_published:        formData.get("is_published") !== "off",
+    is_published:        evPublished,
     recurrence_type:     recType,
     recurrence_interval: recType !== "none" ? (Number(formData.get("recurrence_interval")) || 1) : 1,
     recurrence_end_date: recType !== "none" && recType !== "indefinite" ? (formData.get("recurrence_end_date") as string || null) : null,
   }).eq("id", id);
 
   if (error) return { error: error.message };
+
+  // Date / heure / lieu / publication modifiés → prévenir les inscrits (présences)
+  const changed = !!prev && evPublished && (
+    prev.date !== evDate ||
+    prev.time_start !== evTime ||
+    prev.location !== evLocation ||
+    prev.is_published !== evPublished
+  );
+  if (changed) {
+    const admin = createAdminClient();
+    const { data: attendees } = await admin
+      .from("event_attendance").select("user_id").eq("event_id", id);
+    const ids = Array.from(new Set((attendees ?? []).map((a: { user_id: string }) => a.user_id)));
+    if (ids.length) {
+      await notifyMany(ids, {
+        type: "event",
+        title: `📅 Événement modifié : ${evTitle}`,
+        body: "Date, heure ou lieu mis à jour — vérifie les nouvelles informations.",
+        link: "/espace-membres/agenda",
+      });
+    }
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/evenements");
   revalidatePath("/espace-membres/agenda");
