@@ -75,7 +75,7 @@ export default function Header() {
             style={{ objectFit: "contain", borderRadius: 6 }}
             priority
           />
-          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+          <span className="hidden md:flex flex-col" style={{ lineHeight: 1.1 }}>
             <span className="font-serif font-semibold text-arc-navy" style={{ fontSize: 17, letterSpacing: ".01em", whiteSpace: "nowrap" }}>
               Ambassade du Royaume de Christ
             </span>
