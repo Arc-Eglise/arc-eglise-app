@@ -304,6 +304,10 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [ytChannelId, setYtChannelId]   = useState(youtubeChannelId);
   const [ytChannelInput, setYtChannelInput] = useState(youtubeChannelId);
   const [ytSaving, setYtSaving]         = useState(false);
+  /* Détection du live réel via l'API YouTube (embed/VIDEO_ID) */
+  const [live, setLive]                 = useState<{ videoId: string; title: string } | null>(null);
+  const [liveConfigured, setLiveConfigured] = useState(true);
+  const [liveLoaded, setLiveLoaded]     = useState(false);
 
   /* Modals */
   const [showGS, setShowGS] = useState(false);
@@ -635,6 +639,22 @@ const [showSalle, setShowSalle]       = useState(false);
   useEffect(() => {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
   }, [toast]);
+
+  /* ── Détection du live YouTube (API → embed/VIDEO_ID) ─────────── */
+  useEffect(() => {
+    let cancelled = false;
+    setLiveLoaded(false);
+    fetch("/api/youtube/videos?type=live", { cache: "no-store" })
+      .then(r => r.json())
+      .then((d: { configured?: boolean; live?: { videoId: string; title: string } | null }) => {
+        if (cancelled) return;
+        setLiveConfigured(d.configured !== false);
+        setLive(d.live ?? null);
+        setLiveLoaded(true);
+      })
+      .catch(() => { if (!cancelled) { setLiveConfigured(false); setLiveLoaded(true); } });
+    return () => { cancelled = true; };
+  }, [ytChannelId]);
 
   /* ── Supabase Realtime — UN seul client partagé ─────────────── */
   useEffect(() => {
@@ -2510,17 +2530,29 @@ const [showSalle, setShowSalle]       = useState(false);
                 <button className="em-btn em-btn-primary em-btn-sm" onClick={() => setShowGS(true)}>⚙ Gérer le stream</button>
               )}
             </div>
-            {ytChannelId ? (
+            {live ? (
               <VideoPlayer
-                src={`https://www.youtube.com/embed/live_stream?channel=${ytChannelId}&autoplay=0&rel=0`}
-                title="ARC Live"
+                src={`https://www.youtube.com/embed/${live.videoId}?autoplay=0&rel=0`}
+                title={live.title || "ARC Live"}
                 style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
               />
             ) : (
               <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8890aa",gap:8,textAlign:"center",padding:16}}>
-                <span style={{fontSize:28}}>📡</span>
-                <div style={{fontSize:13}}>Aucune chaîne YouTube configurée.</div>
-                {canAdmin && <div style={{fontSize:12,color:"#aab"}}>Renseigne l&apos;ID de la chaîne dans « ⚙ Gérer le stream ».</div>}
+                {!liveLoaded ? (
+                  <div style={{fontSize:13}}>Chargement du direct…</div>
+                ) : !liveConfigured ? (
+                  <>
+                    <span style={{fontSize:28}}>📡</span>
+                    <div style={{fontSize:13}}>Streaming non configuré.</div>
+                    {canAdmin && <div style={{fontSize:12,color:"#aab"}}>Renseigne l&apos;ID de la chaîne dans « ⚙ Gérer le stream » (et vérifie la clé API YouTube).</div>}
+                  </>
+                ) : (
+                  <>
+                    <span style={{fontSize:28}}>🔴</span>
+                    <div style={{fontSize:14,color:"#c9d0ea",fontWeight:600}}>Pas de diffusion en direct pour le moment</div>
+                    <div style={{fontSize:12}}>Rendez-vous à l&apos;heure du culte — dimanche 9h30.</div>
+                  </>
+                )}
               </div>
             )}
             <div className="em-g3" style={{marginBottom:18}}>
