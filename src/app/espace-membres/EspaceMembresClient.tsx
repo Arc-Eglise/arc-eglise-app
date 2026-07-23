@@ -9,7 +9,7 @@ import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVers
 import { submitDoleance } from "@/lib/actions/doleances";
 import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
-import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation } from "@/lib/actions/cms";
+import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation, saveYoutubeChannelId } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
@@ -71,6 +71,7 @@ export interface EMClientProps {
   visiteurs:      number;
   prayerCount:    number;
   events:         Evt[];
+  youtubeChannelId: string;
 }
 
 /* ─── Static data ────────────────────────────────────────────────── */
@@ -280,7 +281,7 @@ const MP_GRADIENTS = [
 /* ─── Component ──────────────────────────────────────────────────── */
 const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin","mail"];
 
-export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events }: EMClientProps) {
+export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId }: EMClientProps) {
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -298,6 +299,11 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   /* Header */
   const [searchQ, setSearchQ] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+
+  /* Streaming — ID chaîne YouTube (depuis Supabase, éditable dans « Gérer le stream ») */
+  const [ytChannelId, setYtChannelId]   = useState(youtubeChannelId);
+  const [ytChannelInput, setYtChannelInput] = useState(youtubeChannelId);
+  const [ytSaving, setYtSaving]         = useState(false);
 
   /* Modals */
   const [showGS, setShowGS] = useState(false);
@@ -2504,11 +2510,19 @@ const [showSalle, setShowSalle]       = useState(false);
                 <button className="em-btn em-btn-primary em-btn-sm" onClick={() => setShowGS(true)}>⚙ Gérer le stream</button>
               )}
             </div>
-            <VideoPlayer
-              src="https://www.youtube.com/embed/live_stream?channel=UCCpYN5EF_OONd-m3u1wBvYg&autoplay=0&rel=0"
-              title="ARC Live"
-              style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
-            />
+            {ytChannelId ? (
+              <VideoPlayer
+                src={`https://www.youtube.com/embed/live_stream?channel=${ytChannelId}&autoplay=0&rel=0`}
+                title="ARC Live"
+                style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
+              />
+            ) : (
+              <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8890aa",gap:8,textAlign:"center",padding:16}}>
+                <span style={{fontSize:28}}>📡</span>
+                <div style={{fontSize:13}}>Aucune chaîne YouTube configurée.</div>
+                {canAdmin && <div style={{fontSize:12,color:"#aab"}}>Renseigne l&apos;ID de la chaîne dans « ⚙ Gérer le stream ».</div>}
+              </div>
+            )}
             <div className="em-g3" style={{marginBottom:18}}>
               {[
                 {ico:"📅",title:"Culte dominical",desc:"Dimanche à 9h30"},
@@ -4232,9 +4246,32 @@ const [showSalle, setShowSalle]       = useState(false);
                 </div>
                 <div style={{background:"#f7f8fc",borderRadius:12,padding:16}}>
                   <div style={{fontWeight:700,color:"#e53e3e",marginBottom:8}}>▶ YouTube Live</div>
-                  <input className="em-input" placeholder="Stream Key YouTube" style={{marginBottom:8}} />
-                  <input className="em-input" placeholder="ID de la vidéo live" style={{marginBottom:8}} />
-                  <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={()=>setToast("YouTube configuré ✓")}>Configurer YouTube</button>
+                  <label style={{fontSize:11,color:"#8890aa",fontWeight:600,display:"block",marginBottom:4}}>ID de la chaîne YouTube</label>
+                  <input
+                    className="em-input"
+                    placeholder="UC… ou lien youtube.com/channel/…"
+                    value={ytChannelInput}
+                    onChange={e=>setYtChannelInput(e.target.value)}
+                    style={{marginBottom:6}}
+                  />
+                  <div style={{fontSize:11,color:"#8890aa",marginBottom:8}}>Sert au lecteur live de l&apos;onglet Streaming. Enregistré dans les réglages.</div>
+                  <button
+                    className="em-btn em-btn-danger"
+                    style={{width:"100%",opacity:ytSaving?0.6:1}}
+                    disabled={ytSaving}
+                    onClick={async()=>{
+                      setYtSaving(true);
+                      const res = await saveYoutubeChannelId(ytChannelInput);
+                      setYtSaving(false);
+                      if (res.error) { setToast(`❌ ${res.error}`); return; }
+                      const saved = res.channelId ?? "";
+                      setYtChannelId(saved);
+                      setYtChannelInput(saved);
+                      setToast(saved ? "Chaîne YouTube enregistrée ✓" : "Chaîne YouTube effacée ✓");
+                    }}
+                  >
+                    {ytSaving ? "Enregistrement…" : "Enregistrer la chaîne"}
+                  </button>
                 </div>
               </div>
               <div style={{marginTop:16,padding:14,background:"#fff0f0",borderRadius:12}}>

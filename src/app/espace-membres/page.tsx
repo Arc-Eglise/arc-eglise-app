@@ -16,6 +16,7 @@ export default async function EspaceMembresPage() {
     { count: visiteurs },
     { count: prayerCount },
     { data: events },
+    { data: ytChannel },
   ] = await Promise.all([
     supabase.from("profiles")
       .select("id, first_name, last_name, email, role, validated, groups, managed_groups, avatar_url")
@@ -38,6 +39,10 @@ export default async function EspaceMembresPage() {
       .eq("is_published", true)
       .order("date")
       .limit(6),
+    supabase.from("site_settings")
+      .select("value")
+      .eq("key", "youtube_channel_id")
+      .maybeSingle(),
   ]);
 
   const props: EMClientProps = {
@@ -48,6 +53,7 @@ export default async function EspaceMembresPage() {
     visiteurs:     visiteurs     ?? 0,
     prayerCount:   prayerCount   ?? 0,
     events: (events ?? []) as EMClientProps["events"],
+    youtubeChannelId: (ytChannel?.value as string) ?? "",
   };
 
   return (

@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const YT = "https://www.googleapis.com/youtube/v3";
 
 export async function GET(req: NextRequest) {
-  const apiKey    = process.env.YOUTUBE_API_KEY;
-  const channelId = process.env.YOUTUBE_CHANNEL_ID;
+  const apiKey = process.env.YOUTUBE_API_KEY;
+
+  // Source unique de l'ID chaîne : réglage Supabase (éditable dans « Gérer le
+  // stream »), avec repli sur la variable d'env pour rétrocompatibilité.
+  const { data: setting } = await createClient()
+    .from("site_settings")
+    .select("value")
+    .eq("key", "youtube_channel_id")
+    .maybeSingle();
+  const channelId = (setting?.value as string)?.trim() || process.env.YOUTUBE_CHANNEL_ID;
 
   if (!apiKey || apiKey === "your_youtube_api_key_here" || !channelId || channelId.startsWith("UCxxxxx")) {
     return NextResponse.json({ configured: false, items: [], live: null });

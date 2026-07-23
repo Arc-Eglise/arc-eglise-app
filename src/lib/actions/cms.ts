@@ -740,3 +740,29 @@ export async function saveThemeOverride(formData: FormData) {
   revalidatePath("/espace-membres");
   return { success: true };
 }
+
+// ── STREAMING — YouTube Channel ID ─────────────────────────────
+
+export async function saveYoutubeChannelId(raw: string) {
+  const cms = await getCmsUser();
+  if (!cms.ok) return { error: cms.error };
+  const { supabase } = cms;
+
+  // Accepte un ID brut (UCxxxx…) OU une URL complète de chaîne YouTube.
+  let channelId = (raw || "").trim();
+  const urlMatch = channelId.match(/youtube\.com\/channel\/(UC[\w-]{22})/i);
+  if (urlMatch) channelId = urlMatch[1];
+
+  if (channelId && !/^UC[\w-]{22}$/.test(channelId)) {
+    return { error: "ID de chaîne invalide (format attendu : UC… sur 24 caractères)" };
+  }
+
+  const { error } = await supabase.from("site_settings").upsert(
+    [{ key: "youtube_channel_id", value: channelId }],
+    { onConflict: "key" },
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/espace-membres");
+  return { success: true, channelId };
+}
