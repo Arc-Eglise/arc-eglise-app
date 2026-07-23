@@ -3,6 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { broadcastNotify } from '@/lib/notify'
 
 export interface ChurchMember {
   id: string
@@ -25,15 +26,16 @@ export interface ChurchGroup {
   meetingSchedule?: string
 }
 
+// Aligné sur la table live `events` (cf. actions/cms.ts createEvent).
 export interface ChurchEvent {
   id: string
   title: string
-  type: 'culte' | 'prière' | 'formation' | 'évangélisation' | 'célébration' | 'autre'
-  startDate: string
-  endDate?: string
+  date: string          // YYYY-MM-DD
+  timeStart?: string
+  timeEnd?: string
   location?: string
   description?: string
-  expectedAttendees?: number
+  capacity?: number
 }
 
 // ── Membres ───────────────────────────────────────────────────────────────────
@@ -114,40 +116,57 @@ export async function getUpcomingEvents(limit = 8): Promise<ChurchEvent[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('events')
-    .select('id, title, type, start_date, end_date, location, description, expected_attendees')
-    .gte('start_date', new Date().toISOString())
-    .order('start_date')
+    .select('id, title, date, time_start, time_end, location, description, capacity')
+    .eq('is_published', true)
+    .gte('date', new Date().toISOString().slice(0, 10))
+    .order('date')
     .limit(limit)
 
   return (data ?? []).map(e => ({
     id: e.id as string,
     title: e.title as string,
-    type: (e.type as ChurchEvent['type']) ?? 'autre',
-    startDate: e.start_date as string,
-    endDate: e.end_date as string | undefined,
+    date: e.date as string,
+    timeStart: e.time_start as string | undefined,
+    timeEnd: e.time_end as string | undefined,
     location: e.location as string | undefined,
     description: e.description as string | undefined,
-    expectedAttendees: e.expected_attendees as number | undefined,
+    capacity: e.capacity as number | undefined,
   }))
 }
 
-export async function createEvent(data: Omit<ChurchEvent, 'id'>): Promise<ChurchEvent> {
+// Créer un événement (publié) → diffuse la notif aux membres validés
+export async function createEvent(data: Omit<ChurchEvent, 'id'>, createdBy?: string): Promise<ChurchEvent> {
   const supabase = createClient()
   const { data: result, error } = await supabase
     .from('events')
     .insert({
       title: data.title,
-      type: data.type,
-      start_date: data.startDate,
-      end_date: data.endDate,
-      location: data.location,
-      description: data.description,
-      expected_attendees: data.expectedAttendees,
+      description: data.description ?? null,
+      date: data.date,
+      time_start: data.timeStart ?? null,
+      time_end: data.timeEnd ?? null,
+      location: data.location ?? null,
+      capacity: data.capacity ?? null,
+      is_public: true,
+      is_published: true,
+      created_by: createdBy ?? null,
     })
     .select()
     .single()
 
   if (error) throw new Error(`ChurchEngine.createEvent: ${error.message}`)
+
+  // Notif : nouvel événement à venir → diffuser aux membres (service unifié).
+  if (data.date >= new Date().toISOString().slice(0, 10)) {
+    await broadcastNotify({
+      type: 'event',
+      title: `📅 Nouvel événement : ${data.title}`,
+      body: data.location ? `${data.date} · ${data.location}` : data.date,
+      link: '/espace-membres/agenda',
+      exclude: createdBy,
+    }).catch(() => {})
+  }
+
   return { ...data, id: result.id as string }
 }
 
@@ -155,7 +174,7 @@ export async function createEvent(data: Omit<ChurchEvent, 'id'>): Promise<Church
 export function formatEventsForPrompt(events: ChurchEvent[]): string {
   if (!events.length) return 'Aucun événement à venir.'
   return events.map(e => {
-    const date = new Date(e.startDate).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })
-    return `- ${date} : ${e.title} (${e.type})${e.location ? ` @ ${e.location}` : ''}`
+    const date = new Date(e.date).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })
+    return `- ${date} : ${e.title}${e.location ? ` @ ${e.location}` : ''}`
   }).join('\n')
 }
