@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PushToggle from "@/components/membres/PushToggle";
+import NotifPreferences from "@/components/membres/NotifPreferences";
 
 type Notif = {
   id: string;
@@ -23,6 +24,7 @@ const TYPE_ICON: Record<string, string> = {
 export default function NotifBell({ userId }: { userId: string }) {
   const [notifs, setNotifs]   = useState<Notif[]>([]);
   const [open, setOpen]       = useState(false);
+  const [showPrefs, setShowPrefs] = useState(false);
   const ref                   = useRef<HTMLDivElement>(null);
   const supabase              = createClient();
   const unread                = notifs.filter(n => !n.read_at).length;
@@ -99,15 +101,30 @@ export default function NotifBell({ userId }: { userId: string }) {
             borderBottom: "1px solid rgba(30,36,100,.08)",
             display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1d3a" }}>Notifications</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1d3a" }}>
+              {showPrefs ? "Réglages des notifications" : "Notifications"}
+            </span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <PushToggle />
-              <span style={{ fontSize: 11, color: "#8890aa" }}>
-                {unread === 0 ? "Tout lu" : `${unread} non lu${unread > 1 ? "s" : ""}`}
-              </span>
+              {!showPrefs && <PushToggle />}
+              {!showPrefs && (
+                <span style={{ fontSize: 11, color: "#8890aa" }}>
+                  {unread === 0 ? "Tout lu" : `${unread} non lu${unread > 1 ? "s" : ""}`}
+                </span>
+              )}
+              <button
+                onClick={() => setShowPrefs(v => !v)}
+                title={showPrefs ? "Retour aux notifications" : "Choisir mes notifications"}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 15, lineHeight: 1, padding: 2, color: "#6670aa",
+                }}
+              >
+                {showPrefs ? "←" : "⚙️"}
+              </button>
             </div>
           </div>
 
+          {showPrefs ? <NotifPreferences /> : (
           <div style={{ maxHeight: 360, overflowY: "auto" }}>
             {notifs.length === 0 ? (
               <div style={{ padding: "28px 16px", textAlign: "center", color: "#8890aa", fontSize: 13 }}>
@@ -151,6 +168,7 @@ export default function NotifBell({ userId }: { userId: string }) {
               </a>
             ))}
           </div>
+          )}
         </div>
       )}
     </div>
