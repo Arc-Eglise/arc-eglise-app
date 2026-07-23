@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { notifyUser, notifyMany } from "@/lib/notify";
 import {
   sendWelcomeMemberEmail,
   sendProfileUpdateEmail,
@@ -69,18 +70,33 @@ export async function createPrayerRequest(formData: FormData) {
   return { success: true };
 }
 
+const PRAYER_MILESTONES = [1, 5, 10, 25, 50, 100];
+
 export async function prayForRequest(id: string) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("prayer_requests")
-    .select("prayer_count")
+    .select("prayer_count, user_id, title")
     .eq("id", id)
     .single();
 
+  const newCount = (data?.prayer_count ?? 0) + 1;
   await admin
     .from("prayer_requests")
-    .update({ prayer_count: (data?.prayer_count ?? 0) + 1 })
+    .update({ prayer_count: newCount })
     .eq("id", id);
+
+  // Jalon de prière atteint → notifier l'auteur de la demande.
+  if (data?.user_id && PRAYER_MILESTONES.includes(newCount)) {
+    const who = newCount > 1 ? `${newCount} frères prient` : `${newCount} frère prie`;
+    await notifyUser({
+      userId: data.user_id as string,
+      type: "prayer",
+      title: `🙏 ${who} pour toi !`,
+      body: (data.title as string | null)?.slice(0, 80) ?? null,
+      link: "/espace-membres?p=priere",
+    }).catch(() => {});
+  }
 
   revalidatePath("/espace-membres/priere");
   return { success: true };
@@ -91,11 +107,23 @@ export async function markPrayerAnswered(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
-  await supabase
+  const { data: pr } = await supabase
     .from("prayer_requests")
     .update({ is_answered: true })
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("title")
+    .maybeSingle();
+
+  if (pr) {
+    await notifyUser({
+      userId: user.id,
+      type: "prayer",
+      title: "✨ Ta prière a été exaucée !",
+      body: (pr.title as string | null)?.slice(0, 90) ?? null,
+      link: "/espace-membres?p=priere",
+    }).catch(() => {});
+  }
 
   revalidatePath("/espace-membres/priere");
   return { success: true };
@@ -136,6 +164,17 @@ export async function rsvpEvent(
     await supabase
       .from("event_rsvp")
       .upsert({ event_id: eventId, user_id: user.id, status }, { onConflict: "event_id,user_id" });
+
+    if (status === "going") {
+      const { data: evt } = await supabase.from("events").select("title").eq("id", eventId).maybeSingle();
+      await notifyUser({
+        userId: user.id,
+        type: "event",
+        title: `✅ RSVP confirmé : ${(evt?.title as string | null) ?? "événement"}`,
+        body: "Ton inscription est enregistrée. On t'y attend !",
+        link: "/espace-membres/agenda",
+      }).catch(() => {});
+    }
   }
 
   revalidatePath("/espace-membres/agenda");
@@ -164,6 +203,18 @@ export async function checkInEvent(eventId: string, targetUserId?: string) {
   );
 
   if (error) return { error: error.message };
+
+  const { data: evt } = await supabase.from("events").select("title").eq("id", eventId).maybeSingle();
+  await notifyUser({
+    userId,
+    type: "event",
+    title: `✅ Présence confirmée : ${(evt?.title as string | null) ?? "événement"}`,
+    body: userId !== user.id
+      ? "Ton passage a été enregistré par l'administration."
+      : "Ton passage a bien été enregistré.",
+    link: "/espace-membres/agenda",
+  }).catch(() => {});
+
   revalidatePath("/espace-membres/agenda");
   return { success: true };
 }
@@ -264,6 +315,28 @@ export async function createGrievance(formData: FormData) {
 
   if (error) return { error: error.message };
 
+  // Notifier les admins / pasteurs / support (push + in-app)
+  try {
+    const admin = createAdminClient();
+    const { data: staff } = await admin
+      .from("profiles")
+      .select("id, role, groups")
+      .eq("validated", true);
+    const targets = (staff ?? [])
+      .filter((a: { role: string | null; groups: string[] | null }) =>
+        ["admin", "pasteur"].includes(a.role ?? "") || (a.groups ?? []).includes("support"))
+      .map((a: { id: string }) => a.id)
+      .slice(0, 20);
+    if (targets.length) {
+      await notifyMany(targets, {
+        type: "system",
+        title: `📬 Nouvelle doléance : ${category}`,
+        body: title.slice(0, 80),
+        link: "/admin/doleances",
+      });
+    }
+  } catch { /* best-effort */ }
+
   // Notifier contact@arc-eglise.ch via Graph API (silencieux si non configuré)
   if (process.env.GRAPH_TENANT_ID && process.env.GRAPH_CLIENT_ID && process.env.GRAPH_CLIENT_SECRET) {
     let senderLine = "Anonyme";
@@ -302,12 +375,31 @@ export async function updateGrievanceStatus(formData: FormData) {
   const status         = formData.get("status") as string;
   const admin_response = (formData.get("admin_response") as string)?.trim() || null;
 
-  const { error } = await supabase
+  const { data: gr, error } = await supabase
     .from("grievances")
     .update({ status, admin_response, responded_by: user.id })
-    .eq("id", id);
+    .eq("id", id)
+    .select("user_id, title")
+    .maybeSingle();
 
   if (error) return { error: error.message };
+
+  // Notifier l'auteur de la doléance (push + in-app)
+  if (gr?.user_id && status !== "pending") {
+    const titleMap: Record<string, string> = {
+      resolved: "✅ Ta doléance a été résolue",
+      closed: "📬 Ta doléance a été clôturée",
+      in_progress: "🔄 Ta doléance est en cours de traitement",
+    };
+    await notifyUser({
+      userId: gr.user_id as string,
+      type: "system",
+      title: titleMap[status] ?? "📬 Mise à jour de ta doléance",
+      body: (admin_response ?? (gr.title as string | null))?.slice(0, 90) ?? null,
+      link: "/espace-membres/doleances",
+    }).catch(() => {});
+  }
+
   revalidatePath("/espace-membres/doleances");
   revalidatePath("/admin/doleances");
   return { success: true };
@@ -389,6 +481,19 @@ export async function updatePastoralStage(memberId: string, stage: string) {
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ pastoral_stage: stage }).eq("id", memberId);
   if (error) return { error: error.message };
+
+  const STAGE_LABELS: Record<string, string> = {
+    visiteur: "Visiteur", integration: "Intégration", actif: "Membre actif",
+    formation: "En formation", responsable: "Responsable",
+  };
+  await notifyUser({
+    userId: memberId,
+    type: "system",
+    title: `🌱 Nouvelle étape : ${STAGE_LABELS[stage] ?? stage}`,
+    body: "Ton parcours dans l'église a été mis à jour.",
+    link: "/espace-membres/profil",
+  }).catch(() => {});
+
   revalidatePath(`/espace-membres/crm/${memberId}`);
   revalidatePath("/espace-membres/crm");
   return { success: true };
@@ -524,6 +629,14 @@ export async function updateMemberRole(memberId: string, newRole: string) {
   const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
+  // Notification in-app + push
+  await notifyUser({
+    userId: memberId,
+    type: "system",
+    title: `🏅 Nouveau rôle : ${ROLE_LABELS[newRole] ?? newRole}`,
+    link: "/espace-membres/profil",
+  }).catch(() => {});
+
   // Notification email (best-effort)
   if (target?.email) {
     const roleLabel = ROLE_LABELS[newRole] ?? newRole;
@@ -616,11 +729,20 @@ export async function updateMemberValidation(memberId: string, validated: boolea
   const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
 
-  // Email de bienvenue quand on passe de non-validé → validé
-  if (validated && !target?.validated && target?.email) {
-    try {
-      await sendWelcomeMemberEmail(target.email, target.first_name ?? "");
-    } catch { /* ne pas bloquer si l'envoi échoue */ }
+  // Notification in-app + push + email de bienvenue quand on passe de non-validé → validé
+  if (validated && !target?.validated) {
+    await notifyUser({
+      userId: memberId,
+      type: "system",
+      title: "✅ Ton compte a été validé !",
+      body: "Bienvenue dans l'Espace Membres ARC. Tu as maintenant accès à toutes les fonctionnalités.",
+      link: "/espace-membres",
+    }).catch(() => {});
+    if (target?.email) {
+      try {
+        await sendWelcomeMemberEmail(target.email, target.first_name ?? "");
+      } catch { /* ne pas bloquer si l'envoi échoue */ }
+    }
   }
 
   revalidatePath("/espace-membres/crm");
@@ -637,7 +759,7 @@ export async function updateMemberGroups(memberId: string, groups: string[]) {
 
   const { data: target } = await admin
     .from("profiles")
-    .select("email, first_name, managed_groups")
+    .select("email, first_name, managed_groups, groups")
     .eq("id", memberId)
     .single();
 
@@ -651,6 +773,18 @@ export async function updateMemberGroups(memberId: string, groups: string[]) {
 
   const { error } = await admin.from("profiles").update(updatePayload).eq("id", memberId);
   if (error) return { error: error.message };
+
+  // Notifier chaque nouvelle fonction ajoutée (push + in-app)
+  const oldGroups = (target?.groups as string[]) ?? [];
+  for (const g of groups.filter(x => !oldGroups.includes(x))) {
+    await notifyUser({
+      userId: memberId,
+      type: "system",
+      title: `👥 Tu as rejoint : ${GROUP_LABELS[g] ?? g}`,
+      body: "Tu fais maintenant partie de ce groupe de fonctions ARC.",
+      link: "/espace-membres",
+    }).catch(() => {});
+  }
 
   // Notification email (best-effort)
   if (target?.email) {
@@ -784,6 +918,14 @@ export async function addMemberToGroup(targetMemberId: string, groupName: string
     .update({ groups: [...current, groupName] })
     .eq("id", targetMemberId);
   if (error) return { error: error.message };
+
+  await notifyUser({
+    userId: targetMemberId,
+    type: "system",
+    title: `👥 Tu as rejoint : ${GROUP_LABELS[groupName] ?? groupName}`,
+    body: "Tu fais maintenant partie de ce groupe de fonctions ARC.",
+    link: "/espace-membres",
+  }).catch(() => {});
 
   revalidatePath("/espace-membres/gestion-groupe");
   return { success: true };

@@ -3,16 +3,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 let configured = false;
 
-function ensureConfigured() {
-  if (configured) return;
+/** Configure web-push. Retourne false (sans lever) si les clés VAPID manquent. */
+function ensureConfigured(): boolean {
+  if (configured) return true;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:contact@arc-eglise.ch";
   if (!pub || !priv) {
-    throw new Error("VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes");
+    console.warn("[push] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes — push désactivé");
+    return false;
   }
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
+  return true;
 }
 
 export type PushPayload = {
@@ -29,7 +32,7 @@ export type PushPayload = {
  * Purge automatiquement les endpoints morts (404/410).
  */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
-  ensureConfigured();
+  if (!ensureConfigured()) return { sent: 0, pruned: 0 };
   const admin = createAdminClient();
 
   const { data: subs } = await admin

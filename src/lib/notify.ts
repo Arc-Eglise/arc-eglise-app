@@ -53,6 +53,14 @@ export async function notifyUser(input: NotifInput) {
   return { created: true, push };
 }
 
+/** Notifie une liste précise d'utilisateurs (push + in-app), en respectant leurs préférences. */
+export async function notifyMany(userIds: string[], payload: Omit<NotifInput, "userId">) {
+  const results = await Promise.all(
+    userIds.map((id) => notifyUser({ ...payload, userId: id }).catch(() => null))
+  );
+  return { sent: results.filter((r) => r?.created).length };
+}
+
 /** Notifie tous les membres validés (push + in-app), sauf `exclude`. */
 export async function broadcastNotify(input: {
   type: string;

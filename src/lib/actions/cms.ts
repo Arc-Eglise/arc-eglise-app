@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { broadcastNotify } from "@/lib/notify";
+
+function sermonBody(pastor: string | null) {
+  return pastor ? `Prêché par ${pastor}` : "Nouveau sermon disponible";
+}
 
 async function uploadToStorage(bucket: string, path: string, file: File) {
   const admin = createAdminClient();
@@ -49,20 +54,36 @@ export async function createSermon(formData: FormData) {
   if (!cms.ok) return { error: cms.error };
   const { supabase, userId } = cms;
 
+  const title       = formData.get("title") as string;
+  const pastor      = (formData.get("pastor") as string) || null;
+  const isPublished = formData.get("is_published") !== "off";
+
   const { error } = await supabase.from("sermons").insert({
-    title:        formData.get("title")     as string,
-    pastor:       formData.get("pastor")    as string,
+    title,
+    pastor,
     reference:    formData.get("reference") as string || null,
     series:       formData.get("series")    as string || null,
     excerpt:      formData.get("excerpt")   as string || null,
     youtube_id:   formData.get("youtube_id") as string || null,
     date:         formData.get("date")      as string,
     is_featured:  formData.get("is_featured") === "on",
-    is_published: formData.get("is_published") !== "off",
+    is_published: isPublished,
     created_by:   userId,
   });
 
   if (error) return { error: error.message };
+
+  // Sermon publié → diffuser à tous les membres (push + in-app)
+  if (isPublished) {
+    await broadcastNotify({
+      type: "sermon",
+      title: `🎙 ${title}`,
+      body: sermonBody(pastor),
+      link: "/",
+      exclude: userId,
+    }).catch(() => {});
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/sermons");
   return { success: true };
@@ -71,21 +92,40 @@ export async function createSermon(formData: FormData) {
 export async function updateSermon(id: string, formData: FormData) {
   const cms = await getCmsUser();
   if (!cms.ok) return { error: cms.error };
-  const { supabase } = cms;
+  const { supabase, userId } = cms;
+
+  const title       = formData.get("title") as string;
+  const pastor      = (formData.get("pastor") as string) || null;
+  const isPublished = formData.get("is_published") !== "off";
+
+  // État de publication AVANT modification (pour détecter la mise en ligne)
+  const { data: prev } = await supabase.from("sermons").select("is_published").eq("id", id).maybeSingle();
 
   const { error } = await supabase.from("sermons").update({
-    title:        formData.get("title")     as string,
-    pastor:       formData.get("pastor")    as string,
+    title,
+    pastor,
     reference:    formData.get("reference") as string || null,
     series:       formData.get("series")    as string || null,
     excerpt:      formData.get("excerpt")   as string || null,
     youtube_id:   formData.get("youtube_id") as string || null,
     date:         formData.get("date")      as string,
     is_featured:  formData.get("is_featured") === "on",
-    is_published: formData.get("is_published") !== "off",
+    is_published: isPublished,
   }).eq("id", id);
 
   if (error) return { error: error.message };
+
+  // Transition non-publié → publié → diffuser à tous les membres
+  if (isPublished && prev?.is_published === false) {
+    await broadcastNotify({
+      type: "sermon",
+      title: `🎙 ${title}`,
+      body: sermonBody(pastor),
+      link: "/",
+      exclude: userId,
+    }).catch(() => {});
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/sermons");
   return { success: true };
