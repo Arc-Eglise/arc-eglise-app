@@ -2505,7 +2505,7 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
             </div>
             <VideoPlayer
-              src="https://www.youtube.com/embed/live_stream?channel=UCxxxxxxxx&autoplay=0&rel=0"
+              src="https://www.youtube.com/embed/live_stream?channel=UCCpYN5EF_OONd-m3u1wBvYg&autoplay=0&rel=0"
               title="ARC Live"
               style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
             />
