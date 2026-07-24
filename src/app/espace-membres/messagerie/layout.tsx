@@ -102,7 +102,7 @@ export default async function MessagerieLayout({ children }: { children: React.R
   }
 
   return (
-    <div className="flex rounded-2xl overflow-hidden border border-arc-border bg-white" style={{ height: "calc(100svh - 140px)", minHeight: "480px" }}>
+    <div className="flex rounded-2xl overflow-hidden border border-arc-border bg-white shadow-[0_4px_24px_rgba(30,36,100,0.06)]" style={{ height: "calc(100svh - 140px)", minHeight: "480px" }}>
 
       {/* Conversation list — hidden on mobile when in a thread */}
       <div className="w-full md:w-72 border-r border-arc-border flex-shrink-0 flex flex-col md:flex">

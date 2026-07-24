@@ -97,10 +97,10 @@ export default function ArcIaChat({ firstName }: { firstName: string }) {
       <div className="flex-1 overflow-y-auto px-4 py-4 bg-arc-bg">
         {messages.map((m, i) => (
           <div key={i} className={`flex mb-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+            <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
               m.role === "user"
-                ? "bg-arc-navy text-white rounded-br-sm"
-                : "bg-white border border-arc-border text-arc-navy rounded-bl-sm shadow-sm"
+                ? "bg-gradient-to-br from-arc-navy to-arc-blue text-white rounded-br-md"
+                : "bg-white border border-arc-border text-arc-navy rounded-bl-md"
             }`}>
               {m.content || (streaming && i === messages.length - 1 ? "…" : "")}
             </div>
@@ -135,7 +135,8 @@ export default function ArcIaChat({ firstName }: { firstName: string }) {
           <button
             onClick={() => send(input)}
             disabled={!input.trim() || streaming}
-            className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors disabled:opacity-40 flex-shrink-0"
+            aria-label="Envoyer"
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-arc-navy to-arc-blue text-white flex items-center justify-center hover:shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 flex-shrink-0"
           >➤</button>
         </div>
         <p className="text-[10px] text-arc-text3 mt-1.5 text-center">ARC IA peut se tromper. Pour un vrai accompagnement, parle à un responsable.</p>

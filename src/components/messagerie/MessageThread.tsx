@@ -505,11 +505,11 @@ export default function MessageThread({
                       </div>
                     ) : (
                       <div
-                        className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
+                        className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words shadow-sm transition-shadow ${
                           isMe
-                            ? "bg-arc-navy text-white rounded-br-sm"
-                            : "bg-white border border-arc-border text-arc-navy rounded-bl-sm shadow-sm"
-                        } ${msg.is_pinned ? "ring-1 ring-arc-blue ring-offset-1" : ""}`}
+                            ? "bg-gradient-to-br from-arc-navy to-arc-blue text-white rounded-br-md"
+                            : "bg-white border border-arc-border text-arc-navy rounded-bl-md"
+                        } ${msg.is_pinned ? "ring-1 ring-arc-gold ring-offset-1" : ""}`}
                       >
                         {/* Citation */}
                         {msg.reply_to_id && (
@@ -624,7 +624,8 @@ export default function MessageThread({
           <button
             onClick={handleSend}
             disabled={(!input.trim() && !pendingAtt) || sending}
-            className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors disabled:opacity-40 flex-shrink-0"
+            aria-label="Envoyer"
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-arc-navy to-arc-blue text-white flex items-center justify-center hover:shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:shadow-none flex-shrink-0"
           >➤</button>
         </div>
       </div>
