@@ -73,6 +73,8 @@ export default function MessageThread({
   const [editText, setEditText]         = useState("");
   const [attaching, setAttaching]       = useState(false);
   const [pendingAtt, setPendingAtt]     = useState<{ url: string; type: string; name: string } | null>(null);
+  const [showSearch, setShowSearch]     = useState(false);
+  const [msgSearch, setMsgSearch]       = useState("");
   const fileInputRef                    = useRef<HTMLInputElement>(null);
   const [otherReadAt, setOtherReadAt]   = useState<string | null>(otherLastReadAt);
   const [showPinned, setShowPinned]     = useState(false);
@@ -291,8 +293,13 @@ export default function MessageThread({
   const msgById       = new Map(messages.map(m => [m.id, m]));
   const snippet       = (m?: Message) => m ? (m.deleted_at ? "Message supprimé" : m.content.slice(0, 60)) : "";
 
+  const mq = msgSearch.trim().toLowerCase();
+  const visibleMessages = mq
+    ? messages.filter(m => !m.deleted_at && m.content.toLowerCase().includes(mq))
+    : messages;
+
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
-  for (const msg of messages) {
+  for (const msg of visibleMessages) {
     const date = new Date(msg.created_at).toLocaleDateString("fr-CH", { day: "2-digit", month: "long", year: "numeric" });
     const last = groupedMessages[groupedMessages.length - 1];
     if (last?.date === date) last.msgs.push(msg);
@@ -338,7 +345,25 @@ export default function MessageThread({
             📌 {pinnedMsgs.length} épinglé{pinnedMsgs.length > 1 ? "s" : ""}
           </button>
         )}
+        <button
+          onClick={() => { setShowSearch(v => !v); if (showSearch) setMsgSearch(""); }}
+          className="w-8 h-8 rounded-full text-arc-text3 hover:text-arc-navy hover:bg-arc-bg flex items-center justify-center transition-colors"
+          title="Rechercher dans la conversation"
+        >🔍</button>
       </div>
+
+      {/* Barre de recherche dans le fil */}
+      {showSearch && (
+        <div className="px-4 py-2 border-b border-arc-border bg-white flex-shrink-0 flex items-center gap-2">
+          <input
+            autoFocus value={msgSearch}
+            onChange={e => setMsgSearch(e.target.value)}
+            placeholder="Rechercher dans les messages…"
+            className="flex-1 px-3 py-1.5 rounded-lg bg-arc-bg text-sm outline-none focus:ring-1 focus:ring-arc-navy"
+          />
+          {msgSearch && <span className="text-[11px] text-arc-text3 flex-shrink-0">{visibleMessages.length} résultat{visibleMessages.length !== 1 ? "s" : ""}</span>}
+        </div>
+      )}
 
       {/* Pinned messages panel */}
       {showPinned && pinnedMsgs.length > 0 && (

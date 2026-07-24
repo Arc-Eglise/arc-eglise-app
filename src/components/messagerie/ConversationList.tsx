@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { useState } from "react";
 import NewConversationBtn from "./NewConversationBtn";
 
 interface Conversation {
@@ -30,6 +31,12 @@ interface Props {
 
 export default function ConversationList({ conversations, members, getOrCreateAction }: Props) {
   const pathname = usePathname();
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? conversations.filter(c => c.otherName.toLowerCase().includes(q) || (c.lastMessage ?? "").toLowerCase().includes(q))
+    : conversations;
 
   return (
     <div className="flex flex-col h-full">
@@ -37,6 +44,16 @@ export default function ConversationList({ conversations, members, getOrCreateAc
       <div className="px-4 py-4 border-b border-arc-border flex items-center justify-between">
         <span className="font-bold text-arc-navy text-sm">Messages</span>
         <NewConversationBtn members={members} getOrCreateAction={getOrCreateAction} />
+      </div>
+
+      {/* Recherche */}
+      <div className="px-3 py-2 border-b border-arc-border">
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="🔍 Rechercher une conversation…"
+          className="w-full px-3 py-2 rounded-lg bg-arc-bg border border-transparent text-sm outline-none focus:border-arc-navy focus:bg-white transition-colors"
+        />
       </div>
 
       {/* List */}
@@ -60,7 +77,12 @@ export default function ConversationList({ conversations, members, getOrCreateAc
             Aucune conversation. Clique + pour commencer.
           </div>
         )}
-        {conversations.map((conv) => {
+        {conversations.length > 0 && filtered.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-arc-text3">
+            Aucun résultat pour «&nbsp;{query}&nbsp;».
+          </div>
+        )}
+        {filtered.map((conv) => {
           const isActive = pathname.includes(conv.id);
           return (
             <Link
