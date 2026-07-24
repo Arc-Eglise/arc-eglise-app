@@ -302,11 +302,13 @@ export async function arcAIRequest(
   message: string,
   system: string,
   history: { role: string; content: string }[] = [],
+  userId?: string,
 ): Promise<string> {
   const result = await arcAIChat({
     message,
     history: history as Array<{ role: "user" | "assistant"; content: string }>,
     system,
+    userId,
     provider: "auto",
   })
   return stripAIFormatting(result.content)
