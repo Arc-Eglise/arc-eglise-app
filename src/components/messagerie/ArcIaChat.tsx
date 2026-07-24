@@ -43,16 +43,32 @@ export default function ArcIaChat({ firstName }: { firstName: string }) {
       if (!res.body) throw new Error("no body");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
       let acc = "";
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages(prev => {
-          const next = [...prev];
-          next[next.length - 1] = { role: "assistant", content: acc };
-          return next;
-        });
+        buffer += decoder.decode(value, { stream: true });
+        // Le flux est du SSE : `data: {"type":"chunk","content":"…"}\n\n`
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data:")) continue;
+          const payload = t.slice(5).trim();
+          if (!payload) continue;
+          try {
+            const evt = JSON.parse(payload) as { type: string; content?: string };
+            if (evt.type === "chunk" && evt.content) {
+              acc += evt.content;
+              setMessages(prev => {
+                const next = [...prev];
+                next[next.length - 1] = { role: "assistant", content: acc };
+                return next;
+              });
+            }
+          } catch { /* ligne SSE partielle : on attend la suite */ }
+        }
       }
     } catch {
       setMessages(prev => {

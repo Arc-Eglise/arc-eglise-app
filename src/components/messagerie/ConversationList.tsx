@@ -44,9 +44,17 @@ export default function ConversationList({ conversations, members, getOrCreateAc
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-4 border-b border-arc-border flex items-center justify-between">
-        <span className="font-bold text-arc-navy text-sm">Messages</span>
-        <NewConversationBtn members={members} getOrCreateAction={getOrCreateAction} createGroupAction={createGroupAction} />
+      <div className="px-4 py-3 border-b border-arc-border">
+        <Link
+          href="/espace-membres"
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-arc-text3 hover:text-arc-navy transition-colors mb-2 focus-visible:ring-2 focus-visible:ring-arc-navy focus-visible:outline-none rounded"
+        >
+          ← Espace membre
+        </Link>
+        <div className="flex items-center justify-between">
+          <span className="font-bold text-arc-navy text-sm">Messages</span>
+          <NewConversationBtn members={members} getOrCreateAction={getOrCreateAction} createGroupAction={createGroupAction} />
+        </div>
       </div>
 
       {/* Recherche */}
