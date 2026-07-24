@@ -22,7 +22,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
   // Fetch messages, participants, reactions in parallel
   const [messagesRes, participantsRes, reactionsRes] = await Promise.all([
     supabase.from("messages")
-      .select("id, sender_id, content, created_at, is_pinned, edited_at, deleted_at, reply_to_id")
+      .select("id, sender_id, content, created_at, is_pinned, edited_at, deleted_at, reply_to_id, attachment_url, attachment_type, attachment_name")
       .eq("conversation_id", conversationId)
       .order("created_at"),
     supabase.from("conversation_participants")
@@ -70,12 +70,15 @@ export default async function ConversationPage({ params }: { params: { id: strin
     edited_at: (m as { edited_at?: string | null }).edited_at ?? null,
     deleted_at: (m as { deleted_at?: string | null }).deleted_at ?? null,
     reply_to_id: (m as { reply_to_id?: string | null }).reply_to_id ?? null,
+    attachment_url: (m as { attachment_url?: string | null }).attachment_url ?? null,
+    attachment_type: (m as { attachment_type?: string | null }).attachment_type ?? null,
+    attachment_name: (m as { attachment_name?: string | null }).attachment_name ?? null,
     reactions: reactionsByMsg[m.id] ?? [],
   }));
 
-  async function handleSend(content: string, replyToId?: string | null): Promise<void> {
+  async function handleSend(content: string, replyToId?: string | null, attachment?: { url: string; type: string; name: string } | null): Promise<void> {
     "use server";
-    await sendMessage(conversationId, content, replyToId);
+    await sendMessage(conversationId, content, replyToId, attachment);
   }
 
   return (

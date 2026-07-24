@@ -19,6 +19,9 @@ interface Message {
   edited_at: string | null;
   deleted_at: string | null;
   reply_to_id: string | null;
+  attachment_url: string | null;
+  attachment_type: string | null;
+  attachment_name: string | null;
   reactions: Reaction[];
 }
 
@@ -36,7 +39,7 @@ interface Props {
   otherParticipant: Participant;
   otherLastReadAt: string | null;
   myLastReadAt: string | null;
-  sendMessageAction: (content: string, replyToId?: string | null) => Promise<void>;
+  sendMessageAction: (content: string, replyToId?: string | null, attachment?: { url: string; type: string; name: string } | null) => Promise<void>;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🙏", "🔥", "😮"];
@@ -68,6 +71,9 @@ export default function MessageThread({
   const [replyTo, setReplyTo]           = useState<Message | null>(null);
   const [editingId, setEditingId]       = useState<string | null>(null);
   const [editText, setEditText]         = useState("");
+  const [attaching, setAttaching]       = useState(false);
+  const [pendingAtt, setPendingAtt]     = useState<{ url: string; type: string; name: string } | null>(null);
+  const fileInputRef                    = useRef<HTMLInputElement>(null);
   const [otherReadAt, setOtherReadAt]   = useState<string | null>(otherLastReadAt);
   const [showPinned, setShowPinned]     = useState(false);
   const [otherOnline, setOtherOnline]   = useState(false);
@@ -199,15 +205,35 @@ export default function MessageThread({
   /* ── Actions ─────────────────────────────────────────────────── */
   const handleSend = async () => {
     const content = input.trim();
-    if (!content || sending) return;
+    if ((!content && !pendingAtt) || sending) return;
     setSending(true);
     setInput("");
     const rid = replyTo?.id ?? null;
+    const att = pendingAtt;
     setReplyTo(null);
-    await sendMessageAction(content, rid);
+    setPendingAtt(null);
+    await sendMessageAction(content, rid, att);
     setSending(false);
     textareaRef.current?.focus();
   };
+
+  async function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) return;   // 10 Mo max
+    setAttaching(true);
+    const ext = file.name.split(".").pop() ?? "bin";
+    const path = `${conversationId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("message-attachments").upload(path, file, { contentType: file.type, upsert: false });
+    if (!error) {
+      const { data } = supabase.storage.from("message-attachments").getPublicUrl(path);
+      setPendingAtt({ url: data.publicUrl, type: file.type.startsWith("image/") ? "image" : "file", name: file.name });
+    } else {
+      console.warn("[messagerie] upload échoué:", error.message);
+    }
+    setAttaching(false);
+  }
 
   function startEdit(msg: Message) {
     setEditingId(msg.id);
@@ -451,6 +477,20 @@ export default function MessageThread({
                             ↩ {snippet(msgById.get(msg.reply_to_id))}
                           </div>
                         )}
+                        {msg.attachment_url && (
+                          msg.attachment_type === "image" ? (
+                            <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                              <Image src={msg.attachment_url} alt={msg.attachment_name ?? ""} width={240} height={240}
+                                className="rounded-lg max-w-full h-auto max-h-64 w-auto object-cover" />
+                            </a>
+                          ) : (
+                            <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer"
+                              className={`flex items-center gap-2 mb-1 p-2 rounded-lg ${isMe ? "bg-white/10 hover:bg-white/20" : "bg-arc-bg hover:bg-arc-blueBg"}`}>
+                              <span className="text-lg flex-shrink-0">📎</span>
+                              <span className="text-xs underline truncate">{msg.attachment_name ?? "Fichier"}</span>
+                            </a>
+                          )
+                        )}
                         {msg.content}
                         <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? "text-white/50" : "text-arc-text3"}`}>
                           {msg.edited_at && <span className="text-[10px] italic">modifié</span>}
@@ -514,7 +554,24 @@ export default function MessageThread({
             <button onClick={() => setReplyTo(null)} className="text-arc-text3 hover:text-red-500 flex-shrink-0 px-1">✕</button>
           </div>
         )}
+        {pendingAtt && (
+          <div className="flex items-center gap-2 mb-2 p-2 bg-arc-bg border border-arc-border rounded-lg">
+            {pendingAtt.type === "image"
+              ? <Image src={pendingAtt.url} alt="" width={40} height={40} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+              : <span className="w-10 h-10 rounded bg-arc-blueBg flex items-center justify-center flex-shrink-0">📎</span>}
+            <span className="text-xs text-arc-navy flex-1 truncate">{pendingAtt.name}</span>
+            <button onClick={() => setPendingAtt(null)} className="text-arc-text3 hover:text-red-500 flex-shrink-0 px-1">✕</button>
+          </div>
+        )}
         <div className="flex gap-2 items-end">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePick}
+            accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.zip" />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={attaching || !!pendingAtt}
+            title="Joindre un fichier"
+            className="w-10 h-10 rounded-xl border border-arc-border text-arc-text3 hover:text-arc-navy hover:border-arc-navy transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+          >{attaching ? "⏳" : "📎"}</button>
           <textarea
             ref={textareaRef}
             value={input}
@@ -526,7 +583,7 @@ export default function MessageThread({
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && !pendingAtt) || sending}
             className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors disabled:opacity-40 flex-shrink-0"
           >➤</button>
         </div>

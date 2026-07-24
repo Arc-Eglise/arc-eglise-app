@@ -50,13 +50,18 @@ export async function getOrCreateConversation(otherUserId: string) {
   return { conversationId: conv.id as string };
 }
 
-export async function sendMessage(conversationId: string, content: string, replyToId?: string | null) {
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  replyToId?: string | null,
+  attachment?: { url: string; type: string; name: string } | null,
+) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
   const trimmed = content.trim();
-  if (!trimmed) return { error: "Message vide" };
+  if (!trimmed && !attachment) return { error: "Message vide" };
 
   const { data: part } = await supabase
     .from("conversation_participants")
@@ -73,6 +78,11 @@ export async function sendMessage(conversationId: string, content: string, reply
     content: trimmed,
   };
   if (replyToId) row.reply_to_id = replyToId;
+  if (attachment) {
+    row.attachment_url = attachment.url;
+    row.attachment_type = attachment.type;
+    row.attachment_name = attachment.name;
+  }
 
   const { error } = await supabase.from("messages").insert(row);
 
@@ -95,7 +105,7 @@ export async function sendMessage(conversationId: string, content: string, reply
       await notifyMany(ids, {
         type: "message",
         title: `💬 ${senderName}`,
-        body: trimmed.slice(0, 90),
+        body: trimmed.slice(0, 90) || "📎 Pièce jointe",
         link: `/espace-membres/messagerie/${conversationId}`,
       });
     }
