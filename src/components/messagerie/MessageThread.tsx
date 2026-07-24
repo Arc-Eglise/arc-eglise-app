@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -63,9 +64,13 @@ export default function MessageThread({
   const [emojiFor, setEmojiFor]         = useState<string | null>(null);
   const [otherReadAt, setOtherReadAt]   = useState<string | null>(otherLastReadAt);
   const [showPinned, setShowPinned]     = useState(false);
+  const [otherOnline, setOtherOnline]   = useState(false);
+  const [otherTyping, setOtherTyping]   = useState(false);
   const [, startTransition]             = useTransition();
   const bottomRef                       = useRef<HTMLDivElement>(null);
   const textareaRef                     = useRef<HTMLTextAreaElement>(null);
+  const roomRef                         = useRef<RealtimeChannel | null>(null);
+  const typingSentRef                   = useRef<number>(0);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -133,9 +138,47 @@ export default function MessageThread({
     };
   }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ── Présence en ligne + frappe (Realtime presence/broadcast) ──── */
+  useEffect(() => {
+    let typingTimer: ReturnType<typeof setTimeout>;
+    const room = supabase.channel(`room:${conversationId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+    room
+      .on("presence", { event: "sync" }, () => {
+        const state = room.presenceState();
+        setOtherOnline(Object.keys(state).some(k => k !== currentUserId));
+      })
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if ((payload as { userId?: string })?.userId !== currentUserId) {
+          setOtherTyping(true);
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => setOtherTyping(false), 3500);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") await room.track({ online: true, at: Date.now() });
+      });
+    roomRef.current = room;
+
+    return () => {
+      clearTimeout(typingTimer);
+      supabase.removeChannel(room);
+      roomRef.current = null;
+    };
+  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Émet un événement de frappe (throttlé à 2 s)
+  function emitTyping() {
+    const now = Date.now();
+    if (now - typingSentRef.current < 2000) return;
+    typingSentRef.current = now;
+    roomRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: currentUserId } });
+  }
 
   /* ── Actions ─────────────────────────────────────────────────── */
   const handleSend = async () => {
@@ -197,13 +240,23 @@ export default function MessageThread({
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-arc-border flex items-center gap-3 flex-shrink-0">
         <Link href="/espace-membres/messagerie" className="md:hidden text-arc-text3 hover:text-arc-navy mr-1">←</Link>
-        <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center overflow-hidden flex-shrink-0">
-          {otherParticipant.avatar_url
-            ? <Image src={otherParticipant.avatar_url} alt="" width={36} height={36} className="w-full h-full object-cover" />
-            : <span className="text-xs font-bold text-white">{otherInitiale}</span>}
+        <div className="relative flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center overflow-hidden">
+            {otherParticipant.avatar_url
+              ? <Image src={otherParticipant.avatar_url} alt="" width={36} height={36} className="w-full h-full object-cover" />
+              : <span className="text-xs font-bold text-white">{otherInitiale}</span>}
+          </div>
+          {otherOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white" title="En ligne" />}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="font-semibold text-arc-navy text-sm">{otherName}</div>
+          <div className="text-[11px] h-3.5 leading-none">
+            {otherTyping ? (
+              <span className="text-arc-blue font-medium">écrit…</span>
+            ) : otherOnline ? (
+              <span className="text-green-600">En ligne</span>
+            ) : null}
+          </div>
         </div>
         {pinnedMsgs.length > 0 && (
           <button
@@ -346,6 +399,15 @@ export default function MessageThread({
             })}
           </div>
         ))}
+        {otherTyping && (
+          <div className="flex justify-start mb-2">
+            <div className="bg-white border border-arc-border rounded-2xl rounded-bl-sm px-3 py-2 shadow-sm flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-arc-text3 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-arc-text3 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-arc-text3 animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -355,7 +417,7 @@ export default function MessageThread({
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); emitTyping(); }}
             onKeyDown={handleKeyDown}
             placeholder="Écris un message… (Entrée pour envoyer)"
             rows={1}
