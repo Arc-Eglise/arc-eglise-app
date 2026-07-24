@@ -115,6 +115,30 @@ export async function sendMessage(
   return { success: true };
 }
 
+// Transfert humain (ARC IA → responsable) : ouvre une conversation avec un
+// pasteur/admin (ou responsable suivi à défaut).
+export async function contactPastor() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const admin = createAdminClient();
+  const { data: staff } = await admin
+    .from("profiles")
+    .select("id, role, groups")
+    .eq("validated", true);
+
+  const candidates = (staff ?? []).filter((p: { id: string; role: string | null; groups: string[] | null }) => p.id !== user.id);
+  const pastor =
+    candidates.find(p => p.role === "pasteur") ??
+    candidates.find(p => p.role === "admin") ??
+    candidates.find(p => (p.groups ?? []).includes("suivi"));
+
+  if (!pastor) return { error: "Aucun responsable disponible pour le moment." };
+
+  return getOrCreateConversation(pastor.id as string);
+}
+
 export async function markAsRead(conversationId: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

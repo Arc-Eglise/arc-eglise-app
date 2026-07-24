@@ -41,6 +41,20 @@ export default function ConversationList({ conversations, members, getOrCreateAc
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
+        {/* ARC IA — assistant, toujours en tête */}
+        <Link
+          href="/espace-membres/messagerie/arc-ia"
+          className={`flex items-center gap-3 px-4 py-3.5 border-b border-arc-border transition-colors ${
+            pathname.includes("/arc-ia") ? "bg-arc-blueBg" : "hover:bg-arc-bg"
+          }`}
+        >
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-arc-blue to-arc-navy flex items-center justify-center flex-shrink-0 text-lg">🤖</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-arc-navy truncate">ARC IA</div>
+            <div className="text-xs text-arc-blue truncate">Assistant pastoral · toujours dispo</div>
+          </div>
+        </Link>
+
         {conversations.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-arc-text3">
             Aucune conversation. Clique + pour commencer.
