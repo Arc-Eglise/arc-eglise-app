@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { reactToMessage, togglePinMessage } from "@/lib/actions/messagerie";
+import { reactToMessage, togglePinMessage, editMessage, deleteMessage } from "@/lib/actions/messagerie";
 
 /* ── Types ─────────────────────────────────────────────────────── */
 type Reaction = { id: string; message_id: string; user_id: string; emoji: string };
@@ -16,6 +16,9 @@ interface Message {
   content: string;
   created_at: string;
   is_pinned: boolean;
+  edited_at: string | null;
+  deleted_at: string | null;
+  reply_to_id: string | null;
   reactions: Reaction[];
 }
 
@@ -33,7 +36,7 @@ interface Props {
   otherParticipant: Participant;
   otherLastReadAt: string | null;
   myLastReadAt: string | null;
-  sendMessageAction: (content: string) => Promise<void>;
+  sendMessageAction: (content: string, replyToId?: string | null) => Promise<void>;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🙏", "🔥", "😮"];
@@ -62,6 +65,9 @@ export default function MessageThread({
   const [sending, setSending]           = useState(false);
   const [hoverMsg, setHoverMsg]         = useState<string | null>(null);
   const [emojiFor, setEmojiFor]         = useState<string | null>(null);
+  const [replyTo, setReplyTo]           = useState<Message | null>(null);
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [editText, setEditText]         = useState("");
   const [otherReadAt, setOtherReadAt]   = useState<string | null>(otherLastReadAt);
   const [showPinned, setShowPinned]     = useState(false);
   const [otherOnline, setOtherOnline]   = useState(false);
@@ -87,13 +93,23 @@ export default function MessageThread({
         filter: `conversation_id=eq.${conversationId}`,
       }, ({ new: n }) => {
         const msg = n as Message;
-        setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, { ...msg, is_pinned: false, reactions: [] }]);
+        setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, {
+          ...msg,
+          is_pinned: msg.is_pinned ?? false,
+          edited_at: msg.edited_at ?? null,
+          deleted_at: msg.deleted_at ?? null,
+          reply_to_id: msg.reply_to_id ?? null,
+          reactions: [],
+        }]);
       })
       .on("postgres_changes", {
         event: "UPDATE", schema: "public", table: "messages",
         filter: `conversation_id=eq.${conversationId}`,
       }, ({ new: n }) => {
-        setMessages(prev => prev.map(m => m.id === n.id ? { ...m, is_pinned: (n as Message).is_pinned } : m));
+        const u = n as Message;
+        setMessages(prev => prev.map(m => m.id === u.id
+          ? { ...m, content: u.content, is_pinned: u.is_pinned, edited_at: u.edited_at, deleted_at: u.deleted_at }
+          : m));
       })
       .subscribe();
 
@@ -186,10 +202,38 @@ export default function MessageThread({
     if (!content || sending) return;
     setSending(true);
     setInput("");
-    await sendMessageAction(content);
+    const rid = replyTo?.id ?? null;
+    setReplyTo(null);
+    await sendMessageAction(content, rid);
     setSending(false);
     textareaRef.current?.focus();
   };
+
+  function startEdit(msg: Message) {
+    setEditingId(msg.id);
+    setEditText(msg.content);
+    setHoverMsg(null);
+  }
+
+  async function saveEdit(msg: Message) {
+    const content = editText.trim();
+    setEditingId(null);
+    if (!content || content === msg.content) return;
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, content, edited_at: new Date().toISOString() } : m));
+    startTransition(() => { editMessage(msg.id, content); });
+  }
+
+  function handleDelete(msg: Message) {
+    setHoverMsg(null);
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, deleted_at: new Date().toISOString(), is_pinned: false } : m));
+    startTransition(() => { deleteMessage(msg.id); });
+  }
+
+  function startReply(msg: Message) {
+    setReplyTo(msg);
+    setHoverMsg(null);
+    textareaRef.current?.focus();
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -217,7 +261,9 @@ export default function MessageThread({
   /* ── Computed ────────────────────────────────────────────────── */
   const otherName     = [otherParticipant.first_name, otherParticipant.last_name].filter(Boolean).join(" ") || "Membre";
   const otherInitiale = (otherParticipant.first_name?.[0] ?? "?").toUpperCase();
-  const pinnedMsgs    = messages.filter(m => m.is_pinned);
+  const pinnedMsgs    = messages.filter(m => m.is_pinned && !m.deleted_at);
+  const msgById       = new Map(messages.map(m => [m.id, m]));
+  const snippet       = (m?: Message) => m ? (m.deleted_at ? "Message supprimé" : m.content.slice(0, 60)) : "";
 
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   for (const msg of messages) {
@@ -316,23 +362,40 @@ export default function MessageThread({
                 >
                   <div className="relative max-w-[75%]">
                     {/* Action bar on hover */}
-                    {isHovered && (
+                    {isHovered && !msg.deleted_at && editingId !== msg.id && (
                       <div
                         className={`absolute ${isMe ? "right-full mr-2" : "left-full ml-2"} top-0 flex items-center gap-1 z-10`}
                         onClick={e => e.stopPropagation()}
                       >
-                        {/* Emoji trigger */}
                         <button
                           onClick={() => setEmojiFor(v => v === msg.id ? null : msg.id)}
                           className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm"
                           title="Réagir"
                         >😊</button>
-                        {/* Pin */}
+                        <button
+                          onClick={() => startReply(msg)}
+                          className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm text-arc-text3"
+                          title="Répondre"
+                        >↩</button>
                         <button
                           onClick={() => handlePin(msg)}
                           className={`w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm ${msg.is_pinned ? "text-arc-blue" : "text-arc-text3"}`}
                           title={msg.is_pinned ? "Désépingler" : "Épingler"}
                         >📌</button>
+                        {isMe && (
+                          <>
+                            <button
+                              onClick={() => startEdit(msg)}
+                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-arc-blueBg shadow-sm text-arc-text3"
+                              title="Modifier"
+                            >✏️</button>
+                            <button
+                              onClick={() => handleDelete(msg)}
+                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-sm text-arc-text3"
+                              title="Supprimer"
+                            >🗑</button>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -353,26 +416,55 @@ export default function MessageThread({
                     )}
 
                     {/* Message bubble */}
-                    <div
-                      className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
-                        isMe
-                          ? "bg-arc-navy text-white rounded-br-sm"
-                          : "bg-white border border-arc-border text-arc-navy rounded-bl-sm shadow-sm"
-                      } ${msg.is_pinned ? "ring-1 ring-arc-blue ring-offset-1" : ""}`}
-                    >
-                      {msg.content}
-                      <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? "text-white/50" : "text-arc-text3"}`}>
-                        <span className="text-[10px]">
-                          {new Date(msg.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                        {/* D/R indicator */}
-                        {isMe && (
-                          <span className={`text-[11px] leading-none ${status === "read" ? (isMe ? "text-white/80" : "text-arc-blue") : "text-white/40"}`}>
-                            {status === "read" ? "✓✓" : "✓"}
-                          </span>
-                        )}
+                    {msg.deleted_at ? (
+                      <div className={`px-4 py-2.5 rounded-2xl text-sm italic ${isMe ? "bg-arc-navy/40 text-white/70 rounded-br-sm" : "bg-white border border-arc-border text-arc-text3 rounded-bl-sm"}`}>
+                        🚫 Message supprimé
                       </div>
-                    </div>
+                    ) : editingId === msg.id ? (
+                      <div className="bg-white border border-arc-blue rounded-2xl p-2 shadow-sm min-w-[220px]" onClick={e => e.stopPropagation()}>
+                        <textarea
+                          autoFocus value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(msg); }
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          rows={2}
+                          className="w-full px-2 py-1 text-sm outline-none resize-none text-arc-navy"
+                        />
+                        <div className="flex justify-end gap-2 mt-1">
+                          <button onClick={() => setEditingId(null)} className="text-[11px] text-arc-text3 hover:text-arc-navy">Annuler</button>
+                          <button onClick={() => saveEdit(msg)} className="text-[11px] font-bold text-arc-blue hover:underline">Enregistrer</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
+                          isMe
+                            ? "bg-arc-navy text-white rounded-br-sm"
+                            : "bg-white border border-arc-border text-arc-navy rounded-bl-sm shadow-sm"
+                        } ${msg.is_pinned ? "ring-1 ring-arc-blue ring-offset-1" : ""}`}
+                      >
+                        {/* Citation */}
+                        {msg.reply_to_id && (
+                          <div className={`text-[11px] mb-1 pl-2 border-l-2 rounded-sm ${isMe ? "border-white/40 text-white/70" : "border-arc-blue/40 text-arc-text3"}`}>
+                            ↩ {snippet(msgById.get(msg.reply_to_id))}
+                          </div>
+                        )}
+                        {msg.content}
+                        <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? "text-white/50" : "text-arc-text3"}`}>
+                          {msg.edited_at && <span className="text-[10px] italic">modifié</span>}
+                          <span className="text-[10px]">
+                            {new Date(msg.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {isMe && (
+                            <span className={`text-[11px] leading-none ${status === "read" ? "text-white/80" : "text-white/40"}`}>
+                              {status === "read" ? "✓✓" : "✓"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Reactions */}
                     {grouped.length > 0 && (
@@ -413,6 +505,15 @@ export default function MessageThread({
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-arc-border bg-white flex-shrink-0">
+        {replyTo && (
+          <div className="flex items-center gap-2 mb-2 pl-3 py-1.5 border-l-2 border-arc-blue bg-arc-blueBg rounded-r-lg">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold text-arc-blue">Réponse à {replyTo.sender_id === currentUserId ? "toi" : otherName}</div>
+              <div className="text-xs text-arc-text3 truncate">{snippet(replyTo)}</div>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="text-arc-text3 hover:text-red-500 flex-shrink-0 px-1">✕</button>
+          </div>
+        )}
         <div className="flex gap-2 items-end">
           <textarea
             ref={textareaRef}

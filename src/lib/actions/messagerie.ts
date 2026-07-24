@@ -50,7 +50,7 @@ export async function getOrCreateConversation(otherUserId: string) {
   return { conversationId: conv.id as string };
 }
 
-export async function sendMessage(conversationId: string, content: string) {
+export async function sendMessage(conversationId: string, content: string, replyToId?: string | null) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
@@ -67,11 +67,14 @@ export async function sendMessage(conversationId: string, content: string) {
 
   if (!part) return { error: "Non autorisé" };
 
-  const { error } = await supabase.from("messages").insert({
+  const row: Record<string, unknown> = {
     conversation_id: conversationId,
     sender_id: user.id,
     content: trimmed,
-  });
+  };
+  if (replyToId) row.reply_to_id = replyToId;
+
+  const { error } = await supabase.from("messages").insert(row);
 
   if (error) return { error: error.message };
 
@@ -138,6 +141,39 @@ export async function reactToMessage(messageId: string, emoji: string) {
     emoji,
   });
   return { added: true };
+}
+
+export async function editMessage(messageId: string, content: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const trimmed = content.trim();
+  if (!trimmed) return { error: "Message vide" };
+
+  const { error } = await supabase
+    .from("messages")
+    .update({ content: trimmed, edited_at: new Date().toISOString() })
+    .eq("id", messageId)
+    .eq("sender_id", user.id)          // l'expéditeur uniquement
+    .is("deleted_at", null);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function deleteMessage(messageId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  // Suppression douce : conserve la ligne (fil cohérent), masque le contenu.
+  const { error } = await supabase
+    .from("messages")
+    .update({ deleted_at: new Date().toISOString(), is_pinned: false })
+    .eq("id", messageId)
+    .eq("sender_id", user.id);
+  if (error) return { error: error.message };
+  return { success: true };
 }
 
 export async function togglePinMessage(messageId: string, currentlyPinned: boolean) {
