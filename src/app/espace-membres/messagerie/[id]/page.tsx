@@ -55,6 +55,18 @@ export default async function ConversationPage({ params }: { params: { id: strin
     first_name: null, last_name: null, avatar_url: null,
   };
 
+  // Métadonnées conversation (groupe ?) + table des expéditeurs (pour les groupes)
+  const { data: convMeta } = await supabase
+    .from("conversations").select("name, is_group").eq("id", conversationId).maybeSingle();
+  const isGroup = (convMeta?.is_group as boolean | null) ?? false;
+  const senders: Record<string, { name: string; avatar: string | null }> = {};
+  for (const p of participants) {
+    senders[p.user_id] = {
+      name: [p.profiles?.first_name, p.profiles?.last_name].filter(Boolean).join(" ") || "Membre",
+      avatar: p.profiles?.avatar_url ?? null,
+    };
+  }
+
   // Group reactions by message_id
   type Reaction = { id: string; message_id: string; user_id: string; emoji: string };
   const reactionsByMsg: Record<string, Reaction[]> = {};
@@ -90,6 +102,10 @@ export default async function ConversationPage({ params }: { params: { id: strin
       otherLastReadAt={otherRow?.last_read_at ?? null}
       myLastReadAt={myRow?.last_read_at ?? null}
       sendMessageAction={handleSend}
+      isGroup={isGroup}
+      groupName={convMeta?.name ?? null}
+      memberCount={participants.length}
+      senders={senders}
     />
   );
 }

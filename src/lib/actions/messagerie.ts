@@ -50,6 +50,30 @@ export async function getOrCreateConversation(otherUserId: string) {
   return { conversationId: conv.id as string };
 }
 
+export async function createGroupConversation(name: string, memberIds: string[]) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Nom du groupe requis" };
+  const ids = Array.from(new Set(memberIds.filter(id => id && id !== user.id)));
+  if (ids.length < 2) return { error: "Choisis au moins 2 membres pour un groupe" };
+
+  const admin = createAdminClient();
+  const { data: conv, error } = await admin
+    .from("conversations")
+    .insert({ name: trimmed, is_group: true, created_by: user.id })
+    .select("id")
+    .single();
+  if (error || !conv) return { error: "Erreur lors de la création du groupe" };
+
+  const rows = [user.id, ...ids].map(uid => ({ conversation_id: conv.id, user_id: uid }));
+  await admin.from("conversation_participants").insert(rows);
+
+  return { conversationId: conv.id as string };
+}
+
 export async function sendMessage(
   conversationId: string,
   content: string,

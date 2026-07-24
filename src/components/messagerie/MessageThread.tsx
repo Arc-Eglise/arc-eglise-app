@@ -40,6 +40,10 @@ interface Props {
   otherLastReadAt: string | null;
   myLastReadAt: string | null;
   sendMessageAction: (content: string, replyToId?: string | null, attachment?: { url: string; type: string; name: string } | null) => Promise<void>;
+  isGroup?: boolean;
+  groupName?: string | null;
+  memberCount?: number;
+  senders?: Record<string, { name: string; avatar: string | null }>;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🙏", "🔥", "😮"];
@@ -62,6 +66,10 @@ export default function MessageThread({
   otherParticipant,
   otherLastReadAt,
   sendMessageAction,
+  isGroup = false,
+  groupName = null,
+  memberCount = 2,
+  senders = {},
 }: Props) {
   const [messages, setMessages]         = useState<Message[]>(initialMessages);
   const [input, setInput]               = useState("");
@@ -320,17 +328,21 @@ export default function MessageThread({
       <div className="px-5 py-3.5 border-b border-arc-border flex items-center gap-3 flex-shrink-0">
         <Link href="/espace-membres/messagerie" className="md:hidden text-arc-text3 hover:text-arc-navy mr-1">←</Link>
         <div className="relative flex-shrink-0">
-          <div className="w-9 h-9 rounded-full bg-arc-navy flex items-center justify-center overflow-hidden">
-            {otherParticipant.avatar_url
-              ? <Image src={otherParticipant.avatar_url} alt="" width={36} height={36} className="w-full h-full object-cover" />
-              : <span className="text-xs font-bold text-white">{otherInitiale}</span>}
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center overflow-hidden ${isGroup ? "bg-gradient-to-br from-arc-blue to-arc-navy text-lg" : "bg-arc-navy"}`}>
+            {isGroup
+              ? "👥"
+              : otherParticipant.avatar_url
+                ? <Image src={otherParticipant.avatar_url} alt="" width={36} height={36} className="w-full h-full object-cover" />
+                : <span className="text-xs font-bold text-white">{otherInitiale}</span>}
           </div>
-          {otherOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white" title="En ligne" />}
+          {!isGroup && otherOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white" title="En ligne" />}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-arc-navy text-sm">{otherName}</div>
+          <div className="font-semibold text-arc-navy text-sm truncate">{isGroup ? (groupName || "Groupe") : otherName}</div>
           <div className="text-[11px] h-3.5 leading-none">
-            {otherTyping ? (
+            {isGroup ? (
+              otherTyping ? <span className="text-arc-blue font-medium">quelqu&apos;un écrit…</span> : <span className="text-arc-text3">{memberCount} membres</span>
+            ) : otherTyping ? (
               <span className="text-arc-blue font-medium">écrit…</span>
             ) : otherOnline ? (
               <span className="text-green-600">En ligne</span>
@@ -412,6 +424,9 @@ export default function MessageThread({
                   onMouseLeave={() => { if (!showEmoji) setHoverMsg(null); }}
                 >
                   <div className="relative max-w-[75%]">
+                    {isGroup && !isMe && (
+                      <div className="text-[10px] font-bold text-arc-blue mb-0.5 pl-1">{senders[msg.sender_id]?.name ?? "Membre"}</div>
+                    )}
                     {/* Action bar on hover */}
                     {isHovered && !msg.deleted_at && editingId !== msg.id && (
                       <div
@@ -522,7 +537,7 @@ export default function MessageThread({
                           <span className="text-[10px]">
                             {new Date(msg.created_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}
                           </span>
-                          {isMe && (
+                          {isMe && !isGroup && (
                             <span className={`text-[11px] leading-none ${status === "read" ? "text-white/80" : "text-white/40"}`}>
                               {status === "read" ? "✓✓" : "✓"}
                             </span>

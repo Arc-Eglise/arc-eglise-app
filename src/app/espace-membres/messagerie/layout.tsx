@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ConversationList from "@/components/messagerie/ConversationList";
-import { getOrCreateConversation } from "@/lib/actions/messagerie";
+import { getOrCreateConversation, createGroupConversation } from "@/lib/actions/messagerie";
 
 export default async function MessagerieLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -17,7 +17,7 @@ export default async function MessagerieLayout({ children }: { children: React.R
   const convIds = myParts?.map((p) => p.conversation_id) ?? [];
 
   // Fetch other participants + last messages
-  const [othersRes, messagesRes, membersRes] = await Promise.all([
+  const [othersRes, messagesRes, membersRes, convMetaRes] = await Promise.all([
     convIds.length > 0
       ? supabase.from("conversation_participants")
           .select("conversation_id, user_id, profiles(first_name, last_name, avatar_url)")
@@ -36,6 +36,9 @@ export default async function MessagerieLayout({ children }: { children: React.R
       .eq("validated", true)
       .neq("id", user.id)
       .order("first_name"),
+    convIds.length > 0
+      ? supabase.from("conversations").select("id, name, is_group").in("id", convIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
   type OtherParticipant = {
@@ -46,19 +49,41 @@ export default async function MessagerieLayout({ children }: { children: React.R
 
   const others   = (othersRes.data ?? []) as unknown as OtherParticipant[];
   const lastMsgs = messagesRes.data ?? [];
+  const metaById = new Map(
+    ((convMetaRes.data ?? []) as { id: string; name: string | null; is_group: boolean | null }[]).map(c => [c.id, c])
+  );
 
   const conversations = (myParts ?? [])
     .map((part) => {
-      const other    = others.find((o) => o.conversation_id === part.conversation_id);
+      const meta     = metaById.get(part.conversation_id);
+      const isGroup  = meta?.is_group ?? false;
       const lastMsg  = lastMsgs.find((m) => m.conversation_id === part.conversation_id);
+
+      if (isGroup) {
+        const memberCount = others.filter(o => o.conversation_id === part.conversation_id).length + 1;
+        return {
+          id: part.conversation_id,
+          otherName: meta?.name || "Groupe",
+          otherInitiale: "👥",
+          otherAvatar: null,
+          isGroup: true,
+          memberCount,
+          lastMessage: lastMsg?.content ?? null,
+          lastMessageAt: lastMsg?.created_at ?? null,
+          hasUnread: lastMsg ? new Date(lastMsg.created_at) > new Date(part.last_read_at) : false,
+        };
+      }
+
+      const other    = others.find((o) => o.conversation_id === part.conversation_id);
       const profile  = other?.profiles;
       const otherName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Membre";
-
       return {
         id: part.conversation_id,
         otherName,
         otherInitiale: (profile?.first_name?.[0] ?? "?").toUpperCase(),
         otherAvatar: profile?.avatar_url ?? null,
+        isGroup: false,
+        memberCount: 2,
         lastMessage: lastMsg?.content ?? null,
         lastMessageAt: lastMsg?.created_at ?? null,
         hasUnread: lastMsg ? new Date(lastMsg.created_at) > new Date(part.last_read_at) : false,
@@ -71,6 +96,11 @@ export default async function MessagerieLayout({ children }: { children: React.R
     return getOrCreateConversation(otherUserId);
   }
 
+  async function handleCreateGroup(name: string, memberIds: string[]) {
+    "use server";
+    return createGroupConversation(name, memberIds);
+  }
+
   return (
     <div className="flex rounded-2xl overflow-hidden border border-arc-border bg-white" style={{ height: "calc(100svh - 140px)", minHeight: "480px" }}>
 
@@ -80,6 +110,7 @@ export default async function MessagerieLayout({ children }: { children: React.R
           conversations={conversations}
           members={membersRes.data ?? []}
           getOrCreateAction={handleGetOrCreate}
+          createGroupAction={handleCreateGroup}
         />
       </div>
 

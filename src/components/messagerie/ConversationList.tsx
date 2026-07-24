@@ -11,6 +11,8 @@ interface Conversation {
   otherName: string;
   otherInitiale: string;
   otherAvatar: string | null;
+  isGroup?: boolean;
+  memberCount?: number;
   lastMessage: string | null;
   lastMessageAt: string | null;
   hasUnread: boolean;
@@ -27,9 +29,10 @@ interface Props {
   conversations: Conversation[];
   members: Member[];
   getOrCreateAction: (otherUserId: string) => Promise<{ conversationId?: string; error?: string }>;
+  createGroupAction: (name: string, memberIds: string[]) => Promise<{ conversationId?: string; error?: string }>;
 }
 
-export default function ConversationList({ conversations, members, getOrCreateAction }: Props) {
+export default function ConversationList({ conversations, members, getOrCreateAction, createGroupAction }: Props) {
   const pathname = usePathname();
   const [query, setQuery] = useState("");
 
@@ -43,7 +46,7 @@ export default function ConversationList({ conversations, members, getOrCreateAc
       {/* Header */}
       <div className="px-4 py-4 border-b border-arc-border flex items-center justify-between">
         <span className="font-bold text-arc-navy text-sm">Messages</span>
-        <NewConversationBtn members={members} getOrCreateAction={getOrCreateAction} />
+        <NewConversationBtn members={members} getOrCreateAction={getOrCreateAction} createGroupAction={createGroupAction} />
       </div>
 
       {/* Recherche */}
