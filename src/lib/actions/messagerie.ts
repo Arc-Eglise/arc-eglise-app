@@ -50,6 +50,44 @@ export async function getOrCreateConversation(otherUserId: string) {
   return { conversationId: conv.id as string };
 }
 
+/**
+ * Canal communautaire (messagerie unifiée) : récupère ou crée la conversation
+ * partagée d'un canal (général, annonces, prière, groupes…) et y inscrit le
+ * membre courant. Renvoie l'id de conversation à utiliser côté panneau.
+ */
+export async function getOrCreateChannel(key: string, name: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const admin = createAdminClient();
+
+  // Conversation du canal (unique par channel_key)
+  let convId: string | null = null;
+  const { data: existing } = await admin
+    .from("conversations").select("id").eq("channel_key", key).maybeSingle();
+  if (existing) {
+    convId = existing.id as string;
+  } else {
+    const { data: created, error } = await admin
+      .from("conversations")
+      .insert({ name, is_group: true, channel_key: key, created_by: user.id })
+      .select("id").single();
+    if (error || !created) return { error: "Erreur création canal" };
+    convId = created.id as string;
+  }
+
+  // Inscription paresseuse du membre courant
+  const { data: part } = await admin
+    .from("conversation_participants")
+    .select("conversation_id").eq("conversation_id", convId).eq("user_id", user.id).maybeSingle();
+  if (!part) {
+    await admin.from("conversation_participants").insert({ conversation_id: convId, user_id: user.id });
+  }
+
+  return { conversationId: convId };
+}
+
 export async function createGroupConversation(name: string, memberIds: string[]) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
