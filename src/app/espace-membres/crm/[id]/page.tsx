@@ -9,6 +9,7 @@ import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
 import { GroupsEditorClient } from "@/components/crm/GroupsEditorClient";
 import CrmTagsEditor from "../CrmTagsEditor";
 import GroupBadge from "@/components/GroupBadge";
+import MemberTimeline from "@/components/crm/MemberTimeline";
 
 const STAGES: { key: string; label: string; color: string }[] = [
   { key: "visiteur",    label: "Visiteur",     color: "text-gray-600 bg-gray-50 border-gray-200"       },
@@ -119,7 +120,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
       .order("occurred_at", { ascending: false })
       .limit(50),
     supabase.from("pastoral_tasks")
-      .select("id, title, description, due_date, priority, status, assigned_to, profiles!pastoral_tasks_assigned_to_fkey(first_name, last_name)")
+      .select("id, title, description, due_date, priority, status, assigned_to, created_at, completed_at, profiles!pastoral_tasks_assigned_to_fkey(first_name, last_name)")
       .eq("member_id", params.id)
       .order("status")
       .order("due_date", { ascending: true, nullsFirst: false })
@@ -643,6 +644,15 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
         {/* ── Colonne droite ── */}
         <div className="space-y-5">
+
+          {/* Vue 360° — fil d'activité unifié */}
+          <MemberTimeline
+            notes={notes}
+            interactions={interactions}
+            tasks={tasks}
+            attends={attends}
+            prayers={prayers}
+          />
 
           {/* Historique présences */}
           <div className="bg-white border border-arc-border rounded-2xl p-5">
