@@ -160,6 +160,10 @@ export default async function CrmPage({
     const s = sp.toString();
     return "/espace-membres/crm" + (s ? `?${s}` : "");
   };
+
+  // Communication ciblée (Phase 6) — réservée admin/pasteur/communication
+  const canSend = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("communication");
+  const commUrl = seg({}).replace("/espace-membres/crm", "/espace-membres/crm/communication");
   const byRole  = all.reduce((acc, m) => { acc[m.role] = (acc[m.role] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
   return (
@@ -212,9 +216,16 @@ export default async function CrmPage({
 
       {/* Segmentation dynamique (Phase 5) */}
       <div className="bg-white border border-arc-border rounded-2xl p-4 mb-5 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue">Segments & filtres</div>
-          <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
+          <div className="flex items-center gap-3">
+            {canSend && (
+              <Link href={commUrl} className="text-[11px] font-semibold text-white bg-arc-navy hover:bg-arc-navy2 px-2.5 py-1 rounded-full transition-colors">
+                ✉️ Contacter ce segment
+              </Link>
+            )}
+            <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
+          </div>
         </div>
 
         {/* Engagement */}
