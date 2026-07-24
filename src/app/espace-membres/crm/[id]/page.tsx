@@ -10,6 +10,7 @@ import { GroupsEditorClient } from "@/components/crm/GroupsEditorClient";
 import CrmTagsEditor from "../CrmTagsEditor";
 import GroupBadge from "@/components/GroupBadge";
 import MemberTimeline from "@/components/crm/MemberTimeline";
+import { computeEngagement, ENGAGEMENT_META } from "@/lib/crm/engagement";
 
 const STAGES: { key: string; label: string; color: string }[] = [
   { key: "visiteur",    label: "Visiteur",     color: "text-gray-600 bg-gray-50 border-gray-200"       },
@@ -148,6 +149,20 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   const interactions = interactRes.data ?? [];
   const tasks        = tasksRes.data ?? [];
   const rsvpGoing = rsvps.filter(r => r.status === "going").length;
+
+  // Engagement (Phase 4) : présence récente + fréquence 90j + dernier contact
+  const since90 = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const { count: attendance90 } = await supabase
+    .from("event_attendance")
+    .select("event_id", { count: "exact", head: true })
+    .eq("user_id", params.id)
+    .gte("checked_in_at", since90);
+  const engagement = computeEngagement({
+    lastAttendanceAt:   (attends[0] as { checked_in_at?: string } | undefined)?.checked_in_at ?? null,
+    attendanceCount90d: attendance90 ?? 0,
+    lastInteractionAt:  (interactions[0] as { occurred_at?: string } | undefined)?.occurred_at ?? null,
+  });
+  const engMeta = ENGAGEMENT_META[engagement.status];
 
   const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ") || "Membre";
   const initiale = (member.first_name?.[0] ?? "?").toUpperCase();
@@ -644,6 +659,26 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
         {/* ── Colonne droite ── */}
         <div className="space-y-5">
+
+          {/* Engagement (Phase 4) */}
+          <div className="bg-white border border-arc-border rounded-2xl p-5">
+            <h2 className="font-bold text-arc-navy mb-3">📊 Engagement</h2>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-arc-navy border-4 border-arc-bg" style={{ background: `conic-gradient(currentColor ${engagement.score * 3.6}deg, #eef1f6 0deg)` }}>
+                <span className="absolute inset-1 bg-white rounded-full flex items-center justify-center text-sm">{engagement.score}</span>
+              </div>
+              <div className="min-w-0">
+                <span className={`text-xs font-bold px-2 py-1 rounded-lg border inline-flex items-center gap-1 ${engMeta.cls}`}>
+                  {engMeta.emoji} {engMeta.label}
+                </span>
+                <p className="text-[11px] text-arc-text3 mt-1">{engagement.reason}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-arc-text3 mt-3">
+              Sur 90 j : {attendance90 ?? 0} présence{(attendance90 ?? 0) !== 1 ? "s" : ""}.{" "}
+              <Link href="/espace-membres/crm/desengagement" className="font-semibold text-arc-blue hover:underline">Voir les alertes →</Link>
+            </p>
+          </div>
 
           {/* Vue 360° — fil d'activité unifié */}
           <MemberTimeline
