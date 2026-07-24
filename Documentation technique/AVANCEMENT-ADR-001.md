@@ -135,7 +135,7 @@
 | B1 | `arc-core` (référentiel, droits, schemas, errors) | ✅ 21/07/2026 |
 | B2 | `/api/v1` + OpenAPI | ✅ 21/07/2026 |
 | B3 | Quotas, rate limiting, journalisation | ✅ 24/07/2026 |
-| B4 | Validation du socle | ⏳ |
+| B4 | Validation du socle | ✅ 24/07/2026 |
 
 ---
 
@@ -249,4 +249,33 @@ Multiplicateur de rôle : visiteur/membre ×1 · pasteur ×4 · admin ×10.
 
 **Vérification :** `check:isolation` → ✅ · `tsc --noEmit` → 0 erreur · `next build` → ✅ (health/profile-me = ƒ dynamique, referentiel/openapi = ○ statique).
 
-*Dernière mise à jour : 24/07/2026 — B3 TERMINÉ — quotas + rate limiting + journalisation. Reste B4 (validation du socle).*
+*B3 TERMINÉ — quotas + rate limiting + journalisation.*
+
+### B4 — Validation du socle ✅ TERMINÉ — 24/07/2026
+
+**Livrable :** `scripts/validate-socle.mjs` (+ script npm `validate:socle`). Smoke test HTTP
+sans framework : exerce le vrai code path (routes Next + `@arc/core` transpilé) contre un
+`next dev` réel. `node scripts/validate-socle.mjs [BASE_URL]`.
+
+**Résultat exécuté le 24/07/2026 (localhost:3000) : 25 vérifications ✅ / 0 échec.**
+
+| Endpoint | Vérifié |
+|---|---|
+| `GET /health` | 200/503, `version=v1`, `checks.api=ok`, en-têtes `X-RateLimit-*` + `X-Request-Id` (UUID), **`X-RateLimit-Limit=120`** (politique public/visiteur remontée via `@arc/core`), pas de 429 (fail-open) |
+| `GET /referentiel` | 200, 4 rôles · 13 fonctions · 5 étapes pipeline, `meta.source=@arc/core` |
+| `GET /openapi.json` | 200, `openapi=3.1.0`, composant `RateLimited`, en-têtes `X-RateLimit-*` documentés, réponses 429 sur health + profile/me, `Error.code` inclut `RATE_LIMITED` |
+| `GET /profile/me` (anonyme) | 401 typé `code=UNAUTHORIZED`, message présent, `X-Request-Id` présent même en erreur |
+
+**Comportements serveur confirmés dans les logs (`next dev`) :**
+- **Fail-open rate limit** : RPC `arc_api_increment_rate_limit` absent (migration non jouée) → autorisé, health = 200. ✅
+- **Journalisation stdout** : ligne structurée `[api/v1] {requestId, method, path, status, category, userId, ip, durationMs}` par requête. ✅
+- **Journalisation DB best-effort** : table `arc_api_log` absente → échec capturé (warning), la requête n'est pas cassée. ✅
+
+**Périmètre reporté à la bascule (nécessite la migration B3) :** application effective du quota
+(429 + décrément de `X-RateLimit-Remaining`) et lignes d'audit réelles dans `arc_api_log`. Se valide
+en préversion Vercel une fois `20260724000001_adr001_b3_socle_quotas.up.sql` exécutée.
+
+**➡️ Chantier B (socle en isolation totale) : B0→B4 TERMINÉS ✅.** Prochaine phase = Chantier C
+(bascule) — 🔒 bloqué sans feu vert écrit de Joe.
+
+*Dernière mise à jour : 24/07/2026 — B4 TERMINÉ — Chantier B complet (B0→B4). En attente feu vert bascule (Chantier C).*

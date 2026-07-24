@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check:isolation": "node scripts/check-isolation.js"
+    "check:isolation": "node scripts/check-isolation.js",
+    "validate:socle": "node scripts/validate-socle.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
