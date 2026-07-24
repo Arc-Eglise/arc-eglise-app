@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import GroupBadge from "@/components/GroupBadge";
+import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 
 const ROLE_STYLE: Record<string, string> = {
   admin:    "text-red-700 bg-red-50 border-red-200",
@@ -34,7 +35,7 @@ const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
 export default async function CrmPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; stage?: string };
+  searchParams?: { q?: string; stage?: string; tag?: string; group?: string; engagement?: string };
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -48,8 +49,12 @@ export default async function CrmPage({
     meGroupsCrm.includes("support");
   if (!hasCrmAccess) redirect("/espace-membres");
 
-  const q     = searchParams?.q?.trim().toLowerCase() ?? "";
-  const stage = searchParams?.stage ?? "";
+  const q          = searchParams?.q?.trim().toLowerCase() ?? "";
+  const stage      = searchParams?.stage ?? "";
+  const tag        = searchParams?.tag ?? "";
+  const group      = searchParams?.group ?? "";
+  const engagement = searchParams?.engagement ?? "";
+  const hasFilter  = !!(q || stage || tag || group || engagement);
 
   const { data: members } = await supabase
     .from("profiles")
@@ -57,6 +62,36 @@ export default async function CrmPage({
     .order("created_at", { ascending: false });
 
   const all = members ?? [];
+
+  // Engagement par membre (Phase 5 : segmentation) — agrégation JS des présences + interactions
+  const since90 = Date.now() - 90 * 24 * 3600 * 1000;
+  const [attAll, intAll] = await Promise.all([
+    supabase.from("event_attendance").select("user_id, checked_in_at"),
+    supabase.from("member_interactions").select("member_id, occurred_at"),
+  ]);
+  const lastAttMap = new Map<string, string>();
+  const count90Map = new Map<string, number>();
+  for (const a of attAll.data ?? []) {
+    const uid = a.user_id as string; const at = a.checked_in_at as string | null;
+    if (!at) continue;
+    if (!lastAttMap.has(uid) || new Date(at) > new Date(lastAttMap.get(uid)!)) lastAttMap.set(uid, at);
+    if (new Date(at).getTime() >= since90) count90Map.set(uid, (count90Map.get(uid) ?? 0) + 1);
+  }
+  const lastIntMap = new Map<string, string>();
+  for (const it of intAll.data ?? []) {
+    const mid = it.member_id as string; const at = it.occurred_at as string | null;
+    if (!at) continue;
+    if (!lastIntMap.has(mid) || new Date(at) > new Date(lastIntMap.get(mid)!)) lastIntMap.set(mid, at);
+  }
+  const engMap = new Map<string, EngagementStatus>();
+  for (const m of all) {
+    const id = m.id as string;
+    engMap.set(id, computeEngagement({
+      lastAttendanceAt:   lastAttMap.get(id) ?? null,
+      attendanceCount90d: count90Map.get(id) ?? 0,
+      lastInteractionAt:  lastIntMap.get(id) ?? null,
+    }).status);
+  }
 
   // Note counts per member
   const { data: noteCounts } = await supabase.from("member_notes").select("member_id");
@@ -101,13 +136,30 @@ export default async function CrmPage({
     const name = [m.first_name, m.last_name].filter(Boolean).join(" ").toLowerCase();
     const matchQ = !q || name.includes(q) || (m.crm_tags ?? []).some((t: string) => t.toLowerCase().includes(q));
     const matchStage = !stage || (m.pastoral_stage ?? "visiteur") === stage;
-    return matchQ && matchStage;
+    const matchTag = !tag || (m.crm_tags ?? []).includes(tag);
+    const matchGroup = !group || (m.groups ?? []).includes(group);
+    const matchEng = !engagement || engMap.get(m.id as string) === engagement;
+    return matchQ && matchStage && matchTag && matchGroup && matchEng;
   });
 
   const filteredValidated = filtered.filter(m => m.validated);
   const filteredPending   = filtered.filter(m => !m.validated);
 
-  const showAll = !q && !stage;
+  const showAll = !hasFilter;
+
+  // Tags & fonctions disponibles (pour les filtres de segmentation)
+  const allTags = Array.from(new Set(all.flatMap(m => (m.crm_tags as string[] | null) ?? []))).sort();
+  const allGroups = Array.from(new Set(all.flatMap(m => (m.groups as string[] | null) ?? []))).sort();
+
+  // Construit une URL de filtre en préservant les autres critères (segments combinables)
+  const current = { q, stage, tag, group, engagement };
+  const seg = (overrides: Partial<typeof current>): string => {
+    const merged = { ...current, ...overrides };
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(merged)) if (v) sp.set(k, String(v));
+    const s = sp.toString();
+    return "/espace-membres/crm" + (s ? `?${s}` : "");
+  };
   const byRole  = all.reduce((acc, m) => { acc[m.role] = (acc[m.role] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
   return (
@@ -146,7 +198,7 @@ export default async function CrmPage({
             return (
               <a
                 key={s.key}
-                href={`/espace-membres/crm?stage=${isActive ? "" : s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+                href={seg({ stage: isActive ? "" : s.key })}
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center ${isActive ? s.color + " ring-2 ring-offset-1 ring-arc-navy/20" : "border-arc-border hover:border-arc-navy/30 hover:bg-arc-bg"}`}
               >
                 <div className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
@@ -156,6 +208,67 @@ export default async function CrmPage({
             );
           })}
         </div>
+      </div>
+
+      {/* Segmentation dynamique (Phase 5) */}
+      <div className="bg-white border border-arc-border rounded-2xl p-4 mb-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue">Segments & filtres</div>
+          <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
+        </div>
+
+        {/* Engagement */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Engagement</span>
+          {(Object.keys(ENGAGEMENT_META) as EngagementStatus[]).map(st => {
+            const meta = ENGAGEMENT_META[st];
+            const active = engagement === st;
+            return (
+              <a key={st} href={seg({ engagement: active ? "" : st })}
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${active ? meta.cls + " ring-2 ring-offset-1 ring-arc-navy/20" : "border-arc-border text-arc-text3 hover:border-arc-navy/40"}`}>
+                {meta.emoji} {meta.label}
+              </a>
+            );
+          })}
+        </div>
+
+        {/* Fonctions */}
+        {allGroups.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Fonction</span>
+            {allGroups.map(g => {
+              const active = group === g;
+              return (
+                <a key={g} href={seg({ group: active ? "" : g })}
+                  className={`rounded-full transition-all ${active ? "ring-2 ring-offset-1 ring-arc-navy/30" : "opacity-80 hover:opacity-100"}`}>
+                  <GroupBadge name={g} size="sm" />
+                </a>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tags */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Tags</span>
+            {allTags.map((t, i) => {
+              const active = tag === t;
+              return (
+                <a key={t} href={seg({ tag: active ? "" : t })}
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all ${TAG_COLORS[i % TAG_COLORS.length]} ${active ? "ring-2 ring-offset-1 ring-arc-navy/30" : "opacity-80 hover:opacity-100"}`}>
+                  {t}
+                </a>
+              );
+            })}
+          </div>
+        )}
+
+        {hasFilter && (
+          <div className="pt-1">
+            <a href="/espace-membres/crm" className="text-[11px] font-semibold text-red-500 hover:underline">✕ Réinitialiser tous les filtres</a>
+          </div>
+        )}
       </div>
 
       {/* Relances à venir */}
@@ -194,7 +307,10 @@ export default async function CrmPage({
 
       {/* Recherche */}
       <form action="/espace-membres/crm" method="GET" className="mb-4 flex gap-2">
-        {stage && <input type="hidden" name="stage" value={stage} />}
+        {stage      && <input type="hidden" name="stage" value={stage} />}
+        {tag        && <input type="hidden" name="tag" value={tag} />}
+        {group      && <input type="hidden" name="group" value={group} />}
+        {engagement && <input type="hidden" name="engagement" value={engagement} />}
         <input
           name="q"
           type="text"
@@ -208,7 +324,7 @@ export default async function CrmPage({
         >
           Rechercher
         </button>
-        {(q || stage) && (
+        {hasFilter && (
           <a
             href="/espace-membres/crm"
             className="px-4 py-2.5 rounded-xl border border-arc-border text-sm text-arc-text3 hover:border-arc-navy hover:text-arc-navy transition-colors"
@@ -218,11 +334,14 @@ export default async function CrmPage({
         )}
       </form>
 
-      {(q || stage) && (
+      {hasFilter && (
         <div className="mb-3 text-sm text-arc-text3">
           {filtered.length} résultat{filtered.length !== 1 ? "s" : ""}
-          {stage && <span> · Étape : <strong className="text-arc-navy">{STAGE_MAP[stage]?.label ?? stage}</strong></span>}
-          {q    && <span> · Recherche : <strong className="text-arc-navy">{q}</strong></span>}
+          {stage      && <span> · Étape : <strong className="text-arc-navy">{STAGE_MAP[stage]?.label ?? stage}</strong></span>}
+          {engagement && <span> · Engagement : <strong className="text-arc-navy">{ENGAGEMENT_META[engagement as EngagementStatus]?.label ?? engagement}</strong></span>}
+          {group      && <span> · Fonction : <strong className="text-arc-navy">{group}</strong></span>}
+          {tag        && <span> · Tag : <strong className="text-arc-navy">{tag}</strong></span>}
+          {q          && <span> · Recherche : <strong className="text-arc-navy">{q}</strong></span>}
         </div>
       )}
 
@@ -234,7 +353,7 @@ export default async function CrmPage({
           </h2>
           <div className="space-y-2">
             {filteredPending.map(m => (
-              <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} pending />
+              <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} pending />
             ))}
           </div>
         </div>
@@ -252,7 +371,7 @@ export default async function CrmPage({
             </div>
           )}
           {filteredValidated.map(m => (
-            <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} />
+            <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} />
           ))}
         </div>
       </div>
@@ -260,7 +379,7 @@ export default async function CrmPage({
   );
 }
 
-function MemberRow({ member: m, noteCount, pending }: {
+function MemberRow({ member: m, noteCount, pending, engStatus }: {
   member: {
     id: string; first_name: string | null; last_name: string | null;
     role: string; validated: boolean; groups: string[] | null;
@@ -270,11 +389,13 @@ function MemberRow({ member: m, noteCount, pending }: {
   };
   noteCount: number;
   pending?: boolean;
+  engStatus?: EngagementStatus;
 }) {
   const fullName = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
   const initiale = (m.first_name?.[0] ?? "?").toUpperCase();
   const tags  = m.crm_tags ?? [];
   const stage = STAGE_MAP[m.pastoral_stage ?? "visiteur"];
+  const eng   = engStatus ? ENGAGEMENT_META[engStatus] : null;
 
   return (
     <Link
@@ -289,6 +410,7 @@ function MemberRow({ member: m, noteCount, pending }: {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
+          {eng && <span title={`Engagement : ${eng.label}`} className={`w-2 h-2 rounded-full flex-shrink-0 ${eng.dot}`} aria-hidden />}
           <span className="font-semibold text-arc-navy text-sm group-hover:text-arc-blue transition-colors">{fullName}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${ROLE_STYLE[m.role] ?? "text-arc-text3 bg-gray-50 border-gray-200"}`}>
             {m.role}
