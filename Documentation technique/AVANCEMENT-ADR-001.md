@@ -167,6 +167,11 @@
 
 🔒 **Bloqué — aucune sous-étape ne démarre sans feu vert écrit de Joe.**
 
+📄 **Plan de bascule figé (24/07/2026) :** `Documentation technique/PLAN-BASCULE-Chantier-C.md`
+— étapes C0→C6 (backup remote → merge master → migration DB → lever I1 → droits → référentiel
+→ préversion → merge prod), avec vérifications, rollbacks et matrice de risques. Rien n'est
+exécuté : le plan attend l'accord écrit (garde-fou G1).
+
 ---
 
 ## Git — État des branches
