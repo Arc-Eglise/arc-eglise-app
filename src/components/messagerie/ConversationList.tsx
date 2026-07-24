@@ -55,7 +55,8 @@ export default function ConversationList({ conversations, members, getOrCreateAc
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="🔍 Rechercher une conversation…"
-          className="w-full px-3 py-2 rounded-lg bg-arc-bg border border-transparent text-sm outline-none focus:border-arc-navy focus:bg-white transition-colors"
+          aria-label="Rechercher une conversation"
+          className="w-full px-3 py-2 rounded-lg bg-arc-bg border border-transparent text-sm outline-none focus:border-arc-navy focus:ring-2 focus:ring-arc-navy/15 focus:bg-white transition-all"
         />
       </div>
 
@@ -91,6 +92,7 @@ export default function ConversationList({ conversations, members, getOrCreateAc
             <Link
               key={conv.id}
               href={`/espace-membres/messagerie/${conv.id}`}
+              aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 px-4 py-3.5 border-b border-arc-border border-l-[3px] transition-colors ${
                 isActive ? "bg-arc-blueBg border-l-arc-navy" : "border-l-transparent hover:bg-arc-bg"
               }`}

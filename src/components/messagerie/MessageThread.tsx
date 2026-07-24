@@ -359,8 +359,10 @@ export default function MessageThread({
         )}
         <button
           onClick={() => { setShowSearch(v => !v); if (showSearch) setMsgSearch(""); }}
-          className="w-8 h-8 rounded-full text-arc-text3 hover:text-arc-navy hover:bg-arc-bg flex items-center justify-center transition-colors"
+          className="w-8 h-8 rounded-full text-arc-text3 hover:text-arc-navy hover:bg-arc-bg flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-arc-navy focus-visible:outline-none"
           title="Rechercher dans la conversation"
+          aria-label="Rechercher dans la conversation"
+          aria-expanded={showSearch}
         >🔍</button>
       </div>
 
@@ -392,12 +394,18 @@ export default function MessageThread({
 
       {/* Messages */}
       <div
-        className="flex-1 overflow-y-auto px-4 py-4 bg-arc-bg"
+        className="flex-1 overflow-y-auto px-4 py-4 msg-canvas"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label={isGroup ? `Conversation du groupe ${groupName ?? ""}` : `Conversation avec ${otherName}`}
         onClick={() => { setHoverMsg(null); setEmojiFor(null); }}
       >
         {messages.length === 0 && (
-          <div className="text-center text-sm text-arc-text3 py-12">
-            Envoie le premier message à {otherName} 👋
+          <div className="flex flex-col items-center justify-center text-center py-16 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-arc-blue to-arc-navy flex items-center justify-center text-3xl mb-3 shadow-sm">💬</div>
+            <p className="text-sm font-semibold text-arc-navy">Démarrez la conversation</p>
+            <p className="text-xs text-arc-text3 mt-0.5">Envoie le premier message {isGroup ? "au groupe" : `à ${otherName}`} 👋</p>
           </div>
         )}
 
@@ -419,7 +427,7 @@ export default function MessageThread({
               return (
                 <div
                   key={msg.id}
-                  className={`flex mb-2 ${isMe ? "justify-end" : "justify-start"}`}
+                  className={`flex mb-2 animate-msg-in ${isMe ? "justify-end" : "justify-start"}`}
                   onMouseEnter={() => setHoverMsg(msg.id)}
                   onMouseLeave={() => { if (!showEmoji) setHoverMsg(null); }}
                 >
@@ -435,30 +443,31 @@ export default function MessageThread({
                       >
                         <button
                           onClick={() => setEmojiFor(v => v === msg.id ? null : msg.id)}
-                          className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm"
-                          title="Réagir"
+                          className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg hover:scale-110 shadow-sm transition-transform"
+                          title="Réagir" aria-label="Réagir au message"
                         >😊</button>
                         <button
                           onClick={() => startReply(msg)}
-                          className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm text-arc-text3"
-                          title="Répondre"
+                          className="w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg hover:scale-110 shadow-sm text-arc-text3 transition-transform"
+                          title="Répondre" aria-label="Répondre au message"
                         >↩</button>
                         <button
                           onClick={() => handlePin(msg)}
-                          className={`w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg shadow-sm ${msg.is_pinned ? "text-arc-blue" : "text-arc-text3"}`}
+                          className={`w-7 h-7 rounded-full bg-white border border-arc-border text-sm flex items-center justify-center hover:bg-arc-blueBg hover:scale-110 shadow-sm transition-transform ${msg.is_pinned ? "text-arc-gold" : "text-arc-text3"}`}
                           title={msg.is_pinned ? "Désépingler" : "Épingler"}
+                          aria-label={msg.is_pinned ? "Désépingler le message" : "Épingler le message"}
                         >📌</button>
                         {isMe && (
                           <>
                             <button
                               onClick={() => startEdit(msg)}
-                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-arc-blueBg shadow-sm text-arc-text3"
-                              title="Modifier"
+                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-arc-blueBg hover:scale-110 shadow-sm text-arc-text3 transition-transform"
+                              title="Modifier" aria-label="Modifier le message"
                             >✏️</button>
                             <button
                               onClick={() => handleDelete(msg)}
-                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-sm text-arc-text3"
-                              title="Supprimer"
+                              className="w-7 h-7 rounded-full bg-white border border-arc-border text-xs flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:scale-110 shadow-sm text-arc-text3 transition-transform"
+                              title="Supprimer" aria-label="Supprimer le message"
                             >🗑</button>
                           </>
                         )}
@@ -610,7 +619,8 @@ export default function MessageThread({
             onClick={() => fileInputRef.current?.click()}
             disabled={attaching || !!pendingAtt}
             title="Joindre un fichier"
-            className="w-10 h-10 rounded-xl border border-arc-border text-arc-text3 hover:text-arc-navy hover:border-arc-navy transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+            aria-label="Joindre un fichier"
+            className="w-11 h-11 rounded-full border border-arc-border text-arc-text3 hover:text-arc-navy hover:border-arc-navy hover:bg-arc-bg transition-colors flex items-center justify-center flex-shrink-0 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-arc-navy focus-visible:outline-none"
           >{attaching ? "⏳" : "📎"}</button>
           <textarea
             ref={textareaRef}
@@ -618,8 +628,9 @@ export default function MessageThread({
             onChange={(e) => { setInput(e.target.value); emitTyping(); }}
             onKeyDown={handleKeyDown}
             placeholder="Écris un message… (Entrée pour envoyer)"
+            aria-label="Écrire un message"
             rows={1}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy transition-colors resize-none max-h-32"
+            className="flex-1 px-4 py-2.5 rounded-2xl border border-arc-border text-sm outline-none focus:border-arc-navy focus:ring-2 focus:ring-arc-navy/15 transition-all resize-none max-h-32"
           />
           <button
             onClick={handleSend}

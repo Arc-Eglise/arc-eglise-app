@@ -94,9 +94,9 @@ export default function ArcIaChat({ firstName }: { firstName: string }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 bg-arc-bg">
+      <div className="flex-1 overflow-y-auto px-4 py-4 msg-canvas" role="log" aria-live="polite" aria-label="Conversation avec ARC IA">
         {messages.map((m, i) => (
-          <div key={i} className={`flex mb-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex mb-2.5 animate-msg-in ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
               m.role === "user"
                 ? "bg-gradient-to-br from-arc-navy to-arc-blue text-white rounded-br-md"
