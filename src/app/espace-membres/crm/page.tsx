@@ -224,6 +224,7 @@ export default async function CrmPage({
                 ✉️ Contacter ce segment
               </Link>
             )}
+            <Link href="/espace-membres/crm/tableau-de-bord" className="text-[11px] font-semibold text-arc-blue hover:underline">📈 Tableau de bord</Link>
             <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
           </div>
         </div>
