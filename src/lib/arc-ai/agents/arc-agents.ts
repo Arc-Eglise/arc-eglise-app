@@ -7,8 +7,9 @@ import { detectSkill, buildSkillPrompt } from '../arc-skills'
 import { buildPersonaPrompt, getPersona } from '../arc-personas'
 import { searchVerses, formatVersesForPrompt } from '../engines/bible-engine'
 import { searchKnowledge, formatChunksForPrompt } from '../engines/knowledge-engine'
-import { getUpcomingEvents, getMemberStats, formatEventsForPrompt } from '../engines/church-engine'
-import { getPublicPrayerRequests, formatPrayerRequestsForPrompt } from '../engines/prayer-engine'
+import { getUpcomingEvents, getMemberStats, formatEventsForPrompt, createEvent } from '../engines/church-engine'
+import { getPublicPrayerRequests, formatPrayerRequestsForPrompt, createPrayerRequest } from '../engines/prayer-engine'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { AIProvider, ChatMessage, ToolDefinition } from '../provider-manager'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -139,6 +140,37 @@ const ARC_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    name: 'create_prayer_request',
+    description: 'Créer une demande de prière au nom de l\'utilisateur courant. Les membres concernés (selon la visibilité) sont notifiés. Toujours confirmer le titre avec l\'utilisateur avant de créer.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Titre / sujet de la demande de prière' },
+        description: { type: 'string', description: 'Détail de la demande (optionnel)' },
+        visibility: { type: 'string', description: 'Audience : all (tous), pasteur (pasteurs seulement), groups, members', enum: ['all', 'pasteur', 'groups', 'members'] },
+        is_anonymous: { type: 'boolean', description: 'Publier de façon anonyme (défaut: false)' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'create_event',
+    description: 'Créer un événement d\'église publié et notifier tous les membres. RÉSERVÉ aux pasteurs/admin/communication. Toujours confirmer titre, date et lieu avec l\'utilisateur avant de créer.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Titre de l\'événement' },
+        date: { type: 'string', description: 'Date au format YYYY-MM-DD' },
+        time_start: { type: 'string', description: 'Heure de début HH:MM (optionnel)' },
+        time_end: { type: 'string', description: 'Heure de fin HH:MM (optionnel)' },
+        location: { type: 'string', description: 'Lieu (optionnel)' },
+        description: { type: 'string', description: 'Description (optionnel)' },
+        capacity: { type: 'number', description: 'Capacité maximale (optionnel)' },
+      },
+      required: ['title', 'date'],
+    },
+  },
 ]
 
 // ── Gestionnaires d'outils ────────────────────────────────────────────────────
@@ -167,6 +199,43 @@ function buildToolHandlers(ctx: { userId?: string }) {
     get_prayer_requests: async (args: Record<string, unknown>) => {
       const requests = await getPublicPrayerRequests(Number(args['limit'] ?? 8))
       return formatPrayerRequestsForPrompt(requests)
+    },
+    create_prayer_request: async (args: Record<string, unknown>) => {
+      if (!ctx.userId) return "Action impossible : aucun utilisateur identifié pour cette demande de prière."
+      const title = String(args['title'] ?? '').trim()
+      if (!title) return "Un titre est requis pour créer une demande de prière."
+      await createPrayerRequest(ctx.userId, {
+        title,
+        description: args['description'] ? String(args['description']) : undefined,
+        visibility: args['visibility'] ? String(args['visibility']) : undefined,
+        isAnonymous: args['is_anonymous'] === true || args['is_anonymous'] === 'true',
+      })
+      return `Demande de prière « ${title} » créée. Les membres concernés ont été notifiés.`
+    },
+    create_event: async (args: Record<string, unknown>) => {
+      if (!ctx.userId) return "Action impossible : aucun utilisateur identifié."
+      // Garde-fou : la création d'événement diffuse à toute l'église → rôles restreints.
+      const admin = createAdminClient()
+      const { data: prof } = await admin.from('profiles').select('role, groups').eq('id', ctx.userId).maybeSingle()
+      const role = prof?.role as string | undefined
+      const groups = (prof?.groups as string[] | null) ?? []
+      const canCreateEvent = role === 'admin' || role === 'pasteur' || groups.includes('communication')
+      if (!canCreateEvent) {
+        return "Tu n'as pas les droits pour créer un événement (action réservée aux pasteurs, admins et à l'équipe communication)."
+      }
+      const title = String(args['title'] ?? '').trim()
+      const date = String(args['date'] ?? '').trim()
+      if (!title || !date) return "Un titre et une date (YYYY-MM-DD) sont requis pour créer un événement."
+      const ev = await createEvent({
+        title,
+        date,
+        timeStart: args['time_start'] ? String(args['time_start']) : undefined,
+        timeEnd: args['time_end'] ? String(args['time_end']) : undefined,
+        location: args['location'] ? String(args['location']) : undefined,
+        description: args['description'] ? String(args['description']) : undefined,
+        capacity: args['capacity'] != null && args['capacity'] !== '' ? Number(args['capacity']) : undefined,
+      }, ctx.userId)
+      return `Événement « ${ev.title} » créé pour le ${ev.date}${ev.location ? ` @ ${ev.location}` : ''}. Tous les membres ont été notifiés.`
     },
   }
 }
