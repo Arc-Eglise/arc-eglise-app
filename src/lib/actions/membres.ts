@@ -568,6 +568,48 @@ export async function deleteMemberNote(noteId: string, memberId: string) {
   return { success: true };
 }
 
+// ── Journal d'interactions pastorales (CRM Phase 1) ──────────────────────────
+const INTERACTION_TYPES      = ["appel","visite","email","whatsapp","sms","rencontre","autre"] as const;
+const INTERACTION_DIRECTIONS = ["entrant","sortant"] as const;
+
+export async function addMemberInteraction(formData: FormData) {
+  const supabase = createClient();
+  const user = await assertCRMWriter(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const member_id   = formData.get("member_id") as string;
+  const type_raw    = (formData.get("type") as string) || "appel";
+  const dir_raw     = (formData.get("direction") as string) || "sortant";
+  const subject     = ((formData.get("subject") as string) ?? "").trim() || null;
+  const content     = ((formData.get("content") as string) ?? "").trim() || null;
+  const occurredRaw = ((formData.get("occurred_at") as string) ?? "").trim();
+
+  if (!member_id) return { error: "Membre manquant" };
+  if (!subject && !content) return { error: "Sujet ou détail requis" };
+
+  const type      = (INTERACTION_TYPES as readonly string[]).includes(type_raw) ? type_raw : "appel";
+  const direction = (INTERACTION_DIRECTIONS as readonly string[]).includes(dir_raw) ? dir_raw : "sortant";
+
+  const row: Record<string, unknown> = { member_id, author_id: user.id, type, direction, subject, content };
+  if (occurredRaw) row.occurred_at = new Date(occurredRaw).toISOString();
+
+  const { error } = await supabase.from("member_interactions").insert(row);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/espace-membres/crm/${member_id}`);
+  return { success: true };
+}
+
+export async function deleteMemberInteraction(interactionId: string, memberId: string) {
+  const supabase = createClient();
+  const user = await assertCRMWriter(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  await supabase.from("member_interactions").delete().eq("id", interactionId).eq("author_id", user.id);
+  revalidatePath(`/espace-membres/crm/${memberId}`);
+  return { success: true };
+}
+
 export async function createEvent(data: {
   title: string; date: string; time_start: string;
   location: string; type: string; description?: string;

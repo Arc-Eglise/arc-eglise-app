@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage } from "@/lib/actions/membres";
+import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage, addMemberInteraction, deleteMemberInteraction } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
 import { GroupsEditorClient } from "@/components/crm/GroupsEditorClient";
@@ -46,6 +46,16 @@ const NOTE_TYPES = [
   { val: "admin",     label: "Admin" },
 ];
 
+const INTERACTION_META: Record<string, { label: string; emoji: string }> = {
+  appel:     { label: "Appel",     emoji: "📞" },
+  visite:    { label: "Visite",    emoji: "🏠" },
+  email:     { label: "Email",     emoji: "✉️" },
+  whatsapp:  { label: "WhatsApp",  emoji: "💬" },
+  sms:       { label: "SMS",       emoji: "📱" },
+  rencontre: { label: "Rencontre", emoji: "🤝" },
+  autre:     { label: "Autre",     emoji: "•"  },
+};
+
 export default async function CrmMemberPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -78,8 +88,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     }
   }
 
-  // Fetch notes, attendance, prayer stats + ban status in parallel
-  const [notesRes, attendRes, prayerRes, rsvpRes, authData] = await Promise.all([
+  // Fetch notes, attendance, prayer stats, interactions + ban status in parallel
+  const [notesRes, attendRes, prayerRes, rsvpRes, interactRes, authData] = await Promise.all([
     supabase.from("member_notes")
       .select("id, content, type, created_at, followup_date, confidentialite, profiles!member_notes_author_id_fkey(first_name, last_name)")
       .eq("member_id", params.id)
@@ -97,6 +107,11 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
     supabase.from("event_rsvp")
       .select("event_id, status")
       .eq("user_id", params.id),
+    supabase.from("member_interactions")
+      .select("id, type, direction, subject, content, occurred_at, profiles!member_interactions_author_id_fkey(first_name, last_name)")
+      .eq("member_id", params.id)
+      .order("occurred_at", { ascending: false })
+      .limit(50),
     admin.auth.admin.getUserById(params.id),
   ]);
 
@@ -108,6 +123,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   const attends  = attendRes.data ?? [];
   const prayers  = prayerRes.data ?? [];
   const rsvps    = rsvpRes.data ?? [];
+  const interactions = interactRes.data ?? [];
   const rsvpGoing = rsvps.filter(r => r.status === "going").length;
 
   const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ") || "Membre";
@@ -122,6 +138,16 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   async function handleDeleteNote(formData: FormData): Promise<void> {
     "use server";
     await deleteMemberNote(formData.get("note_id") as string, params.id);
+  }
+
+  async function handleAddInteraction(formData: FormData): Promise<void> {
+    "use server";
+    await addMemberInteraction(formData);
+  }
+
+  async function handleDeleteInteraction(formData: FormData): Promise<void> {
+    "use server";
+    await deleteMemberInteraction(formData.get("interaction_id") as string, params.id);
   }
 
   async function handleValidation(formData: FormData): Promise<void> {
@@ -408,6 +434,75 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                     {canWriteNotes && (
                       <form action={handleDeleteNote} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <input type="hidden" name="note_id" value={n.id} />
+                        <button type="submit" className="w-6 h-6 rounded-full bg-white border border-arc-border text-arc-text3 hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
+                          ✕
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Journal d'interactions pastorales */}
+          <div className="bg-white border border-arc-border rounded-2xl p-5">
+            <h2 className="font-bold text-arc-navy mb-1">📇 Journal d'interactions ({interactions.length})</h2>
+            <p className="text-[11px] text-arc-text3 mb-4">Appels, visites, messages — chaque contact avec le membre.</p>
+
+            {canWriteNotes && (
+              <form action={handleAddInteraction} className="mb-5 space-y-2">
+                <input type="hidden" name="member_id" value={member.id} />
+                <div className="flex gap-2 flex-wrap">
+                  <select name="type" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
+                    {Object.entries(INTERACTION_META).map(([val, m]) => (
+                      <option key={val} value={val}>{m.emoji} {m.label}</option>
+                    ))}
+                  </select>
+                  <select name="direction" className="px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white flex-shrink-0">
+                    <option value="sortant">↗ Sortant</option>
+                    <option value="entrant">↘ Entrant</option>
+                  </select>
+                  <input type="datetime-local" name="occurred_at"
+                    className="flex-1 min-w-[170px] px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white" />
+                </div>
+                <input type="text" name="subject" maxLength={200} placeholder="Objet (ex : Appel de suivi post-culte)"
+                  className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy transition-colors" />
+                <textarea name="content" maxLength={2000} rows={2} placeholder="Détail de l'échange (optionnel)…"
+                  className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-none transition-colors" />
+                <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
+                  Enregistrer l'interaction
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-3">
+              {interactions.length === 0 && (
+                <p className="text-sm text-arc-text3">Aucune interaction enregistrée.</p>
+              )}
+              {interactions.map(it => {
+                type InteractionRow = typeof it & {
+                  subject?: string | null; content?: string | null; direction?: string | null;
+                  profiles?: { first_name: string | null; last_name: string | null } | null;
+                };
+                const row = it as InteractionRow;
+                const meta = INTERACTION_META[it.type as string] ?? INTERACTION_META.autre;
+                const authorName = [row.profiles?.first_name, row.profiles?.last_name].filter(Boolean).join(" ") || "Équipe";
+                const isEntrant = row.direction === "entrant";
+                return (
+                  <div key={it.id} className="rounded-xl p-3 relative group bg-arc-bg">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-bold text-arc-navy">{meta.emoji} {meta.label}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${isEntrant ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-indigo-50 text-indigo-700 border-indigo-200"}`}>
+                        {isEntrant ? "↘ Entrant" : "↗ Sortant"}
+                      </span>
+                      <span className="text-[10px] text-arc-text3">· {authorName} · {new Date(row.occurred_at as string).toLocaleString("fr-CH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    {row.subject && <p className="text-sm font-semibold text-arc-navy leading-snug">{row.subject}</p>}
+                    {row.content && <p className="text-sm text-arc-text2 leading-relaxed mt-0.5">{row.content}</p>}
+                    {canWriteNotes && (
+                      <form action={handleDeleteInteraction} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <input type="hidden" name="interaction_id" value={it.id} />
                         <button type="submit" className="w-6 h-6 rounded-full bg-white border border-arc-border text-arc-text3 hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
                           ✕
                         </button>
