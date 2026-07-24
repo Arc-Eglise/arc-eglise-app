@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVerset } from "@/lib/verses";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered, deletePrayerRequest } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation, saveYoutubeChannelId } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
@@ -1040,6 +1040,19 @@ const [showSalle, setShowSalle]       = useState(false);
     setPrayers(prev => prev.map(p => p.id === id ? { ...p, is_answered: true } : p));
     await markPrayerAnswered(id);
     setToast("Prière marquée comme exaucée ✅");
+  }
+
+  async function deletePrayer(id: string) {
+    if (!confirm("⚠️ Supprimer définitivement cette demande de prière ?")) return;
+    const prev = prayers;
+    setPrayers(cur => cur.filter(p => p.id !== id));
+    const res = await deletePrayerRequest(id);
+    if (res?.error) {
+      setPrayers(prev);
+      setToast("Suppression impossible : " + res.error);
+    } else {
+      setToast("Demande de prière supprimée 🗑");
+    }
   }
 
   async function loadMembers() {
@@ -3075,6 +3088,9 @@ const [showSalle, setShowSalle]       = useState(false);
                             {isAuthor && (
                               <button className="em-btn em-btn-success em-btn-sm" onClick={()=>markAnswered(p.id)}>✅</button>
                             )}
+                            {isAuthor && (
+                              <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)"}} onClick={()=>deletePrayer(p.id)} title="Supprimer">🗑</button>
+                            )}
                           </div>
                         </div>
                         {p.description && <p className="em-reading-text" style={{color:"#4a5070",marginBottom:0}}>{p.description}</p>}
@@ -3086,9 +3102,14 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div style={{marginTop:18}}>
                     <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",color:"#2f855a",letterSpacing:".08em",marginBottom:10}}>✅ Prières exaucées ({prayers.filter(p=>p.is_answered).length})</div>
                     {prayers.filter(p=>p.is_answered).map(p => (
-                      <div key={p.id} style={{background:"#f0fff4",border:"1px solid #9ae6b4",borderRadius:10,padding:"10px 14px",marginBottom:8,opacity:.8}}>
-                        <div className="em-reading-text" style={{fontWeight:600,color:"#276749"}}>{p.title}</div>
-                        <div style={{fontSize:11,color:"#68d391"}}>{p.prayer_count} personne(s) ont prié</div>
+                      <div key={p.id} style={{background:"#f0fff4",border:"1px solid #9ae6b4",borderRadius:10,padding:"10px 14px",marginBottom:8,opacity:.8,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                        <div>
+                          <div className="em-reading-text" style={{fontWeight:600,color:"#276749"}}>{p.title}</div>
+                          <div style={{fontSize:11,color:"#68d391"}}>{p.prayer_count} personne(s) ont prié</div>
+                        </div>
+                        {p.user_id === userId && (
+                          <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)",flexShrink:0}} onClick={()=>deletePrayer(p.id)} title="Supprimer">🗑</button>
+                        )}
                       </div>
                     ))}
                   </div>
