@@ -610,6 +610,77 @@ export async function deleteMemberInteraction(interactionId: string, memberId: s
   return { success: true };
 }
 
+// ── Tâches & rappels pastoraux (CRM Phase 2) ─────────────────────────────────
+const TASK_PRIORITIES = ["basse","normale","haute"] as const;
+const TASK_STATUSES    = ["todo","done","cancelled"] as const;
+
+export async function createPastoralTask(formData: FormData) {
+  const supabase = createClient();
+  const user = await assertCRMWriter(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const title       = ((formData.get("title") as string) ?? "").trim();
+  const description = ((formData.get("description") as string) ?? "").trim() || null;
+  const member_id   = ((formData.get("member_id") as string) ?? "").trim() || null;
+  const assigned_to = ((formData.get("assigned_to") as string) ?? "").trim() || user.id;
+  const due_raw     = ((formData.get("due_date") as string) ?? "").trim();
+  const prio_raw    = (formData.get("priority") as string) || "normale";
+
+  if (!title) return { error: "Titre requis" };
+  const priority = (TASK_PRIORITIES as readonly string[]).includes(prio_raw) ? prio_raw : "normale";
+
+  const row: Record<string, unknown> = { title, description, member_id, assigned_to, created_by: user.id, priority };
+  if (due_raw) row.due_date = due_raw;
+
+  const { error } = await supabase.from("pastoral_tasks").insert(row);
+  if (error) return { error: error.message };
+
+  // Notifier le responsable si ce n'est pas soi-même
+  if (assigned_to !== user.id) {
+    await notifyUser({
+      userId: assigned_to,
+      type: "system",
+      title: `✅ Nouvelle tâche de suivi : ${title}`,
+      body: due_raw ? `À faire pour le ${new Date(due_raw).toLocaleDateString("fr-CH")}.` : "Une tâche pastorale t'a été assignée.",
+      link: "/espace-membres/crm/taches",
+    }).catch(() => {});
+  }
+
+  if (member_id) revalidatePath(`/espace-membres/crm/${member_id}`);
+  revalidatePath("/espace-membres/crm/taches");
+  return { success: true };
+}
+
+export async function updateTaskStatus(taskId: string, status: string, memberId?: string | null) {
+  const supabase = createClient();
+  const user = await assertCRMWriter(supabase);
+  if (!user) return { error: "Non autorisé" };
+  if (!(TASK_STATUSES as readonly string[]).includes(status)) return { error: "Statut invalide" };
+
+  const patch: Record<string, unknown> = { status };
+  patch.completed_at = status === "done" ? new Date().toISOString() : null;
+
+  const { error } = await supabase.from("pastoral_tasks").update(patch).eq("id", taskId);
+  if (error) return { error: error.message };
+
+  if (memberId) revalidatePath(`/espace-membres/crm/${memberId}`);
+  revalidatePath("/espace-membres/crm/taches");
+  return { success: true };
+}
+
+export async function deletePastoralTask(taskId: string, memberId?: string | null) {
+  const supabase = createClient();
+  const user = await assertCRMWriter(supabase);
+  if (!user) return { error: "Non autorisé" };
+
+  const { error } = await supabase.from("pastoral_tasks").delete().eq("id", taskId);
+  if (error) return { error: error.message };
+
+  if (memberId) revalidatePath(`/espace-membres/crm/${memberId}`);
+  revalidatePath("/espace-membres/crm/taches");
+  return { success: true };
+}
+
 export async function createEvent(data: {
   title: string; date: string; time_start: string;
   location: string; type: string; description?: string;
