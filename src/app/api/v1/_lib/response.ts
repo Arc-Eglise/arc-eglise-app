@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server"
-import { ArcError, isArcError } from "@arc/core"
+import { ArcError, RateLimitedError, isArcError } from "@arc/core"
 
 export function ok<T>(data: T, status = 200): NextResponse {
   return NextResponse.json({ data }, { status })
 }
 
 export function fromArcError(err: ArcError): NextResponse {
-  return NextResponse.json(err.toJSON(), { status: err.httpStatus })
+  const res = NextResponse.json(err.toJSON(), { status: err.httpStatus })
+  if (err instanceof RateLimitedError && err.retryAfterSeconds != null) {
+    res.headers.set("Retry-After", String(err.retryAfterSeconds))
+  }
+  return res
 }
 
 export function handleError(err: unknown): NextResponse {

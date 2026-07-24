@@ -4,3 +4,4 @@
 export * from "./referentiel"
 export * from "./droits"
 export * from "./errors"
+export * from "./quotas"

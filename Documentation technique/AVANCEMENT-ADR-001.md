@@ -134,7 +134,7 @@
 | B0 | Isolation + script de vérification | ✅ 21/07/2026 |
 | B1 | `arc-core` (référentiel, droits, schemas, errors) | ✅ 21/07/2026 |
 | B2 | `/api/v1` + OpenAPI | ✅ 21/07/2026 |
-| B3 | Quotas, rate limiting, journalisation | ⏳ |
+| B3 | Quotas, rate limiting, journalisation | ✅ 24/07/2026 |
 | B4 | Validation du socle | ⏳ |
 
 ---
@@ -217,4 +217,36 @@
 
 **Isolation :** `check-isolation` → ✅ aucune violation
 
-*Dernière mise à jour : 21/07/2026 — B2 TERMINÉ — /api/v1 + OpenAPI 3.1.0*
+### B3 — Quotas, rate limiting, journalisation ✅ TERMINÉ — 24/07/2026
+
+**Logique pure dans `@arc/core` (`packages/arc-core/src/quotas/`) :**
+
+| Fichier | Contenu |
+|---|---|
+| `quotas/types.ts` | `QuotaCategory` (public/read/write/ai), `RateLimitPolicy`, `RateLimitDecision` |
+| `quotas/index.ts` | `BASE_RATE_LIMITS`, `ROLE_MULTIPLIER`, `resolveRateLimit()`, `currentWindowKey()`, `secondsUntilReset()`, `evaluateRateLimit()` — **100 % pur, aucune I/O** |
+
+Politiques de base (fenêtre glissante 60 s, par utilisateur ou IP) : public 120 · read 240 · write 60 · ai 20.
+Multiplicateur de rôle : visiteur/membre ×1 · pasteur ×4 · admin ×10.
+
+**Infrastructure du socle (`src/app/api/v1/_lib/`) :**
+
+| Fichier | Rôle |
+|---|---|
+| `handler.ts` | `withApiV1({category, requireAuth}, handler)` — wrapper central : identification → garde auth → rate limit → exécution → en-têtes `X-RateLimit-*` + `X-Request-Id` → gestion d'erreurs typées → journalisation |
+| `rate-limit.ts` | `enforceRateLimit()` — incrément atomique via RPC `arc_api_increment_rate_limit`, lève `RateLimitedError` (429 + `Retry-After`). **Fail-open** si stockage indisponible |
+| `logging.ts` | `logApiRequest()` — log structuré stdout (fiable) + insertion best-effort non bloquante dans `arc_api_log` |
+| `auth.ts` | + `getOptionalUserWithProfile()` (ne lève pas) + type `V1Profile` |
+| `response.ts` | `fromArcError()` pose l'en-tête `Retry-After` sur les `RateLimitedError` |
+
+**Migration (NON exécutée — attend le feu vert, jouée en B4) :**
+- `supabase/migrations/20260724000001_adr001_b3_socle_quotas.up.sql` / `.down.sql`
+- Tables **propres au socle** `arc_api_rate_limit` (compteur générique par bucket/fenêtre) + `arc_api_log` (journal, RLS lecture admin) + RPC `arc_api_increment_rate_limit` (SECURITY DEFINER). N'interfère pas avec `ai_rate_limit` (routes bible-ai héritées).
+
+**Câblage des routes :**
+- `health` (public) + `profile/me` (read, auth) → passent par `withApiV1` → **dynamiques**, rate-limitées, journalisées.
+- `referentiel` + `openapi.json` → **restent statiques** (specs publiques cacheables ; rate-limiter une réponse CDN n'a pas de sens). OpenAPI documente désormais en-têtes `X-RateLimit-*`, `Retry-After` et réponses 429.
+
+**Vérification :** `check:isolation` → ✅ · `tsc --noEmit` → 0 erreur · `next build` → ✅ (health/profile-me = ƒ dynamique, referentiel/openapi = ○ statique).
+
+*Dernière mise à jour : 24/07/2026 — B3 TERMINÉ — quotas + rate limiting + journalisation. Reste B4 (validation du socle).*

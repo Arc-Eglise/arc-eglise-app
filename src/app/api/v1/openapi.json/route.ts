@@ -9,13 +9,26 @@ export function GET() {
     info: {
       title:       "ARC Église API",
       version:     "1.0.0",
-      description: "API REST de l'ARC Église — La Chaux-de-Fonds, Suisse",
+      description: "API REST de l'ARC Église — La Chaux-de-Fonds, Suisse. Rate limiting par utilisateur (ou IP) : en-têtes X-RateLimit-* sur chaque réponse, 429 + Retry-After au dépassement.",
       contact:     { email: "arceglise.cdf@gmail.com" },
     },
     servers: [{ url: "https://arc-eglise.ch/api/v1", description: "Production" }],
     components: {
       securitySchemes: {
         cookieAuth: { type: "apiKey", in: "cookie", name: "sb-access-token" },
+      },
+      headers: {
+        "X-RateLimit-Limit":     { description: "Plafond de requêtes pour la fenêtre courante", schema: { type: "integer" } },
+        "X-RateLimit-Remaining": { description: "Requêtes restantes dans la fenêtre courante", schema: { type: "integer" } },
+        "X-RateLimit-Reset":     { description: "Secondes avant réinitialisation de la fenêtre", schema: { type: "integer" } },
+        "X-Request-Id":          { description: "Identifiant unique de la requête (journalisation)", schema: { type: "string", format: "uuid" } },
+      },
+      responses: {
+        RateLimited: {
+          description: "Quota de requêtes dépassé",
+          headers: { "Retry-After": { description: "Secondes avant de réessayer", schema: { type: "integer" } } },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+        },
       },
       schemas: {
         Role:          { type: "string", enum: ROLES },
@@ -39,6 +52,7 @@ export function GET() {
           tags: ["Système"],
           responses: {
             "200": { description: "Tous les services opérationnels" },
+            "429": { $ref: "#/components/responses/RateLimited" },
             "503": { description: "Dégradé — au moins un service en erreur" },
           },
         },
@@ -82,6 +96,7 @@ export function GET() {
           responses: {
             "200": { description: "Profil avec droits calculés depuis @arc/core" },
             "401": { description: "Non authentifié", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+            "429": { $ref: "#/components/responses/RateLimited" },
           },
         },
       },

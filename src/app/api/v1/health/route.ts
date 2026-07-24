@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { withApiV1 } from "../_lib/handler"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export const GET = withApiV1({ category: "public" }, async () => {
   const checks: Record<string, "ok" | "error"> = { api: "ok", db: "error" }
 
   try {
@@ -19,4 +20,4 @@ export async function GET() {
     { status: allOk ? "ok" : "degraded", version: "v1", checks },
     { status: allOk ? 200 : 503 }
   )
-}
+})

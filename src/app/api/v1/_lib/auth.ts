@@ -8,6 +8,8 @@ export async function requireAuthV1(): Promise<string> {
   return user.id
 }
 
+const PROFILE_COLUMNS = "id, role, groups, pastoral_stage, display_name, avatar_url"
+
 export async function getUserWithProfile() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,9 +17,30 @@ export async function getUserWithProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, groups, pastoral_stage, display_name, avatar_url")
+    .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .single()
 
   return { user, profile }
 }
+
+/**
+ * Variante non bloquante : renvoie `{ user: null, profile: null }` pour un appel
+ * anonyme au lieu de lever. Utilisée par le wrapper `withApiV1`, qui décide
+ * ensuite d'exiger l'authentification selon la route.
+ */
+export async function getOptionalUserWithProfile() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { user: null, profile: null }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", user.id)
+    .single()
+
+  return { user, profile }
+}
+
+export type V1Profile = Awaited<ReturnType<typeof getOptionalUserWithProfile>>["profile"]
