@@ -2,6 +2,7 @@ import { createClient }      from "@/lib/supabase/server";
 import { createAdminClient }  from "@/lib/supabase/admin";
 import { redirect }           from "next/navigation";
 import { revalidatePath }     from "next/cache";
+import { priorityMeta, computeSla, isResolvedStatus, PRIORITIES } from "@/lib/crm/support";
 
 type Grievance = {
   id: string;
@@ -14,6 +15,11 @@ type Grievance = {
   admin_response: string | null;
   responded_by: string | null;
   created_at: string;
+  priority: string | null;
+  first_response_at: string | null;
+  resolved_at: string | null;
+  satisfaction: number | null;
+  satisfaction_comment: string | null;
   profiles: { first_name: string | null; last_name: string | null; email: string } | null;
   responder: { first_name: string | null; last_name: string | null } | null;
 };
@@ -68,6 +74,17 @@ export default async function AdminDoleancesPage({
   const { data: raw } = await query;
   const grievances = (raw ?? []) as unknown as Grievance[];
 
+  // Tri : tickets ouverts d'abord, puis par priorité (urgente → basse), puis récence.
+  grievances.sort((a, b) => {
+    const ar = isResolvedStatus(a.status) ? 1 : 0;
+    const br = isResolvedStatus(b.status) ? 1 : 0;
+    if (ar !== br) return ar - br;
+    const ap = priorityMeta(a.priority).order;
+    const bp = priorityMeta(b.priority).order;
+    if (ap !== bp) return ap - bp;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   /* ── Stats ── */
   const { data: counts } = await admin
     .from("grievances")
@@ -86,14 +103,17 @@ export default async function AdminDoleancesPage({
 
     const id             = formData.get("id") as string;
     const status         = formData.get("status") as string;
+    const priority       = (formData.get("priority") as string) || "normale";
     const admin_response = (formData.get("admin_response") as string)?.trim() || null;
 
     const adminSrv = createAdminClient();
-    await adminSrv.from("grievances").update({
-      status,
-      admin_response,
-      responded_by: u.id,
-    }).eq("id", id);
+    const { data: cur } = await adminSrv.from("grievances").select("first_response_at").eq("id", id).maybeSingle();
+
+    const patch: Record<string, unknown> = { status, priority, admin_response, responded_by: u.id };
+    if (!cur?.first_response_at && status !== "en_attente") patch.first_response_at = new Date().toISOString();
+    patch.resolved_at = isResolvedStatus(status) ? new Date().toISOString() : null;
+
+    await adminSrv.from("grievances").update(patch).eq("id", id);
 
     revalidatePath("/admin/doleances");
     revalidatePath("/espace-membres/doleances");
@@ -175,6 +195,8 @@ export default async function AdminDoleancesPage({
           {grievances.map(g => {
             const cat    = CAT[g.category]    ?? CAT.autre;
             const stat   = STATUS[g.status]   ?? STATUS.en_attente;
+            const prio   = priorityMeta(g.priority);
+            const sla    = computeSla(g.created_at, g.priority, g.status);
             const author = g.is_anonymous
               ? "Anonyme"
               : [g.profiles?.first_name, g.profiles?.last_name].filter(Boolean).join(" ") || g.profiles?.email || "Membre";
@@ -183,12 +205,13 @@ export default async function AdminDoleancesPage({
               : null;
 
             return (
-              <div key={g.id} className="bg-white border border-arc-border rounded-2xl p-5">
+              <div key={g.id} className={`bg-white border rounded-2xl p-5 ${sla.breached ? "border-red-300 ring-1 ring-red-100" : "border-arc-border"}`}>
 
                 {/* Top row */}
                 <div className="flex items-start gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${prio.cls}`}>{prio.label}</span>
                       <h3 className="font-semibold text-arc-navy">{g.title}</h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cat.cls}`}>
                         {cat.label}
@@ -196,6 +219,16 @@ export default async function AdminDoleancesPage({
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${stat.cls}`}>
                         {stat.label}
                       </span>
+                      {sla.breached ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-700">⏰ SLA dépassé ({sla.ageDays} j)</span>
+                      ) : !isResolvedStatus(g.status) && (
+                        <span className="text-[10px] font-semibold text-arc-text3">SLA : {sla.remainingDays >= 0 ? `${sla.remainingDays} j restant${sla.remainingDays !== 1 ? "s" : ""}` : "échéance atteinte"}</span>
+                      )}
+                      {g.satisfaction != null && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-700" title={g.satisfaction_comment ?? undefined}>
+                          {"★".repeat(g.satisfaction)}{"☆".repeat(5 - g.satisfaction)}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-arc-text3">
                       {author} · {new Date(g.created_at).toLocaleDateString("fr-CH", {
@@ -234,7 +267,7 @@ export default async function AdminDoleancesPage({
                 {/* Formulaire traitement */}
                 <form action={handleUpdate} className="pt-3 border-t border-arc-border">
                   <input type="hidden" name="id" value={g.id} />
-                  <div className="flex gap-3 mb-2 flex-wrap">
+                  <div className="flex gap-3 mb-2 flex-wrap items-center">
                     <div className="flex items-center gap-2">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-arc-text3 flex-shrink-0">Statut</label>
                       <select
@@ -245,6 +278,18 @@ export default async function AdminDoleancesPage({
                         <option value="en_attente">⏳ En attente</option>
                         <option value="en_cours">🔄 En cours</option>
                         <option value="resolu">✅ Résolu</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-arc-text3 flex-shrink-0">Priorité</label>
+                      <select
+                        name="priority"
+                        defaultValue={g.priority ?? "normale"}
+                        className="px-2 py-1.5 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white"
+                      >
+                        {PRIORITIES.map(p => (
+                          <option key={p} value={p}>{priorityMeta(p).label}</option>
+                        ))}
                       </select>
                     </div>
                     <button

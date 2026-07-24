@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { createGrievance, updateGrievanceStatus, deleteGrievance } from "@/lib/actions/membres";
+import { createGrievance, updateGrievanceStatus, deleteGrievance, rateGrievance } from "@/lib/actions/membres";
+import { priorityMeta, isResolvedStatus, PRIORITIES } from "@/lib/crm/support";
 
 type Grievance = {
   id: string;
@@ -12,6 +13,8 @@ type Grievance = {
   is_anonymous: boolean;
   admin_response: string | null;
   created_at: string;
+  priority: string | null;
+  satisfaction: number | null;
   profiles: { first_name: string | null; last_name: string | null } | null;
 };
 
@@ -66,6 +69,11 @@ export default async function DoleancesPage() {
     await deleteGrievance(formData.get("id") as string);
   }
 
+  async function handleRate(formData: FormData): Promise<void> {
+    "use server";
+    await rateGrievance(formData);
+  }
+
   const displayGrievances = isAdmin ? grievances : myGrievances;
 
   return (
@@ -92,6 +100,8 @@ export default async function DoleancesPage() {
           {displayGrievances.map(g => {
             const cat    = CATEGORIES[g.category] ?? CATEGORIES.autre;
             const stat   = STATUSES[g.status]     ?? STATUSES.en_attente;
+            const prio   = priorityMeta(g.priority);
+            const resolved = isResolvedStatus(g.status);
             const isOwner = g.user_id === user.id;
             const authorName = g.is_anonymous
               ? "Anonyme"
@@ -102,6 +112,7 @@ export default async function DoleancesPage() {
                 <div className="flex items-start gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${prio.cls}`}>{prio.label}</span>
                       <h3 className="font-semibold text-arc-navy">{g.title}</h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cat.color}`}>
                         {cat.label}
@@ -145,6 +156,26 @@ export default async function DoleancesPage() {
                     </div>
                     <p className="text-sm text-arc-navy">{g.admin_response}</p>
                   </div>
+                )}
+
+                {/* Satisfaction (CSAT) — auteur, doléance résolue */}
+                {isOwner && resolved && (
+                  g.satisfaction != null ? (
+                    <div className="mt-3 pt-3 border-t border-arc-border text-xs text-arc-text3">
+                      Ta satisfaction : <span className="text-amber-500 text-sm">{"★".repeat(g.satisfaction)}{"☆".repeat(5 - g.satisfaction)}</span> · Merci de ton retour 🙏
+                    </div>
+                  ) : (
+                    <form action={handleRate} className="mt-3 pt-3 border-t border-arc-border">
+                      <input type="hidden" name="id" value={g.id} />
+                      <div className="text-[11px] font-semibold text-arc-navy mb-1.5">Ce traitement t&apos;a-t-il satisfait ?</div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button key={n} type="submit" name="satisfaction" value={n} title={`${n}/5`}
+                            className="text-2xl text-amber-300 hover:text-amber-500 hover:scale-110 transition-all">★</button>
+                        ))}
+                      </div>
+                    </form>
+                  )
                 )}
 
                 {/* Formulaire réponse admin */}
@@ -214,6 +245,19 @@ export default async function DoleancesPage() {
                     <option value="organisation">Organisation</option>
                     <option value="technique">Technique</option>
                     <option value="autre">Autre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-arc-blue mb-1">
+                    Priorité
+                  </label>
+                  <select
+                    name="priority" defaultValue="normale"
+                    className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white"
+                  >
+                    {PRIORITIES.slice().reverse().map(p => (
+                      <option key={p} value={p}>{priorityMeta(p).label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

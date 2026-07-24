@@ -365,11 +365,13 @@ export async function createGrievance(formData: FormData) {
   const description  = (formData.get("description") as string)?.trim();
   const category     = (formData.get("category") as string) || "autre";
   const is_anonymous = formData.get("is_anonymous") === "on";
+  const prio_raw     = (formData.get("priority") as string) || "normale";
+  const priority     = ["basse","normale","haute","urgente"].includes(prio_raw) ? prio_raw : "normale";
 
   if (!title || !description) return { error: "Titre et description requis" };
 
   const { error } = await supabase.from("grievances").insert({
-    user_id: user.id, title, description, category, is_anonymous,
+    user_id: user.id, title, description, category, is_anonymous, priority,
   });
 
   if (error) return { error: error.message };
@@ -471,6 +473,30 @@ export async function deleteGrievance(id: string) {
 
   await supabase.from("grievances").delete().eq("id", id).eq("user_id", user.id);
   revalidatePath("/espace-membres/doleances");
+  return { success: true };
+}
+
+// Satisfaction (CSAT) — l'auteur note le traitement de sa doléance (Phase 7)
+export async function rateGrievance(formData: FormData) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const id      = formData.get("id") as string;
+  const scoreN  = Number(formData.get("satisfaction"));
+  const comment = ((formData.get("satisfaction_comment") as string) ?? "").trim() || null;
+  if (!Number.isInteger(scoreN) || scoreN < 1 || scoreN > 5) return { error: "Note invalide" };
+
+  // L'auteur ne peut noter que sa propre doléance
+  const { error } = await supabase
+    .from("grievances")
+    .update({ satisfaction: scoreN, satisfaction_comment: comment })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/espace-membres/doleances");
+  revalidatePath("/admin/doleances");
   return { success: true };
 }
 
