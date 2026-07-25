@@ -14,8 +14,9 @@ import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerCl
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
-import { listMyConversations, getOrCreateConversation, createGroupConversation, type DmSummary } from "@/lib/actions/messagerie";
+import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, type DmSummary } from "@/lib/actions/messagerie";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
+import type { ArcAction } from "@/lib/arc-ia-actions";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -96,6 +97,54 @@ const BOOKS = [
   {n:"2 Pierre",c:3},{n:"1 Jean",c:5},{n:"2 Jean",c:1},{n:"3 Jean",c:1},{n:"Jude",c:1},
   {n:"Apocalypse",c:22},
 ];
+
+/* ── ARC IA : résolution d'une référence biblique vers l'index du lecteur ──── */
+const _norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\./g, "").replace(/\s+/g, " ").trim();
+// Alias courants → nom canonique dans BOOKS
+const BOOK_ALIASES: Record<string, string> = {
+  "psaume": "psaumes", "ps": "psaumes", "cantique des cantiques": "cantique",
+  "esaie": "esaie", "isaie": "esaie", "qohelet": "ecclesiaste",
+  "apocalypse de jean": "apocalypse", "revelation": "apocalypse",
+};
+function resolveBookIndex(name: string): number {
+  const q0 = _norm(name);
+  const q = _norm(BOOK_ALIASES[q0] ?? q0);
+  const norms = BOOKS.map((b) => _norm(b.n));
+  let idx = norms.findIndex((n) => n === q);
+  if (idx === -1) idx = norms.findIndex((n) => n.startsWith(q) || q.startsWith(n));
+  if (idx === -1) idx = norms.findIndex((n) => n.includes(q) || q.includes(n));
+  return idx;
+}
+/** Parse « Genèse 12:1 », « Psaume 23 », « 1 Jean 4:8 » → {book,chapter,verse?}. */
+function parseVerseRef(ref: string): { book: number; chapter: number; verse?: number } | null {
+  const m = ref.trim().match(/^(.+?)\s+(\d+)(?:[:.](\d+))?/);
+  if (!m) {
+    const b = resolveBookIndex(ref);
+    return b === -1 ? null : { book: b, chapter: 1 };
+  }
+  const book = resolveBookIndex(m[1]);
+  if (book === -1) return null;
+  const chapter = Math.min(Math.max(1, parseInt(m[2], 10)), BOOKS[book].c);
+  return { book, chapter, verse: m[3] ? parseInt(m[3], 10) : undefined };
+}
+
+/* ── ARC IA : types des cartes de résultat rendues dans le fil ─────────────── */
+type PersonBook = { book: string; chapters?: string; key_verses?: string[] };
+type PersonData = {
+  name: string; era?: string; testament?: string; short_bio?: string;
+  full_story?: string; character?: string; legacy?: string;
+  books?: PersonBook[]; related_persons?: string[]; themes?: string[];
+};
+type PersonCandidate = { id: string; name: string; brief?: string; testament?: string; main_book?: string };
+type MsgSearchResult = { conversationId: string; label: string; isGroup: boolean; excerpt: string; date: string };
+type MailSearchResult = { id: string; mailbox: string; mailboxLabel: string; subject: string; from: string; date: string };
+type ArcCard =
+  | { kind: "person"; name: string; loading?: boolean; error?: string; candidates?: PersonCandidate[]; data?: PersonData }
+  | { kind: "messages"; query: string; loading?: boolean; error?: string; results?: MsgSearchResult[] }
+  | { kind: "mail"; query: string; loading?: boolean; error?: string; results?: MailSearchResult[] };
+type AiMsg = { id: string; from: string; text: string; mine: boolean; time: string; actions?: ArcAction[]; card?: ArcCard };
+
 const TRANS = [
   {code:"FRLSG",  label:"Louis Segond 1910 (français)"},
   {code:"NBS",    label:"Nouvelle Bible Segond (français)"},
@@ -601,7 +650,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   /* ARC IA — assistant pastoral intégré comme canal de la messagerie */
   const AI_WELCOME = { id: "ai-welcome", from: "ARC IA", text: `Bonjour ${profile?.first_name ?? ""} 👋 Je suis ARC IA, ton assistant pastoral. Comment puis-je t'accompagner ?`, mine: false, time: "" };
-  const [aiMessages, setAiMessages] = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([AI_WELCOME]);
+  const [aiMessages, setAiMessages] = useState<AiMsg[]>([AI_WELCOME]);
   const [aiStreaming, setAiStreaming] = useState(false);
 
   async function sendAI(text: string) {
@@ -616,19 +665,235 @@ const [showSalle, setShowSalle]       = useState(false);
       const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history }) });
       if (!res.body) throw new Error("no body");
       const reader = res.body.getReader(); const dec = new TextDecoder();
-      let buf = ""; let acc = "";
+      let buf = ""; let acc = ""; let ended = false;
       for (;;) {
         const { done, value } = await reader.read(); if (done) break;
         buf += dec.decode(value, { stream: true });
         const lines = buf.split("\n"); buf = lines.pop() ?? "";
         for (const line of lines) {
           const t = line.trim(); if (!t.startsWith("data:")) continue;
-          try { const ev = JSON.parse(t.slice(5).trim()); if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); } } catch {}
+          try {
+            const ev = JSON.parse(t.slice(5).trim());
+            if (ev.type === "chunk" && ev.content) {
+              acc += ev.content;
+              setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m));
+            } else if (ev.type === "action" && ev.action) {
+              setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, actions: [...(m.actions ?? []), ev.action as ArcAction] } : m));
+            } else if (ev.type === "end") {
+              ended = true;
+            }
+          } catch {}
         }
+        // La réponse est complète : on rend la main tout de suite (l'apprentissage
+        // se poursuit côté serveur). On coupe la lecture proprement.
+        if (ended) { reader.cancel().catch(()=>{}); break; }
       }
     } catch {
       setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: "Service ARC IA momentanément indisponible." } : m));
     } finally { setAiStreaming(false); }
+  }
+
+  // ── ARC IA agentique : exécution d'une action proposée ───────────────────────
+  const PANELS_OK: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","mail","admin"];
+
+  function pushAiCard(card: ArcCard): string {
+    const id = "aicard-" + Date.now() + "-" + Math.random().toString(36).slice(2,6);
+    const time = new Date().toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" });
+    setAiMessages(prev => [...prev, { id, from: "ARC IA", text: "", mine: false, time, card }]);
+    return id;
+  }
+  function patchAiCard(id: string, patch: Record<string, unknown>) {
+    setAiMessages(prev => prev.map(m => (m.id === id && m.card) ? { ...m, card: { ...m.card, ...patch } as ArcCard } : m));
+  }
+
+  async function openConversationById(id: string) {
+    const list = await listMyConversations();
+    setDmList(list);
+    nav("messagerie");
+    setMsgChan(`dm:${id}`);
+    setMsgTab("msgs");
+    setOpenThread(null);
+  }
+
+  async function launchReadingPlan(a: Extract<ArcAction, { type: "launch_reading_plan" }>) {
+    nav("priere"); setBTab("plans");
+    if (a.planId) { await enrollPlan(a.planId); setToast("📋 Plan de lecture lancé !"); return; }
+    await loadReadingPlans(); // remplit la liste visible
+    const target = (a.theme || a.title || "").trim();
+    if (!target) { setToast("Choisis un plan qui te parle 👇"); return; }
+    const q = _norm(target);
+    const { data: plans } = await supabase
+      .from("reading_plans").select("id, titre, description").eq("is_active", true);
+    const match = (plans ?? []).find((p: { titre: string; description: string | null }) =>
+      _norm(p.titre).includes(q) || q.includes(_norm(p.titre)) || (p.description ? _norm(p.description).includes(q) : false));
+    if (match) { await enrollPlan(match.id as string); setToast(`📋 Plan « ${match.titre} » lancé !`); }
+    else setToast("Voici les plans disponibles — choisis-en un 👇");
+  }
+
+  async function loadPersonCard(cardId: string, name: string, identifier?: string) {
+    try {
+      const res = await fetch("/api/bible-ai/dictionary", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "person", name, identifier, lang: "fr" }),
+      });
+      const data = await res.json();
+      if (data.person) { patchAiCard(cardId, { loading: false, error: undefined, candidates: undefined, data: data.person }); return; }
+      const cands: PersonCandidate[] = data.candidates ?? [];
+      if (cands.length === 1) return loadPersonCard(cardId, cands[0].name, cands[0].id);
+      if (cands.length > 1) { patchAiCard(cardId, { loading: false, candidates: cands }); return; }
+      patchAiCard(cardId, { loading: false, error: "Personnage biblique introuvable." });
+    } catch {
+      patchAiCard(cardId, { loading: false, error: "Chargement impossible pour le moment." });
+    }
+  }
+
+  async function runMessageSearch(cardId: string, query: string) {
+    try {
+      const results = await searchMyMessages(query);
+      patchAiCard(cardId, { loading: false, results });
+    } catch { patchAiCard(cardId, { loading: false, error: "Recherche indisponible." }); }
+  }
+
+  async function runMailSearch(cardId: string, query: string) {
+    try {
+      const res = await fetch(`/api/mail/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (!res.ok) { patchAiCard(cardId, { loading: false, error: data.error ?? "Recherche mail indisponible." }); return; }
+      patchAiCard(cardId, { loading: false, results: data.results ?? [] });
+    } catch { patchAiCard(cardId, { loading: false, error: "Recherche mail indisponible." }); }
+  }
+
+  async function runArcAction(a: ArcAction) {
+    switch (a.type) {
+      case "open_panel": {
+        const t = a.target as Panel;
+        if (PANELS_OK.includes(t)) nav(t); else setToast("Cette section n'est pas disponible.");
+        break;
+      }
+      case "open_bible_tool":
+        nav("priere"); setBTab(a.tool); break;
+      case "open_verse": {
+        const parsed = a.ref ? parseVerseRef(a.ref)
+          : (a.bookId != null ? { book: a.bookId, chapter: a.chapter ?? 1 }
+            : (a.book ? parseVerseRef(`${a.book} ${a.chapter ?? 1}`) : null));
+        if (!parsed || parsed.book < 0) { setToast("Référence biblique introuvable."); break; }
+        nav("priere"); setBTab("lecteur"); setBBook(parsed.book); setBCh(parsed.chapter);
+        break;
+      }
+      case "launch_reading_plan": await launchReadingPlan(a); break;
+      case "create_event_draft":
+        nav("agenda"); setShowSalle(true);
+        setToast(`📅 Complète les détails${a.title ? ` — « ${a.title} »` : ""}`);
+        break;
+      case "search_messages": await runMessageSearch(pushAiCard({ kind: "messages", query: a.query, loading: true }), a.query); break;
+      case "search_mail": await runMailSearch(pushAiCard({ kind: "mail", query: a.query, loading: true }), a.query); break;
+      case "open_person": await loadPersonCard(pushAiCard({ kind: "person", name: a.name, loading: true }), a.name); break;
+      case "contact_pastor": {
+        setToast("Mise en relation avec un responsable…");
+        const res = await contactPastor();
+        if ("conversationId" in res && res.conversationId) await openConversationById(res.conversationId);
+        else setToast(("error" in res && res.error) ? res.error : "Aucun responsable disponible pour le moment.");
+        break;
+      }
+    }
+  }
+
+  // Libellé + icône d'un bouton d'action ARC IA.
+  function arcActionButton(a: ArcAction): { icon: string; label: string } {
+    switch (a.type) {
+      case "open_panel": return { icon: "➡️", label: a.label ?? `Ouvrir ${a.target}` };
+      case "open_bible_tool": return { icon: "📖", label: a.label ?? "Ouvrir dans Prière & Bible" };
+      case "open_verse": return { icon: "📖", label: a.label ?? `Lire ${a.ref ?? a.book ?? "le passage"}` };
+      case "launch_reading_plan": return { icon: "▶️", label: a.label ?? `Lancer le plan${a.title ? ` « ${a.title} »` : ""}` };
+      case "create_event_draft": return { icon: "📅", label: a.label ?? "Agender dans l'agenda" };
+      case "search_messages": return { icon: "🔍", label: a.label ?? `Chercher « ${a.query} » dans mes messages` };
+      case "search_mail": return { icon: "🔍", label: a.label ?? `Chercher « ${a.query} » dans mes mails` };
+      case "open_person": return { icon: "👤", label: a.label ?? `Biographie de ${a.name}` };
+      case "contact_pastor": return { icon: "🙋", label: a.label ?? "Parler à un responsable" };
+    }
+  }
+
+  // Rendu d'une carte de résultat ARC IA (biographie, messages, mails) dans le fil.
+  function renderArcCard(cardId: string, card: ArcCard) {
+    const box: React.CSSProperties = { border: "1px solid rgba(30,36,100,.12)", borderRadius: 12, padding: "10px 12px", marginTop: 8, background: "#fff" };
+    const link: React.CSSProperties = { border: "1px solid rgba(30,36,100,.15)", background: "#f6f7fc", color: "#1e2464", borderRadius: 8, padding: "3px 9px", fontSize: 12, cursor: "pointer", margin: "3px 5px 0 0" };
+    if (card.loading) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>⏳ Un instant…</div>;
+    if (card.error)   return <div style={{ ...box, color: "#b4232a", fontSize: 13 }}>{card.error}</div>;
+
+    if (card.kind === "person") {
+      if (card.candidates?.length) return (
+        <div style={box}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e2464", marginBottom: 6 }}>Plusieurs « {card.name} » — lequel ?</div>
+          {card.candidates.map(c => (
+            <button key={c.id} style={link} onClick={() => { patchAiCard(cardId, { loading: true, candidates: undefined }); loadPersonCard(cardId, c.name, c.id); }}>
+              {c.name}{c.main_book ? ` · ${c.main_book}` : ""}
+            </button>
+          ))}
+        </div>
+      );
+      const p = card.data;
+      if (!p) return null;
+      return (
+        <div style={box}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e2464" }}>👤 {p.name}</div>
+          {(p.era || p.testament) && <div style={{ fontSize: 11, color: "#8890aa", marginBottom: 6 }}>{[p.era, p.testament].filter(Boolean).join(" · ")}</div>}
+          {p.short_bio && <div style={{ fontSize: 13, color: "#2a2f4a", lineHeight: 1.6, marginBottom: 8 }}>{p.short_bio}</div>}
+          {p.full_story && <details style={{ marginBottom: 8 }}><summary style={{ fontSize: 12, color: "#1e2464", cursor: "pointer" }}>Lire son histoire</summary><div style={{ fontSize: 13, color: "#2a2f4a", lineHeight: 1.7, marginTop: 6, whiteSpace: "pre-wrap" }}>{p.full_story}</div></details>}
+          {!!p.books?.length && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", margin: "6px 0 4px" }}>📚 Où le lire</div>
+              {p.books.map((b, i) => (
+                <div key={i} style={{ marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1d3a" }}>{b.book}{b.chapters ? ` (${b.chapters})` : ""}</span>
+                  <div>{(b.key_verses ?? []).map((v, j) => (
+                    <button key={j} style={link} onClick={() => runArcAction({ type: "open_verse", ref: v })}>📖 {v}</button>
+                  ))}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!!p.related_persons?.length && (
+            <div style={{ marginTop: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 4 }}>Personnes liées</div>
+              {p.related_persons.map((n, i) => (
+                <button key={i} style={link} onClick={() => loadPersonCard(pushAiCard({ kind: "person", name: n, loading: true }), n)}>👤 {n}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (card.kind === "messages") {
+      if (!card.results?.length) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>Aucun message trouvé pour « {card.query} ».</div>;
+      return (
+        <div style={box}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 6 }}>🔍 Messages · « {card.query} »</div>
+          {card.results.map((r, i) => (
+            <button key={i} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid rgba(30,36,100,.1)", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => openConversationById(r.conversationId)}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#1e2464" }}>{r.isGroup ? "👥 " : "💬 "}{r.label}</div>
+              <div style={{ fontSize: 12, color: "#4a5070", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.excerpt}</div>
+              <div style={{ fontSize: 10, color: "#8890aa" }}>{r.date}</div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // card.kind === "mail"
+    if (!card.results?.length) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>Aucun e-mail trouvé pour « {card.query} ».</div>;
+    return (
+      <div style={box}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 6 }}>🔍 E-mails · « {card.query} »</div>
+        {card.results.map((r) => (
+          <button key={r.id} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid rgba(30,36,100,.1)", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => { nav("mail"); setToast(`📬 ${r.mailboxLabel} — ouvre le message « ${r.subject} »`); }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#1e2464", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.subject || "(sans objet)"}</div>
+            <div style={{ fontSize: 12, color: "#4a5070" }}>{r.from} · <span style={{ color: "#8890aa" }}>{r.mailboxLabel}</span></div>
+            <div style={{ fontSize: 10, color: "#8890aa" }}>{r.date}</div>
+          </button>
+        ))}
+      </div>
+    );
   }
 
   const isAI = msgChan === "arc-ia";
@@ -2352,6 +2617,8 @@ const [showSalle, setShowSalle]       = useState(false);
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
                         const isPinned = pinnedMsgs.includes(m.id);
+                        const aiMsg = isAI ? (m as AiMsg) : null;
+                        const hasCard = !!aiMsg?.card;
                         return (
                           <div key={m.id} className="em-msg-wrap"
                             onMouseEnter={()=>setMsgHover(m.id)}
@@ -2360,11 +2627,26 @@ const [showSalle, setShowSalle]       = useState(false);
                               {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
                               <div style={{flex:1,minWidth:0}}>
                                 {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
-                                <div className="em-bubble em-reading-zone em-reading-text">
-                                  {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
-                                  {m.text}
-                                </div>
-                                <div style={{fontSize:10,color:"#8890aa",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>
+                                {(!hasCard || m.text) && (
+                                  <div className="em-bubble em-reading-zone em-reading-text">
+                                    {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
+                                    {m.text}
+                                  </div>
+                                )}
+                                {/* ARC IA — carte de résultat + boutons d'action */}
+                                {aiMsg?.card && renderArcCard(aiMsg.id, aiMsg.card)}
+                                {!!aiMsg?.actions?.length && (
+                                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+                                    {aiMsg.actions.map((a,i)=>{ const b = arcActionButton(a); return (
+                                      <button key={i} className="em-btn em-btn-outline em-btn-sm"
+                                        style={{fontSize:12,display:"inline-flex",alignItems:"center",gap:5}}
+                                        onClick={()=>runArcAction(a)}>
+                                        <span>{b.icon}</span>{b.label}
+                                      </button>
+                                    );})}
+                                  </div>
+                                )}
+                                {(!hasCard || m.text) && <div style={{fontSize:10,color:"#8890aa",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>}
                                 {/* Reactions row */}
                                 {rxns && Object.keys(rxns).length > 0 && (
                                   <div className="em-reactions">

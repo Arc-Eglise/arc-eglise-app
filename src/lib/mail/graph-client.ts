@@ -87,6 +87,20 @@ export async function listMessages(
   ) as Promise<MessagesPage>;
 }
 
+// Recherche plein-texte (Graph $search) dans une boîte. $search ne se combine
+// pas avec $orderby → résultats triés par pertinence.
+export async function searchMessages(
+  mailbox: string,
+  query: string,
+  top = 10,
+): Promise<MessagesPage> {
+  const sel = "id,subject,from,receivedDateTime,isRead,bodyPreview,hasAttachments";
+  const search = encodeURIComponent(`"${query.replace(/"/g, "")}"`);
+  return gfetch(
+    `/users/${enc(mailbox)}/messages?$search=${search}&$top=${top}&$select=${sel}`,
+  ) as Promise<MessagesPage>;
+}
+
 export async function getMessage(mailbox: string, msgId: string): Promise<GraphMessage> {
   const sel = "id,subject,from,toRecipients,ccRecipients,replyTo,receivedDateTime,isRead,body,hasAttachments,importance";
   return gfetch(`/users/${enc(mailbox)}/messages/${msgId}?$select=${sel}`) as Promise<GraphMessage>;

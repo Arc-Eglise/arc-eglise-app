@@ -358,3 +358,63 @@ export async function streamArcAI(
 
   return new Response(readable, { headers: SSE_HEADERS })
 }
+
+// Stream agentique : comme streamArcAI, mais extrait les directives d'action
+// ⟦ARC⟧…⟦/ARC⟧ du flux, les retire du texte affiché et émet un événement SSE
+// `{ type: "action", action }` par directive. `onDone` reçoit le texte final
+// (nettoyé) — utile pour la mémoire / l'apprentissage.
+export async function streamArcAgentic(
+  message: string,
+  history: { role: string; content: string }[],
+  systemPrompt: string,
+  onDone?: (fullText: string) => void | Promise<void>,
+): Promise<Response> {
+  const { createActionExtractor } = await import("@/lib/arc-ia-actions")
+
+  const messages = [
+    ...history as Array<{ role: "user" | "assistant"; content: string }>,
+    { role: "user" as const, content: message },
+  ]
+  const rawStream = streamChat(messages, "auto", { system: systemPrompt, maxTokens: 4096 })
+
+  const enc = new TextEncoder()
+  const dec = new TextDecoder()
+  const extractor = createActionExtractor()
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+  const writer = writable.getWriter()
+
+  ;(async () => {
+    const reader = rawStream.getReader()
+    let full = ""
+    const emit = async (text: string) => {
+      const clean = stripChunk(text)
+      if (!clean) return
+      full += clean
+      await writer.write(enc.encode(`data: ${JSON.stringify({ type: "chunk", content: clean })}\n\n`))
+    }
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const { text, actions } = extractor.push(dec.decode(value, { stream: true }))
+        if (text) await emit(text)
+        for (const action of actions) {
+          await writer.write(enc.encode(`data: ${JSON.stringify({ type: "action", action })}\n\n`))
+        }
+      }
+      const tail = extractor.flush()
+      if (tail.text) await emit(tail.text)
+      for (const action of tail.actions) {
+        await writer.write(enc.encode(`data: ${JSON.stringify({ type: "action", action })}\n\n`))
+      }
+      await writer.write(enc.encode('data: {"type":"end"}\n\n'))
+      if (onDone) { try { await onDone(full) } catch (e) { console.error("[streamArcAgentic] onDone", e) } }
+    } catch (err) {
+      await writer.write(enc.encode(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`))
+    } finally {
+      await writer.close()
+    }
+  })()
+
+  return new Response(readable, { headers: SSE_HEADERS })
+}

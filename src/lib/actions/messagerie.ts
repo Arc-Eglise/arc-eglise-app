@@ -268,6 +268,78 @@ export async function listMyConversations(): Promise<DmSummary[]> {
   return out.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
 }
 
+export interface MsgSearchHit {
+  conversationId: string;
+  label: string;
+  isGroup: boolean;
+  excerpt: string;
+  date: string;
+}
+
+/**
+ * Recherche par mot-clé dans les messages du membre courant, STRICTEMENT limitée
+ * aux conversations dont il est participant (canaux, groupes, DMs). Le contenu
+ * n'est jamais transmis à un LLM — seule cette action locale le lit.
+ */
+export async function searchMyMessages(query: string): Promise<MsgSearchHit[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const admin = createAdminClient();
+  const { data: myParts } = await admin
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("user_id", user.id);
+  const convIds = (myParts ?? []).map((p) => p.conversation_id);
+  if (!convIds.length) return [];
+
+  const like = `%${q.replace(/[%_]/g, (m) => "\\" + m)}%`;
+  const { data: hits } = await admin
+    .from("messages")
+    .select("conversation_id, content, created_at")
+    .in("conversation_id", convIds)
+    .is("deleted_at", null)
+    .ilike("content", like)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (!hits?.length) return [];
+
+  const hitConvIds = Array.from(new Set(hits.map((h) => h.conversation_id)));
+  const [metaRes, othersRes] = await Promise.all([
+    admin.from("conversations").select("id, name, is_group, channel_key").in("id", hitConvIds),
+    admin.from("conversation_participants")
+      .select("conversation_id, user_id, profiles(first_name, last_name)")
+      .in("conversation_id", hitConvIds).neq("user_id", user.id),
+  ]);
+  type Other = { conversation_id: string; profiles: { first_name: string | null; last_name: string | null } | null };
+  const others = (othersRes.data ?? []) as unknown as Other[];
+  const metaById = new Map(((metaRes.data ?? []) as { id: string; name: string | null; is_group: boolean | null; channel_key: string | null }[]).map((c) => [c.id, c]));
+
+  const label = (convId: string): { label: string; isGroup: boolean } => {
+    const meta = metaById.get(convId);
+    if (meta?.channel_key) return { label: `#${meta.name || meta.channel_key}`, isGroup: false };
+    if (meta?.is_group) return { label: meta.name || "Groupe", isGroup: true };
+    const o = others.find((x) => x.conversation_id === convId);
+    const name = [o?.profiles?.first_name, o?.profiles?.last_name].filter(Boolean).join(" ") || "Membre";
+    return { label: name, isGroup: false };
+  };
+
+  return hits.map((h) => {
+    const l = label(h.conversation_id);
+    const content = (h.content as string) ?? "";
+    return {
+      conversationId: h.conversation_id as string,
+      label: l.label,
+      isGroup: l.isGroup,
+      excerpt: content.length > 140 ? content.slice(0, 140) + "…" : content,
+      date: new Date(h.created_at as string).toLocaleDateString("fr-CH", { day: "2-digit", month: "short", year: "numeric" }),
+    };
+  });
+}
+
 export async function markAsRead(conversationId: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
