@@ -7,11 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-const STAGE_LABELS: Record<string, string> = {
-  visiteur: "visiteur", integration: "en intégration", actif: "membre actif",
-  formation: "en formation", responsable: "responsable",
-};
-
 export async function POST(req: NextRequest) {
   let userId: string;
   try { userId = await requireAuth(); } catch { return unauthorizedResponse(); }
@@ -24,19 +19,17 @@ export async function POST(req: NextRequest) {
   const history = body.history ?? [];
   if (!message) return badRequestResponse("Message requis");
 
-  // Intégration CRM : contexte du membre pour personnaliser la réponse
+  // Personnalisation minimale (protection des données) : seul le prénom du membre
+  // est utilisé. On n'envoie PAS l'étape pastorale ni les groupes/ministères à un
+  // LLM externe — minimisation des données transmises à un tiers.
   const supabase = createClient();
   const { data: prof } = await supabase
-    .from("profiles").select("first_name, pastoral_stage, groups").eq("id", userId).maybeSingle();
+    .from("profiles").select("first_name").eq("id", userId).maybeSingle();
   const prenom = (prof?.first_name as string | null)?.trim() || "";
-  const stage  = STAGE_LABELS[(prof?.pastoral_stage as string | null) ?? ""] ?? "";
-  const groups = ((prof?.groups as string[] | null) ?? []).join(", ");
 
   const systemPrompt = [
     "Tu es ARC IA, l'assistant pastoral bienveillant de l'ARC Église (Ambassade du Royaume de Christ, La Chaux-de-Fonds, Suisse).",
     `Tu accompagnes ${prenom || "ce membre"} avec chaleur, écoute active et empathie.`,
-    stage  ? `Contexte : ${prenom || "Le membre"} est ${stage} dans la communauté.` : "",
-    groups ? `Il/elle sert dans : ${groups}.` : "",
     "Style : messages courts, clairs, chaleureux et fraternels, sans jargon technique. Tu tutoies avec respect.",
     "Tu peux aider sur : la vie de l'église, la foi, la Bible, la prière, les événements, l'orientation vers les bonnes personnes.",
     "IMPORTANT — transfert humain : pour toute situation grave, sensible ou personnelle (deuil, crise, dépression, conflit, décision de vie, besoin d'accompagnement réel), invite avec tact et douceur à contacter un responsable humain via le bouton « Parler à un responsable ». Tu ne remplaces jamais le pasteur ni un conseiller.",
