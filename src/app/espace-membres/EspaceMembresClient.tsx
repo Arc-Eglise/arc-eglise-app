@@ -13,6 +13,7 @@ import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlat
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
+import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -531,6 +532,14 @@ const [showSalle, setShowSalle]       = useState(false);
   const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
   const [taskDone, setTaskDone]             = useState<string[]>([]);
 
+  /* Messagerie réelle (canaux) — remplace la maquette locale */
+  const chan = useChannelMessages({
+    channelKey: msgChan,
+    channelName: msgChan,
+    currentUserId: userId,
+    enabled: panel === "messagerie",
+  });
+
   /* Agenda */
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
   const [calYear, setCalYear]           = useState(() => new Date().getFullYear());
@@ -777,7 +786,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [chan.messages]);
 
   /* ── Chargement photo vitrine depuis Supabase ───────────────── */
   useEffect(() => {
@@ -1594,11 +1603,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   function sendMsg() {
     if (!msgInput.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(), from: "Moi",
-      text: msgInput.trim(), mine: true,
-      time: new Date().toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
-    }]);
+    chan.send(msgInput);          // envoi réel + persistance + temps réel
     setMsgInput("");
     setShowMention(false);
   }
@@ -2180,7 +2185,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
-                      {messages.map(m => {
+                      {chan.loading && <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
+                      {!chan.loading && chan.messages.length === 0 && (
+                        <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"20px 0"}}>Aucun message dans #{msgChan}. Écris le premier 👋</div>
+                      )}
+                      {chan.messages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
                         const isPinned = pinnedMsgs.includes(m.id);
