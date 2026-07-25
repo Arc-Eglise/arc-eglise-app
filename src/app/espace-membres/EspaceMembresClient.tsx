@@ -13,6 +13,9 @@ import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlat
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
+import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
+import { listMyConversations, getOrCreateConversation, createGroupConversation, type DmSummary } from "@/lib/actions/messagerie";
+import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -47,7 +50,7 @@ function stripAI(text: string): string {
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel     = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
-type BTab      = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
+type BTab      = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes"|"dico";
 type ATab      = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
 type MsgTab    = "msgs"|"files"|"pins"|"tasks";
 type MajInfoTab = "sermons"|"events"|"infos"|"citations"|"verset"|"equipe"|"theme";
@@ -511,17 +514,17 @@ const [showSalle, setShowSalle]       = useState(false);
   const [groupDetailSaving, setGroupDetailSaving] = useState(false);
   const [groupAddMemberId, setGroupAddMemberId]   = useState("");
 
-  /* Messagerie */
-  const [msgChan, setMsgChan]     = useState("général");
+  /* Messagerie — deep-link possible vers un DM via ?dm=<conversationId> */
+  const [msgChan, setMsgChan]     = useState(() => {
+    const dm = searchParams.get("dm");
+    return dm ? `dm:${dm}` : "général";
+  });
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
-  const [messages, setMessages]   = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([]);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
-  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({});
-  const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
-  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>([]);
+  // Réactions / épingles : portées par le canal réel (DB + temps réel) via useChannelMessages.
   const [openThread, setOpenThread]         = useState<string|null>(null);
   const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({});
   const [threadInput, setThreadInput]       = useState("");
@@ -530,6 +533,114 @@ const [showSalle, setShowSalle]       = useState(false);
   const [showMention, setShowMention]       = useState(false);
   const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
   const [taskDone, setTaskDone]             = useState<string[]>([]);
+  // Messages directs réels (1-1 + groupes) — chargés depuis la DB.
+  const [dmList, setDmList]                 = useState<DmSummary[]>([]);
+  const [showNewDm, setShowNewDm]           = useState(false);
+  const [newDmMode, setNewDmMode]           = useState<"dm"|"group">("dm");
+  const [groupName, setGroupName]           = useState("");
+  const [groupMembers, setGroupMembers]     = useState<string[]>([]);
+  const [groupBusy, setGroupBusy]           = useState(false);
+
+  // Convention : msgChan == "dm:<conversationId>" pour un message direct.
+  const dmId = msgChan.startsWith("dm:") ? msgChan.slice(3) : null;
+
+  /* Messagerie réelle (canaux + DMs) — remplace la maquette locale */
+  const chan = useChannelMessages({
+    channelKey: msgChan,
+    channelName: msgChan,
+    currentUserId: userId,
+    conversationId: dmId,
+    enabled: panel === "messagerie" && msgChan !== "arc-ia",
+  });
+
+  // Charge la liste des DMs à l'ouverture de la messagerie.
+  useEffect(() => {
+    if (panel !== "messagerie") return;
+    let cancelled = false;
+    listMyConversations().then(list => { if (!cancelled) setDmList(list); });
+    return () => { cancelled = true; };
+  }, [panel]);
+
+  function closeNewDm() {
+    setShowNewDm(false); setNewDmMode("dm"); setGroupName(""); setGroupMembers([]);
+  }
+
+  async function startDm(otherUserId: string) {
+    closeNewDm();
+    const res = await getOrCreateConversation(otherUserId);
+    if ("conversationId" in res && res.conversationId) {
+      const list = await listMyConversations();
+      setDmList(list);
+      setMsgChan(`dm:${res.conversationId}`);
+      setMsgTab("msgs");
+      setOpenThread(null);
+    } else {
+      setToast("error" in res ? res.error ?? "Erreur" : "Erreur");
+    }
+  }
+
+  async function createGroup() {
+    const name = groupName.trim();
+    if (!name) { setToast("Nom du groupe requis"); return; }
+    if (groupMembers.length < 2) { setToast("Choisis au moins 2 membres"); return; }
+    setGroupBusy(true);
+    const res = await createGroupConversation(name, groupMembers);
+    setGroupBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      closeNewDm();
+      const list = await listMyConversations();
+      setDmList(list);
+      setMsgChan(`dm:${res.conversationId}`);
+      setMsgTab("msgs");
+      setOpenThread(null);
+      setToast("Groupe créé 👥");
+    } else {
+      setToast("error" in res ? res.error ?? "Erreur" : "Erreur");
+    }
+  }
+
+  /* ARC IA — assistant pastoral intégré comme canal de la messagerie */
+  const AI_WELCOME = { id: "ai-welcome", from: "ARC IA", text: `Bonjour ${profile?.first_name ?? ""} 👋 Je suis ARC IA, ton assistant pastoral. Comment puis-je t'accompagner ?`, mine: false, time: "" };
+  const [aiMessages, setAiMessages] = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([AI_WELCOME]);
+  const [aiStreaming, setAiStreaming] = useState(false);
+
+  async function sendAI(text: string) {
+    const message = text.trim();
+    if (!message || aiStreaming) return;
+    const history = aiMessages.filter(m => m.id !== "ai-welcome").slice(-8).map(m => ({ role: m.mine ? "user" : "assistant", content: m.text }));
+    const now = new Date().toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" });
+    const aiId = "ai-" + Date.now();
+    setAiMessages(prev => [...prev, { id: "u-" + Date.now(), from: "Moi", text: message, mine: true, time: now }, { id: aiId, from: "ARC IA", text: "", mine: false, time: now }]);
+    setAiStreaming(true);
+    try {
+      const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history }) });
+      if (!res.body) throw new Error("no body");
+      const reader = res.body.getReader(); const dec = new TextDecoder();
+      let buf = ""; let acc = "";
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n"); buf = lines.pop() ?? "";
+        for (const line of lines) {
+          const t = line.trim(); if (!t.startsWith("data:")) continue;
+          try { const ev = JSON.parse(t.slice(5).trim()); if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); } } catch {}
+        }
+      }
+    } catch {
+      setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: "Service ARC IA momentanément indisponible." } : m));
+    } finally { setAiStreaming(false); }
+  }
+
+  const isAI = msgChan === "arc-ia";
+  const activeDm = dmId ? (dmList.find(d => d.id === dmId) ?? null) : null;
+  // Libellé courant : nom du DM, « ARC IA », ou nom du canal.
+  const chanLabel = isAI ? "ARC IA" : activeDm ? activeDm.name : msgChan;
+  const isChannelHeader = !dmId && !isAI;   // canaux communautaires → préfixe #
+  const displayMessages = isAI ? aiMessages : chan.messages;
+  // Réactions / épingles dérivées du canal réel (l'assistant IA n'en a pas).
+  const msgReactions: Record<string,Record<string,number>> = isAI ? {} : chan.reactions;
+  const myReactions:  Record<string,string[]>              = isAI ? {} : chan.myReactions;
+  const pinnedMsgs:   string[] = isAI ? [] : chan.messages.filter(m => m.pinned).map(m => m.id);
 
   /* Agenda */
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
@@ -777,7 +888,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [displayMessages]);
 
   /* ── Chargement photo vitrine depuis Supabase ───────────────── */
   useEffect(() => {
@@ -1594,28 +1705,22 @@ const [showSalle, setShowSalle]       = useState(false);
 
   function sendMsg() {
     if (!msgInput.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(), from: "Moi",
-      text: msgInput.trim(), mine: true,
-      time: new Date().toLocaleTimeString("fr-CH", { hour:"2-digit", minute:"2-digit" }),
-    }]);
+    if (isAI) sendAI(msgInput);   // ARC IA (streaming)
+    else chan.send(msgInput);     // canal réel (DB + temps réel)
     setMsgInput("");
     setShowMention(false);
   }
 
   function addReaction(msgId: string, emoji: string) {
-    if ((myReactions[msgId]??[]).includes(emoji)) return;
-    setMsgReactions(prev => {
-      const cur = prev[msgId] ?? {};
-      return {...prev, [msgId]: {...cur, [emoji]: (cur[emoji]??0)+1}};
-    });
-    setMyReactions(prev => ({...prev, [msgId]: [...(prev[msgId]??[]), emoji]}));
     setShowEmojiPicker(null);
+    if (isAI) return;              // pas de réactions sur l'assistant IA
+    chan.react(msgId, emoji);      // toggle réel (DB + optimiste)
   }
 
   function togglePin(msgId: string) {
+    if (isAI) return;
     const wasPin = pinnedMsgs.includes(msgId);
-    setPinnedMsgs(prev => wasPin ? prev.filter(i=>i!==msgId) : [...prev, msgId]);
+    chan.togglePin(msgId);         // persistance réelle (DB + temps réel)
     setToast(wasPin ? "Message désépinglé" : "Message épinglé 📌");
   }
 
@@ -1628,6 +1733,9 @@ const [showSalle, setShowSalle]       = useState(false);
   }
 
   const MSG_CHANNELS = [
+    { section:"Assistant", items:[
+      { id:"arc-ia", icon:"🤖" },
+    ]},
     { section:"Canaux", items:[
       { id:"général",  icon:"#" },
       { id:"annonces", icon:"📣", locked:!canAdmin },
@@ -1677,7 +1785,6 @@ const [showSalle, setShowSalle]       = useState(false);
       { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
       { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
       { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
-      { id:"ai-biblique", lbl:"ARC Église AI",  ico:"✦",  Icon:Sparkles,      arcIcon:"arc-ai", href:"/espace-membres/ai-biblique" },
     ]},
     { section:"Communauté", items:[
       { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
@@ -1953,20 +2060,20 @@ const [showSalle, setShowSalle]       = useState(false);
               ))}
             </div>
 
-            {/* ARC Église AI */}
-            <a href="/espace-membres/ai-biblique" style={{display:"block",textDecoration:"none",marginBottom:18}}>
+            {/* Assistant IA — intégré dans Prière & Bible */}
+            <div onClick={() => nav("priere")} style={{display:"block",marginBottom:18,cursor:"pointer"}}>
               <div style={{background:"linear-gradient(135deg,#1e2464 0%,#2d3a8c 60%,#1a4fa8 100%)",borderRadius:16,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,cursor:"pointer",boxShadow:"0 4px 20px rgba(30,36,100,.25)",border:"1px solid rgba(255,255,255,.1)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
                   <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>✦</div>
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Nouveau</div>
-                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>ARC Église AI</div>
-                    <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique · Méditation · Plans de lecture</div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Assistant IA</div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>Prière &amp; Bible</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique IA · Dictionnaire · Plans de lecture</div>
                   </div>
                 </div>
                 <div style={{fontSize:20,color:"rgba(255,255,255,.4)",flexShrink:0}}>→</div>
               </div>
-            </a>
+            </div>
 
             {/* Verse + Culte */}
             <div className="em-g2" style={{marginBottom:18}}>
@@ -2120,21 +2227,76 @@ const [showSalle, setShowSalle]       = useState(false);
                     ))}
                   </div>
                 ))}
-                <div className="em-ch-sec" style={{marginTop:4}}>Messages directs</div>
-                {ONLINE_MEMBERS.slice(0,5).map(m => {
-                  const st = USER_STATUSES[m.name];
-                  const dotColor = st==="online"?"#48bb78":st==="away"?"#ecc94b":st==="busy"?"#fc8181":"#718096";
-                  return (
-                    <button key={m.name} className={`em-ch-item${msgChan===m.name?" active":""}`}
-                      onClick={()=>{setMsgChan(m.name);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
-                      <div style={{position:"relative",flexShrink:0}}>
-                        <div className="em-av" style={{width:20,height:20,fontSize:9,background:m.color}}>{m.name[0]}</div>
-                        <span style={{position:"absolute",bottom:-1,right:-1,width:7,height:7,borderRadius:"50%",border:"1.5px solid #1a1d3a",background:dotColor,display:"block"}} />
-                      </div>
-                      <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{m.name}</span>
-                    </button>
-                  );
-                })}
+                <div className="em-ch-sec" style={{marginTop:4,display:"flex",alignItems:"center",justifyContent:"space-between",paddingRight:8}}>
+                  <span>Messages directs</span>
+                  <button title="Nouveau message"
+                    style={{border:"none",background:"none",color:"rgba(255,255,255,.55)",fontSize:15,cursor:"pointer",lineHeight:1,padding:"0 2px"}}
+                    onClick={()=>{ if(members.length===0) loadMembers(); setShowNewDm(v=>!v); }}>＋</button>
+                </div>
+                {/* Sélecteur : nouveau message direct OU nouveau groupe */}
+                {showNewDm && (
+                  <div style={{margin:"0 8px 6px",background:"rgba(255,255,255,.06)",borderRadius:8,padding:4}}>
+                    {/* Onglets Message / Groupe */}
+                    <div style={{display:"flex",gap:4,padding:"2px 2px 6px"}}>
+                      {(["dm","group"] as const).map(mode=>(
+                        <button key={mode} onClick={()=>setNewDmMode(mode)}
+                          style={{flex:1,fontSize:11,fontWeight:600,padding:"5px 0",borderRadius:6,cursor:"pointer",border:"none",
+                            background:newDmMode===mode?"rgba(255,255,255,.16)":"transparent",
+                            color:newDmMode===mode?"#fff":"rgba(255,255,255,.55)"}}>
+                          {mode==="dm"?"💬 Message":"👥 Groupe"}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Champ nom (groupe uniquement) */}
+                    {newDmMode==="group" && (
+                      <input value={groupName} onChange={e=>setGroupName(e.target.value)}
+                        placeholder="Nom du groupe…"
+                        style={{width:"100%",boxSizing:"border-box",margin:"0 0 4px",padding:"6px 8px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(0,0,0,.2)",color:"#fff",fontSize:12,outline:"none"}} />
+                    )}
+                    {/* Liste des membres */}
+                    <div style={{maxHeight:170,overflowY:"auto"}}>
+                      {members.filter(m=>m.validated && m.id!==userId).length===0
+                        ? <div style={{fontSize:11,color:"rgba(255,255,255,.5)",padding:"8px 6px",textAlign:"center"}}>Chargement…</div>
+                        : members.filter(m=>m.validated && m.id!==userId).map(m=>{
+                            const nm=[m.first_name,m.last_name].filter(Boolean).join(" ")||"Membre";
+                            const checked = groupMembers.includes(m.id);
+                            return (
+                              <button key={m.id} className="em-ch-item" style={{width:"100%"}}
+                                onClick={()=> newDmMode==="dm"
+                                  ? startDm(m.id)
+                                  : setGroupMembers(prev=>checked?prev.filter(i=>i!==m.id):[...prev,m.id])}>
+                                {newDmMode==="group" && (
+                                  <span style={{width:14,height:14,borderRadius:4,flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:10,
+                                    border:checked?"none":"1.5px solid rgba(255,255,255,.35)",background:checked?"#C9A227":"transparent",color:"#1a1d3a"}}>{checked?"✓":""}</span>
+                                )}
+                                <div className="em-av" style={{width:20,height:20,fontSize:9,background:"#1e2464"}}>{(m.first_name?.[0]??"?").toUpperCase()}</div>
+                                <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{nm}</span>
+                              </button>
+                            );
+                          })}
+                    </div>
+                    {/* Bouton créer (groupe uniquement) */}
+                    {newDmMode==="group" && (
+                      <button onClick={createGroup} disabled={groupBusy || !groupName.trim() || groupMembers.length<2}
+                        style={{width:"100%",marginTop:6,padding:"7px 0",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                          background:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.12)":"#C9A227",
+                          color:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.4)":"#1a1d3a"}}>
+                        {groupBusy?"Création…":`Créer le groupe${groupMembers.length?` (${groupMembers.length})`:""}`}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {dmList.length===0 && !showNewDm && (
+                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",padding:"4px 12px 8px"}}>Aucune conversation. Clique ＋ pour en démarrer une.</div>
+                )}
+                {dmList.map(d => (
+                  <button key={d.id} className={`em-ch-item${msgChan===`dm:${d.id}`?" active":""}`}
+                    onClick={()=>{setMsgChan(`dm:${d.id}`);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
+                    <div className="em-av" style={{width:20,height:20,fontSize:9,background:d.isGroup?"#276749":"#1e2464",flexShrink:0}}>{d.initial}</div>
+                    <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{d.name}</span>
+                    {d.hasUnread && <span style={{width:7,height:7,borderRadius:"50%",background:"#fc8181",flexShrink:0}} />}
+                  </button>
+                ))}
                 <div style={{padding:"8px 8px 10px"}}>
                   <button className={`em-huddle${huddleActive?" active":""}`}
                     onClick={()=>{setHuddleActive(h=>!h);setToast(huddleActive?"Huddle terminé":"🎙 Huddle démarré !");}}>
@@ -2153,10 +2315,12 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                     <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8890aa",padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>← Retour</button>
                     <button className="mob-only" style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
-                    {MSG_CHANNELS.flatMap(s=>s.items).some(i=>i.id===msgChan)
+                    {isAI
+                      ? <span style={{fontSize:16}}>🤖</span>
+                      : isChannelHeader
                       ? <span style={{fontWeight:700,fontSize:15,color:"#8890aa"}}>#</span>
-                      : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{msgChan[0]}</div>}
-                    <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{msgChan}</span>
+                      : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{chanLabel[0]}</div>}
+                    <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{chanLabel}</span>
                     <button className="em-toolbar-btn" title="Rechercher">🔍</button>
                     <button className="em-toolbar-btn" title="Démarrer une réunion vidéo" onClick={()=>setShowVideoCall(true)}>📹</button>
                     <button className="em-toolbar-btn" title="Membres">👥</button>
@@ -2180,7 +2344,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
-                      {messages.map(m => {
+                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
+                      {!isAI && !chan.loading && chan.messages.length === 0 && (
+                        <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"20px 0"}}>Aucun message {isChannelHeader?`dans #${chanLabel}`:`avec ${chanLabel}`}. Écris le premier 👋</div>
+                      )}
+                      {displayMessages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
                         const isPinned = pinnedMsgs.includes(m.id);
@@ -2261,7 +2429,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           <input type="file" style={{display:"none"}} onChange={e=>{
                             if(e.target.files?.[0]){
                               const f=e.target.files[0];
-                              setMessages(prev=>[...prev,{id:Date.now().toString(),from:"Moi",text:`📎 Fichier partagé : ${f.name}`,mine:true,time:new Date().toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"})}]);
+                              if(!isAI) chan.send(`📎 Fichier partagé : ${f.name}`);
                               setToast(`"${f.name}" envoyé 📎`);
                               e.target.value="";
                             }
@@ -2269,7 +2437,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         </label>
                         <div style={{flex:1,position:"relative"}}>
                           <textarea className="em-msg-input" ref={msgInputRef} rows={1}
-                            placeholder={`Message #${msgChan}… (@mention, Entrée pour envoyer)`}
+                            placeholder={`Message ${isChannelHeader?"#"+chanLabel:chanLabel}… (@mention, Entrée pour envoyer)`}
                             value={msgInput}
                             onChange={e=>{
                               setMsgInput(e.target.value);
@@ -2343,7 +2511,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
                       <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📌 Messages épinglés</div>
                       {pinnedMsgs.length > 0
-                        ? messages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
+                        ? displayMessages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
                           <div key={m.id} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
                             <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5}}>{m.mine?"Moi":m.from} · {m.time}</div>
                             <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{m.text}</div>
@@ -2397,7 +2565,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
                     </div>
                     {(() => {
-                      const orig = messages.find(m=>m.id===openThread);
+                      const orig = displayMessages.find(m=>m.id===openThread);
                       return orig ? (
                         <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",background:"#fafbff"}}>
                           <div style={{fontSize:10,fontWeight:700,color:"#8890aa",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
@@ -2599,7 +2767,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-tabs">
               {([
                 ["verset","✦ Verset du jour"],["lecteur","📖 Lecteur biblique"],
-                ["etude","🔍 Étude"],["theo","📜 Théologie"],
+                ["etude","🔍 Étude"],["theo","📜 Théologie"],["dico","📚 Dictionnaire"],
                 ["mur","🙏 Mur de prière"],["plans","📋 Plans de lecture"],["notes","📓 Journal"],
               ] as [BTab,string][]).map(([t,l]) => (
                 <button key={t} className={`em-tab${bTab===t?" active":""}`} onClick={() => setBTab(t)}>{l}</button>
@@ -3057,6 +3225,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Dictionnaire théologique & personnages bibliques (IA — service intégré) */}
+            {bTab==="dico" && (
+              <DictionaryPanel language="fr" />
             )}
 
             {/* Mur de prière */}

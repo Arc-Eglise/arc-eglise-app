@@ -50,13 +50,80 @@ export async function getOrCreateConversation(otherUserId: string) {
   return { conversationId: conv.id as string };
 }
 
-export async function sendMessage(conversationId: string, content: string) {
+/**
+ * Canal communautaire (messagerie unifiée) : récupère ou crée la conversation
+ * partagée d'un canal (général, annonces, prière, groupes…) et y inscrit le
+ * membre courant. Renvoie l'id de conversation à utiliser côté panneau.
+ */
+export async function getOrCreateChannel(key: string, name: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const admin = createAdminClient();
+
+  // Conversation du canal (unique par channel_key)
+  let convId: string | null = null;
+  const { data: existing } = await admin
+    .from("conversations").select("id").eq("channel_key", key).maybeSingle();
+  if (existing) {
+    convId = existing.id as string;
+  } else {
+    const { data: created, error } = await admin
+      .from("conversations")
+      .insert({ name, is_group: true, channel_key: key, created_by: user.id })
+      .select("id").single();
+    if (error || !created) return { error: "Erreur création canal" };
+    convId = created.id as string;
+  }
+
+  // Inscription paresseuse du membre courant
+  const { data: part } = await admin
+    .from("conversation_participants")
+    .select("conversation_id").eq("conversation_id", convId).eq("user_id", user.id).maybeSingle();
+  if (!part) {
+    await admin.from("conversation_participants").insert({ conversation_id: convId, user_id: user.id });
+  }
+
+  return { conversationId: convId };
+}
+
+export async function createGroupConversation(name: string, memberIds: string[]) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Nom du groupe requis" };
+  const ids = Array.from(new Set(memberIds.filter(id => id && id !== user.id)));
+  if (ids.length < 2) return { error: "Choisis au moins 2 membres pour un groupe" };
+
+  const admin = createAdminClient();
+  const { data: conv, error } = await admin
+    .from("conversations")
+    .insert({ name: trimmed, is_group: true, created_by: user.id })
+    .select("id")
+    .single();
+  if (error || !conv) return { error: "Erreur lors de la création du groupe" };
+
+  const rows = [user.id, ...ids].map(uid => ({ conversation_id: conv.id, user_id: uid }));
+  await admin.from("conversation_participants").insert(rows);
+
+  return { conversationId: conv.id as string };
+}
+
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  replyToId?: string | null,
+  attachment?: { url: string; type: string; name: string } | null,
+) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
   const trimmed = content.trim();
-  if (!trimmed) return { error: "Message vide" };
+  if (!trimmed && !attachment) return { error: "Message vide" };
 
   const { data: part } = await supabase
     .from("conversation_participants")
@@ -67,11 +134,19 @@ export async function sendMessage(conversationId: string, content: string) {
 
   if (!part) return { error: "Non autorisé" };
 
-  const { error } = await supabase.from("messages").insert({
+  const row: Record<string, unknown> = {
     conversation_id: conversationId,
     sender_id: user.id,
     content: trimmed,
-  });
+  };
+  if (replyToId) row.reply_to_id = replyToId;
+  if (attachment) {
+    row.attachment_url = attachment.url;
+    row.attachment_type = attachment.type;
+    row.attachment_name = attachment.name;
+  }
+
+  const { error } = await supabase.from("messages").insert(row);
 
   if (error) return { error: error.message };
 
@@ -92,14 +167,105 @@ export async function sendMessage(conversationId: string, content: string) {
       await notifyMany(ids, {
         type: "message",
         title: `💬 ${senderName}`,
-        body: trimmed.slice(0, 90),
-        link: `/espace-membres/messagerie/${conversationId}`,
+        body: trimmed.slice(0, 90) || "📎 Pièce jointe",
+        link: `/espace-membres?panel=messagerie&dm=${conversationId}`,
       });
     }
   } catch { /* best-effort */ }
 
-  revalidatePath(`/espace-membres/messagerie/${conversationId}`);
+  revalidatePath("/espace-membres");
   return { success: true };
+}
+
+// Transfert humain (ARC IA → responsable) : ouvre une conversation avec un
+// pasteur/admin (ou responsable suivi à défaut).
+export async function contactPastor() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const admin = createAdminClient();
+  const { data: staff } = await admin
+    .from("profiles")
+    .select("id, role, groups")
+    .eq("validated", true);
+
+  const candidates = (staff ?? []).filter((p: { id: string; role: string | null; groups: string[] | null }) => p.id !== user.id);
+  const pastor =
+    candidates.find(p => p.role === "pasteur") ??
+    candidates.find(p => p.role === "admin") ??
+    candidates.find(p => (p.groups ?? []).includes("suivi"));
+
+  if (!pastor) return { error: "Aucun responsable disponible pour le moment." };
+
+  return getOrCreateConversation(pastor.id as string);
+}
+
+export interface DmSummary {
+  id: string;
+  name: string;
+  initial: string;
+  avatar: string | null;
+  isGroup: boolean;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  hasUnread: boolean;
+}
+
+/**
+ * Liste les conversations directes (1-1) et groupes du membre courant, pour le
+ * panneau « Messages directs ». Exclut les canaux communautaires (channel_key).
+ */
+export async function listMyConversations(): Promise<DmSummary[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const admin = createAdminClient();
+  const { data: myParts } = await admin
+    .from("conversation_participants")
+    .select("conversation_id, last_read_at")
+    .eq("user_id", user.id);
+  const convIds = (myParts ?? []).map(p => p.conversation_id);
+  if (!convIds.length) return [];
+
+  const [metaRes, othersRes, lastRes] = await Promise.all([
+    admin.from("conversations").select("id, name, is_group, channel_key").in("id", convIds),
+    admin.from("conversation_participants")
+      .select("conversation_id, user_id, profiles(first_name, last_name, avatar_url)")
+      .in("conversation_id", convIds).neq("user_id", user.id),
+    admin.from("messages")
+      .select("conversation_id, content, created_at")
+      .in("conversation_id", convIds).order("created_at", { ascending: false }).limit(convIds.length * 4),
+  ]);
+
+  type Other = { conversation_id: string; user_id: string; profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null };
+  const others = (othersRes.data ?? []) as unknown as Other[];
+  const lasts = lastRes.data ?? [];
+  const metaById = new Map(((metaRes.data ?? []) as { id: string; name: string | null; is_group: boolean | null; channel_key: string | null }[]).map(c => [c.id, c]));
+
+  const out: DmSummary[] = [];
+  for (const part of myParts ?? []) {
+    const meta = metaById.get(part.conversation_id);
+    if (!meta || meta.channel_key) continue;   // canaux communautaires exclus
+    const last = lasts.find(m => m.conversation_id === part.conversation_id);
+    const unread = last ? new Date(last.created_at) > new Date(part.last_read_at ?? 0) : false;
+    if (meta.is_group) {
+      out.push({
+        id: part.conversation_id, name: meta.name || "Groupe", initial: "👥", avatar: null,
+        isGroup: true, lastMessage: last?.content ?? null, lastMessageAt: last?.created_at ?? null, hasUnread: unread,
+      });
+    } else {
+      const o = others.find(x => x.conversation_id === part.conversation_id);
+      const name = [o?.profiles?.first_name, o?.profiles?.last_name].filter(Boolean).join(" ") || "Membre";
+      out.push({
+        id: part.conversation_id, name, initial: (o?.profiles?.first_name?.[0] ?? "?").toUpperCase(),
+        avatar: o?.profiles?.avatar_url ?? null, isGroup: false,
+        lastMessage: last?.content ?? null, lastMessageAt: last?.created_at ?? null, hasUnread: unread,
+      });
+    }
+  }
+  return out.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
 }
 
 export async function markAsRead(conversationId: string) {
@@ -138,6 +304,39 @@ export async function reactToMessage(messageId: string, emoji: string) {
     emoji,
   });
   return { added: true };
+}
+
+export async function editMessage(messageId: string, content: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const trimmed = content.trim();
+  if (!trimmed) return { error: "Message vide" };
+
+  const { error } = await supabase
+    .from("messages")
+    .update({ content: trimmed, edited_at: new Date().toISOString() })
+    .eq("id", messageId)
+    .eq("sender_id", user.id)          // l'expéditeur uniquement
+    .is("deleted_at", null);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function deleteMessage(messageId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  // Suppression douce : conserve la ligne (fil cohérent), masque le contenu.
+  const { error } = await supabase
+    .from("messages")
+    .update({ deleted_at: new Date().toISOString(), is_pinned: false })
+    .eq("id", messageId)
+    .eq("sender_id", user.id);
+  if (error) return { error: error.message };
+  return { success: true };
 }
 
 export async function togglePinMessage(messageId: string, currentlyPinned: boolean) {

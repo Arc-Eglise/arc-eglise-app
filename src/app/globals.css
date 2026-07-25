@@ -829,3 +829,33 @@
   background: #f0f2f9; border: 1px solid rgba(30,36,100,.12);
   border-radius: 10px; padding: 7px 12px; margin-top: 6px; font-size: 12px;
 }
+
+/* ── Messagerie — micro-interactions ─────────────────────────────── */
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-msg-in { animation: msg-in 0.22s cubic-bezier(0, 0, 0.2, 1); }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.18s ease-out; }
+
+/* Motif de fond subtil pour la zone de conversation */
+.msg-canvas {
+  background-color: #f7f8fc;
+  background-image: radial-gradient(rgba(30, 36, 100, 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Respect de la préférence de mouvement réduit (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  .animate-msg-in, .animate-fade-in { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
