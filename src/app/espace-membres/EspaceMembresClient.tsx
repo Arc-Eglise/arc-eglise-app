@@ -538,8 +538,43 @@ const [showSalle, setShowSalle]       = useState(false);
     channelKey: msgChan,
     channelName: msgChan,
     currentUserId: userId,
-    enabled: panel === "messagerie",
+    enabled: panel === "messagerie" && msgChan !== "arc-ia",
   });
+
+  /* ARC IA — assistant pastoral intégré comme canal de la messagerie */
+  const AI_WELCOME = { id: "ai-welcome", from: "ARC IA", text: `Bonjour ${profile?.first_name ?? ""} 👋 Je suis ARC IA, ton assistant pastoral. Comment puis-je t'accompagner ?`, mine: false, time: "" };
+  const [aiMessages, setAiMessages] = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([AI_WELCOME]);
+  const [aiStreaming, setAiStreaming] = useState(false);
+
+  async function sendAI(text: string) {
+    const message = text.trim();
+    if (!message || aiStreaming) return;
+    const history = aiMessages.filter(m => m.id !== "ai-welcome").slice(-8).map(m => ({ role: m.mine ? "user" : "assistant", content: m.text }));
+    const now = new Date().toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" });
+    const aiId = "ai-" + Date.now();
+    setAiMessages(prev => [...prev, { id: "u-" + Date.now(), from: "Moi", text: message, mine: true, time: now }, { id: aiId, from: "ARC IA", text: "", mine: false, time: now }]);
+    setAiStreaming(true);
+    try {
+      const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history }) });
+      if (!res.body) throw new Error("no body");
+      const reader = res.body.getReader(); const dec = new TextDecoder();
+      let buf = ""; let acc = "";
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n"); buf = lines.pop() ?? "";
+        for (const line of lines) {
+          const t = line.trim(); if (!t.startsWith("data:")) continue;
+          try { const ev = JSON.parse(t.slice(5).trim()); if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); } } catch {}
+        }
+      }
+    } catch {
+      setAiMessages(prev => prev.map(m => m.id === aiId ? { ...m, text: "Service ARC IA momentanément indisponible." } : m));
+    } finally { setAiStreaming(false); }
+  }
+
+  const isAI = msgChan === "arc-ia";
+  const displayMessages = isAI ? aiMessages : chan.messages;
 
   /* Agenda */
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
@@ -787,7 +822,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chan.messages]);
+  }, [displayMessages]);
 
   /* ── Chargement photo vitrine depuis Supabase ───────────────── */
   useEffect(() => {
@@ -1604,7 +1639,8 @@ const [showSalle, setShowSalle]       = useState(false);
 
   function sendMsg() {
     if (!msgInput.trim()) return;
-    chan.send(msgInput);          // envoi réel + persistance + temps réel
+    if (isAI) sendAI(msgInput);   // ARC IA (streaming)
+    else chan.send(msgInput);     // canal réel (DB + temps réel)
     setMsgInput("");
     setShowMention(false);
   }
@@ -1634,6 +1670,9 @@ const [showSalle, setShowSalle]       = useState(false);
   }
 
   const MSG_CHANNELS = [
+    { section:"Assistant", items:[
+      { id:"arc-ia", icon:"🤖" },
+    ]},
     { section:"Canaux", items:[
       { id:"général",  icon:"#" },
       { id:"annonces", icon:"📣", locked:!canAdmin },
@@ -2185,11 +2224,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
-                      {chan.loading && <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
-                      {!chan.loading && chan.messages.length === 0 && (
+                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
+                      {!isAI && !chan.loading && chan.messages.length === 0 && (
                         <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"20px 0"}}>Aucun message dans #{msgChan}. Écris le premier 👋</div>
                       )}
-                      {chan.messages.map(m => {
+                      {displayMessages.map(m => {
                         const rxns  = msgReactions[m.id];
                         const replies = threadReplies[m.id] ?? [];
                         const isPinned = pinnedMsgs.includes(m.id);
