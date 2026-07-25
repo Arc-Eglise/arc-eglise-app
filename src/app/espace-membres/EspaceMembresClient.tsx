@@ -233,7 +233,7 @@ const EMOJI_LIST = [
 ];
 // Pipeline CRM — colonnes fixes, cartes chargées depuis crm_contacts (Supabase)
 const CRM_COLS = [
-  {title:"Visiteurs",     color:"#8890aa", cards:[] as {name:string;note:string}[]},
+  {title:"Visiteurs",     color:"#8b91b0", cards:[] as {name:string;note:string}[]},
   {title:"En suivi",      color:"#c05621", cards:[] as {name:string;note:string}[]},
   {title:"En intégration",color:"#1e40af", cards:[] as {name:string;note:string}[]},
   {title:"Membres actifs",color:"#065f46", cards:[] as {name:string;note:string}[]},
@@ -829,9 +829,9 @@ const [showSalle, setShowSalle]       = useState(false);
 
   // Rendu d'une carte de résultat ARC IA (biographie, messages, mails) dans le fil.
   function renderArcCard(cardId: string, card: ArcCard) {
-    const box: React.CSSProperties = { border: "1px solid rgba(30,36,100,.12)", borderRadius: 12, padding: "10px 12px", marginTop: 8, background: "#fff" };
+    const box: React.CSSProperties = { border: "1px solid #e6e9f4", borderRadius: 12, padding: "10px 12px", marginTop: 8, background: "#fff" };
     const link: React.CSSProperties = { border: "1px solid rgba(30,36,100,.15)", background: "#f6f7fc", color: "#1e2464", borderRadius: 8, padding: "3px 9px", fontSize: 12, cursor: "pointer", margin: "3px 5px 0 0" };
-    if (card.loading) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>⏳ Un instant…</div>;
+    if (card.loading) return <div style={{ ...box, color: "#8b91b0", fontSize: 13 }}>⏳ Un instant…</div>;
     if (card.error)   return <div style={{ ...box, color: "#b4232a", fontSize: 13 }}>{card.error}</div>;
 
     if (card.kind === "person") {
@@ -850,12 +850,12 @@ const [showSalle, setShowSalle]       = useState(false);
       return (
         <div style={box}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#1e2464" }}>👤 {p.name}</div>
-          {(p.era || p.testament) && <div style={{ fontSize: 11, color: "#8890aa", marginBottom: 6 }}>{[p.era, p.testament].filter(Boolean).join(" · ")}</div>}
+          {(p.era || p.testament) && <div style={{ fontSize: 11, color: "#8b91b0", marginBottom: 6 }}>{[p.era, p.testament].filter(Boolean).join(" · ")}</div>}
           {p.short_bio && <div style={{ fontSize: 13, color: "#2a2f4a", lineHeight: 1.6, marginBottom: 8 }}>{p.short_bio}</div>}
           {p.full_story && <details style={{ marginBottom: 8 }}><summary style={{ fontSize: 12, color: "#1e2464", cursor: "pointer" }}>Lire son histoire</summary><div style={{ fontSize: 13, color: "#2a2f4a", lineHeight: 1.7, marginTop: 6, whiteSpace: "pre-wrap" }}>{p.full_story}</div></details>}
           {!!p.books?.length && (
             <div style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", margin: "6px 0 4px" }}>📚 Où le lire</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8b91b0", margin: "6px 0 4px" }}>📚 Où le lire</div>
               {p.books.map((b, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1d3a" }}>{b.book}{b.chapters ? ` (${b.chapters})` : ""}</span>
@@ -868,7 +868,7 @@ const [showSalle, setShowSalle]       = useState(false);
           )}
           {!!p.related_persons?.length && (
             <div style={{ marginTop: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 4 }}>Personnes liées</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8b91b0", marginBottom: 4 }}>Personnes liées</div>
               {p.related_persons.map((n, i) => (
                 <button key={i} style={link} onClick={() => loadPersonCard(pushAiCard({ kind: "person", name: n, loading: true }), n)}>👤 {n}</button>
               ))}
@@ -879,15 +879,15 @@ const [showSalle, setShowSalle]       = useState(false);
     }
 
     if (card.kind === "messages") {
-      if (!card.results?.length) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>Aucun message trouvé pour « {card.query} ».</div>;
+      if (!card.results?.length) return <div style={{ ...box, color: "#8b91b0", fontSize: 13 }}>Aucun message trouvé pour « {card.query} ».</div>;
       return (
         <div style={box}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 6 }}>🔍 Messages · « {card.query} »</div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8b91b0", marginBottom: 6 }}>🔍 Messages · « {card.query} »</div>
           {card.results.map((r, i) => (
-            <button key={i} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid rgba(30,36,100,.1)", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => openConversationById(r.conversationId)}>
+            <button key={i} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid #e6e9f4", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => openConversationById(r.conversationId)}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#1e2464" }}>{r.isGroup ? "👥 " : "💬 "}{r.label}</div>
-              <div style={{ fontSize: 12, color: "#4a5070", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.excerpt}</div>
-              <div style={{ fontSize: 10, color: "#8890aa" }}>{r.date}</div>
+              <div style={{ fontSize: 12, color: "#5c6280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.excerpt}</div>
+              <div style={{ fontSize: 10, color: "#8b91b0" }}>{r.date}</div>
             </button>
           ))}
         </div>
@@ -895,15 +895,15 @@ const [showSalle, setShowSalle]       = useState(false);
     }
 
     // card.kind === "mail"
-    if (!card.results?.length) return <div style={{ ...box, color: "#8890aa", fontSize: 13 }}>Aucun e-mail trouvé pour « {card.query} ».</div>;
+    if (!card.results?.length) return <div style={{ ...box, color: "#8b91b0", fontSize: 13 }}>Aucun e-mail trouvé pour « {card.query} ».</div>;
     return (
       <div style={box}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8890aa", marginBottom: 6 }}>🔍 E-mails · « {card.query} »</div>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#8b91b0", marginBottom: 6 }}>🔍 E-mails · « {card.query} »</div>
         {card.results.map((r) => (
-          <button key={r.id} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid rgba(30,36,100,.1)", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => { nav("mail"); setToast(`📬 ${r.mailboxLabel} — ouvre le message « ${r.subject} »`); }}>
+          <button key={r.id} style={{ display: "block", width: "100%", textAlign: "left", border: "1px solid #e6e9f4", background: "#f9fafe", borderRadius: 8, padding: "7px 9px", marginBottom: 6, cursor: "pointer" }} onClick={() => { nav("mail"); setToast(`📬 ${r.mailboxLabel} — ouvre le message « ${r.subject} »`); }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#1e2464", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.subject || "(sans objet)"}</div>
-            <div style={{ fontSize: 12, color: "#4a5070" }}>{r.from} · <span style={{ color: "#8890aa" }}>{r.mailboxLabel}</span></div>
-            <div style={{ fontSize: 10, color: "#8890aa" }}>{r.date}</div>
+            <div style={{ fontSize: 12, color: "#5c6280" }}>{r.from} · <span style={{ color: "#8b91b0" }}>{r.mailboxLabel}</span></div>
+            <div style={{ fontSize: 10, color: "#8b91b0" }}>{r.date}</div>
           </button>
         ))}
       </div>
@@ -2132,14 +2132,14 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
             </button>
             {notifOpen && (
-              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid rgba(30,36,100,.1)",width:320,zIndex:300,overflow:"hidden"}}>
-                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid #e6e9f4",width:320,zIndex:300,overflow:"hidden"}}>
+                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid #eceef7",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontWeight:700,fontSize:14,color:"#1a1d3a"}}>Notifications</span>
-                  <span style={{fontSize:11,color:"#8890aa"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
+                  <span style={{fontSize:11,color:"#8b91b0"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
                 </div>
                 <div style={{maxHeight:360,overflowY:"auto"}}>
                   {notifs.length === 0 ? (
-                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8890aa",fontSize:13}}>Aucune notification</div>
+                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8b91b0",fontSize:13}}>Aucune notification</div>
                   ) : notifs.map(n => (
                     <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
                       <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
@@ -2149,7 +2149,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
                           {n.body && <div style={{fontSize:12,color:"#6670aa",lineHeight:1.4}}>{n.body}</div>}
-                          <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                          <div style={{fontSize:11,color:"#8b91b0",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
                         </div>
                         {!n.read_at && <span style={{width:7,height:7,borderRadius:"50%",background:"#1E2464",flexShrink:0,marginTop:5}} />}
                       </div>
@@ -2174,21 +2174,21 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className="em-logo-icon">ARC</div>
           <div>
             <div style={{lineHeight:1.1}}>ARC <span style={{color:"#8899cc",fontWeight:400}}>Ambassade</span></div>
-            <div style={{fontSize:9,color:"#8890aa",fontFamily:"Outfit,sans-serif",letterSpacing:".08em",textTransform:"uppercase"}}>Espace Membres</div>
+            <div style={{fontSize:9,color:"#8b91b0",fontFamily:"Outfit,sans-serif",letterSpacing:".08em",textTransform:"uppercase"}}>Espace Membres</div>
           </div>
         </a>
 
-        <button className="em-search" style={{cursor:"text",textAlign:"left",border:"1.5px solid rgba(30,36,100,.12)",display:"flex",alignItems:"center",gap:6}}
+        <button className="em-search" style={{cursor:"text",textAlign:"left",border:"1.5px solid #e6e9f4",display:"flex",alignItems:"center",gap:6}}
           onClick={() => setShowSearch(true)}>
           <Icon name="recherche" size={16} style={{flexShrink:0}} />&nbsp;Rechercher…
         </button>
 
         <div className="em-hdr-meta">
-          <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>
+          <span style={{fontSize:12,color:"#8b91b0",whiteSpace:"nowrap"}}>
             <span className="em-dot-green" style={{display:"inline-block",marginRight:5,verticalAlign:"middle"}} />
             {membresValides} membres
           </span>
-          <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>
+          <span style={{fontSize:12,color:"#8b91b0",whiteSpace:"nowrap"}}>
             {new Date().toLocaleDateString("fr-CH",{weekday:"short",day:"numeric",month:"short"})}
           </span>
           {canAdmin && (
@@ -2204,14 +2204,14 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
             </button>
             {notifOpen && (
-              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid rgba(30,36,100,.1)",width:320,zIndex:300,overflow:"hidden"}}>
-                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{position:"absolute",top:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(30,36,100,.18)",border:"1.5px solid #e6e9f4",width:320,zIndex:300,overflow:"hidden"}}>
+                <div style={{padding:"13px 16px 10px",borderBottom:"1px solid #eceef7",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontWeight:700,fontSize:14,color:"#1a1d3a"}}>Notifications</span>
-                  <span style={{fontSize:11,color:"#8890aa"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
+                  <span style={{fontSize:11,color:"#8b91b0"}}>{unreadCount === 0 ? "Tout lu" : `${unreadCount} non lu${unreadCount>1?"s":""}`}</span>
                 </div>
                 <div style={{maxHeight:360,overflowY:"auto"}}>
                   {notifs.length === 0 ? (
-                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8890aa",fontSize:13}}>Aucune notification</div>
+                    <div style={{padding:"28px 16px",textAlign:"center",color:"#8b91b0",fontSize:13}}>Aucune notification</div>
                   ) : notifs.map(n => (
                     <a key={n.id} href={n.link ?? "#"} style={{display:"block",padding:"11px 16px",borderBottom:"1px solid rgba(30,36,100,.06)",background:n.read_at?"transparent":"rgba(136,153,204,.08)",textDecoration:"none"}}>
                       <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
@@ -2221,7 +2221,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a",marginBottom:2}}>{n.title}</div>
                           {n.body && <div style={{fontSize:12,color:"#6670aa",lineHeight:1.4}}>{n.body}</div>}
-                          <div style={{fontSize:11,color:"#8890aa",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                          <div style={{fontSize:11,color:"#8b91b0",marginTop:3}}>{new Date(n.created_at).toLocaleDateString("fr-CH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
                         </div>
                         {!n.read_at && <span style={{width:7,height:7,borderRadius:"50%",background:"#1E2464",flexShrink:0,marginTop:5}} />}
                       </div>
@@ -2370,7 +2370,7 @@ const [showSalle, setShowSalle]       = useState(false);
               </div>
               <div className="em-card" style={{background:"#fff0f0",border:"1px solid #fde8e8"}}>
                 <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#e53e3e",marginBottom:10}}>⏱ Prochain culte</div>
-                <div style={{fontSize:11,color:"#8890aa",marginBottom:4}}>Dimanche à 9h30 · La Chaux-de-Fonds</div>
+                <div style={{fontSize:11,color:"#8b91b0",marginBottom:4}}>Dimanche à 9h30 · La Chaux-de-Fonds</div>
                 <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:28,fontWeight:700,color:"#1e2464",lineHeight:1.1,marginTop:8}}>{countdown || "Chargement…"}</div>
                 <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:12}} onClick={() => nav("streaming")}>Voir le streaming ▶</button>
               </div>
@@ -2381,18 +2381,18 @@ const [showSalle, setShowSalle]       = useState(false);
               <div className="em-card">
                 <div style={{fontWeight:700,fontSize:14,marginBottom:14,color:"#1e2464"}}>📅 Prochains événements</div>
                 {events.length > 0 ? events.slice(0,4).map(ev => (
-                  <div key={ev.id} style={{display:"flex",gap:12,paddingBottom:12,borderBottom:"1px solid rgba(30,36,100,.07)",marginBottom:12}}>
+                  <div key={ev.id} style={{display:"flex",gap:12,paddingBottom:12,borderBottom:"1px solid #eceef7",marginBottom:12}}>
                     <div style={{textAlign:"center",minWidth:36}}>
                       <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",lineHeight:1}}>{new Date(ev.date).getDate()}</div>
                       <div style={{fontSize:9,color:"#8899cc",fontWeight:700,textTransform:"uppercase"}}>{new Date(ev.date).toLocaleDateString("fr-CH",{month:"short"})}</div>
                     </div>
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{ev.title}</div>
-                      <div style={{fontSize:11,color:"#8890aa"}}>{ev.time_start?.slice(0,5)} · {ev.location}</div>
+                      <div style={{fontSize:11,color:"#8b91b0"}}>{ev.time_start?.slice(0,5)} · {ev.location}</div>
                     </div>
                   </div>
                 )) : (
-                  <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa",fontSize:13}}>Aucun événement à venir</div>
+                  <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>Aucun événement à venir</div>
                 )}
                 <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%"}} onClick={() => nav("agenda")}>Voir l&apos;agenda complet →</button>
               </div>
@@ -2402,7 +2402,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   ? (profile?.groups ?? []).map(g => {
                     const gd = getGroup(g);
                     return (
-                    <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                    <div key={g} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                       <span style={{width:26,height:26,borderRadius:8,display:"inline-flex",alignItems:"center",justifyContent:"center",background:gd.hexBg,border:`1px solid ${gd.hex}30`,flexShrink:0}}>
                         <Icon name={gd.icon} variant="line" size={16} alt={gd.name} />
                       </span>
@@ -2410,19 +2410,19 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                     );
                   })
-                  : <div style={{color:"#8890aa",fontSize:13}}>Aucun groupe assigné pour l&apos;instant.</div>}
-                <div style={{marginTop:16,fontSize:12,color:"#8890aa"}}>Plans de lecture</div>
+                  : <div style={{color:"#8b91b0",fontSize:13}}>Aucun groupe assigné pour l&apos;instant.</div>}
+                <div style={{marginTop:16,fontSize:12,color:"#8b91b0"}}>Plans de lecture</div>
                 {Object.entries(rpProgress).slice(0,2).map(([pid, day]) => {
                   const plan = rpPlans.find(p => p.id === pid);
                   if (!plan) return null;
                   return (
                     <div key={pid} style={{padding:"5px 0",fontSize:12}}>
                       <div style={{color:"#1a1d3a",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{plan.titre}</div>
-                      <div style={{color:"#8890aa"}}>Jour {day} / {plan.total_days}</div>
+                      <div style={{color:"#8b91b0"}}>Jour {day} / {plan.total_days}</div>
                     </div>
                   );
                 })}
-                {Object.keys(rpProgress).length === 0 && <div style={{color:"#8890aa",fontSize:12}}>Aucun plan actif</div>}
+                {Object.keys(rpProgress).length === 0 && <div style={{color:"#8b91b0",fontSize:12}}>Aucun plan actif</div>}
               </div>
             </div>
 
@@ -2430,7 +2430,7 @@ const [showSalle, setShowSalle]       = useState(false);
             {canBanner && !canAdmin && (
               <div className="em-card" style={{marginTop:18}}>
                 <div style={{fontWeight:700,fontSize:14,marginBottom:12,color:"#1e2464"}}>🌐 Gestion du site vitrine</div>
-                <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Modifier le contenu visible sur arc-eglise.ch</div>
+                <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Modifier le contenu visible sur arc-eglise.ch</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <button
                     className="em-btn em-btn-primary em-btn-sm"
@@ -2473,7 +2473,7 @@ const [showSalle, setShowSalle]       = useState(false);
             {canPost && (
               <div className="em-card" style={{marginTop:18}}>
                 <div style={{fontWeight:700,fontSize:14,marginBottom:6,color:"#1e2464"}}>✍️ Partager mon témoignage</div>
-                <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>
+                <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>
                   Votre témoignage sera relu et publié sur le site après validation par l&apos;équipe.
                 </div>
                 <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setShowTestimonialForm(true)}>
@@ -2505,7 +2505,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     {sect.items.map(ch => (
                       <button key={ch.id} className={`em-ch-item${msgChan===ch.id?" active":""}`}
                         onClick={()=>{setMsgChan(ch.id);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
-                        <span style={{color:"#8890aa",fontSize:13,minWidth:16}}>{ch.icon}</span>
+                        <span style={{color:"#8b91b0",fontSize:13,minWidth:16}}>{ch.icon}</span>
                         <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ch.id}</span>
                         {"locked" in ch && ch.locked && <span style={{fontSize:10,opacity:.5}}>🔒</span>}
                         {"badge" in ch && ch.badge ? <span className="em-badge">{ch.badge}</span> : null}
@@ -2598,13 +2598,13 @@ const [showSalle, setShowSalle]       = useState(false);
                 {/* Conversation */}
                 <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Conv header */}
-                  <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8890aa",padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>← Retour</button>
-                    <button className="mob-only" style={{border:"none",background:"#eef1f8",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
+                  <div style={{padding:"10px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                    <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8b91b0",padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>← Retour</button>
+                    <button className="mob-only" style={{border:"none",background:"#f1f3fb",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
                     {isAI
                       ? <span style={{fontSize:16}}>🤖</span>
                       : isChannelHeader
-                      ? <span style={{fontWeight:700,fontSize:15,color:"#8890aa"}}>#</span>
+                      ? <span style={{fontWeight:700,fontSize:15,color:"#8b91b0"}}>#</span>
                       : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{chanLabel[0]}</div>}
                     <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{chanLabel}</span>
                     <button className="em-toolbar-btn" title="Rechercher">🔍</button>
@@ -2630,9 +2630,9 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
-                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
+                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
                       {!isAI && !chan.loading && chan.messages.length === 0 && (
-                        <div style={{textAlign:"center",color:"#8890aa",fontSize:13,padding:"20px 0"}}>Aucun message {isChannelHeader?`dans #${chanLabel}`:`avec ${chanLabel}`}. Écris le premier 👋</div>
+                        <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"20px 0"}}>Aucun message {isChannelHeader?`dans #${chanLabel}`:`avec ${chanLabel}`}. Écris le premier 👋</div>
                       )}
                       {displayMessages.map(m => {
                         const rxns  = msgReactions[m.id];
@@ -2667,7 +2667,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                     );})}
                                   </div>
                                 )}
-                                {(!hasCard || m.text) && <div style={{fontSize:10,color:"#8890aa",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>}
+                                {(!hasCard || m.text) && <div style={{fontSize:10,color:"#8b91b0",marginTop:2,textAlign:m.mine?"right":"left"}}>{m.time}</div>}
                                 {/* Reactions row */}
                                 {rxns && Object.keys(rxns).length > 0 && (
                                   <div className="em-reactions">
@@ -2675,17 +2675,17 @@ const [showSalle, setShowSalle]       = useState(false);
                                       <button key={emoji}
                                         className={`em-reaction${(myReactions[m.id]??[]).includes(emoji)?" mine":""}`}
                                         onClick={()=>addReaction(m.id,emoji)}>
-                                        {emoji} <span style={{fontSize:11,color:"#4a5070"}}>{count}</span>
+                                        {emoji} <span style={{fontSize:11,color:"#5c6280"}}>{count}</span>
                                       </button>
                                     ))}
-                                    <button className="em-reaction" style={{color:"#8890aa",fontSize:12,padding:"1px 6px"}} onClick={()=>setShowEmojiPicker(m.id)}>+</button>
+                                    <button className="em-reaction" style={{color:"#8b91b0",fontSize:12,padding:"1px 6px"}} onClick={()=>setShowEmojiPicker(m.id)}>+</button>
                                   </div>
                                 )}
                                 {/* Thread link */}
                                 {replies.length > 0 && (
                                   <button className="em-thread-link" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>
                                     ↩ <strong style={{color:"#1e2464"}}>{replies.length} réponse{replies.length>1?"s":""}</strong>
-                                    <span style={{color:"#8890aa"}}> · {replies[replies.length-1].time}</span>
+                                    <span style={{color:"#8b91b0"}}> · {replies[replies.length-1].time}</span>
                                     <span>{openThread===m.id?" ▲":" ›"}</span>
                                   </button>
                                 )}
@@ -2704,7 +2704,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             )}
                             {/* Quick emoji picker */}
                             {showEmojiPicker===m.id && (
-                              <div style={{position:"absolute",zIndex:50,bottom:"100%",right:m.mine?8:"auto",left:m.mine?"auto":40,background:"#fff",borderRadius:14,boxShadow:"0 4px 20px rgba(30,36,100,.18)",padding:"6px 10px",border:"1px solid rgba(30,36,100,.1)",display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                              <div style={{position:"absolute",zIndex:50,bottom:"100%",right:m.mine?8:"auto",left:m.mine?"auto":40,background:"#fff",borderRadius:14,boxShadow:"0 4px 20px rgba(30,36,100,.18)",padding:"6px 10px",border:"1px solid #e6e9f4",display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
                                 {QUICK_EMOJIS.map(e=>(
                                   <button key={e} style={{border:"none",background:"none",fontSize:22,cursor:"pointer",padding:"3px 5px",borderRadius:7,transition:"transform .1s"}}
                                     onClick={()=>addReaction(m.id,e)}>{e}</button>
@@ -2722,11 +2722,11 @@ const [showSalle, setShowSalle]       = useState(false);
                         <button className="em-toolbar-btn" title="Gras">𝐁</button>
                         <button className="em-toolbar-btn" title="Italique">𝐼</button>
                         <button className="em-toolbar-btn" title="Lien">🔗</button>
-                        <span style={{width:1,background:"rgba(30,36,100,.12)",margin:"2px 4px",display:"inline-block",height:16}} />
+                        <span style={{width:1,background:"#e6e9f4",margin:"2px 4px",display:"inline-block",height:16}} />
                         <button className="em-toolbar-btn" title="Liste">≡</button>
                         <button className="em-toolbar-btn" title="Citation">❝</button>
                       </div>
-                      <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid rgba(30,36,100,.12)"}}>
+                      <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid #e6e9f4"}}>
                         <label className="em-toolbar-btn" title="Fichier" style={{cursor:"pointer",marginBottom:2,flexShrink:0}}>
                           📎
                           <input type="file" style={{display:"none"}} onChange={e=>{
@@ -2758,7 +2758,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                   <div className="em-av" style={{width:24,height:24,fontSize:10,background:m.color}}>{m.name[0]}</div>
                                   <div>
                                     <div style={{fontWeight:600,fontSize:12,color:"#1e2464"}}>{m.name}</div>
-                                    <div style={{fontSize:10,color:"#8890aa"}}>{m.role}</div>
+                                    <div style={{fontSize:10,color:"#8b91b0"}}>{m.role}</div>
                                   </div>
                                 </button>
                               ))}
@@ -2769,7 +2769,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           <button className="em-toolbar-btn" style={{marginBottom:2}}
                             onClick={()=>setShowMsgEmoji(v=>!v)}>😊</button>
                           {showMsgEmoji && (
-                            <div style={{position:"absolute",bottom:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:14,boxShadow:"0 4px 24px rgba(30,36,100,.18)",border:"1px solid rgba(30,36,100,.1)",padding:10,zIndex:60,width:250}}>
+                            <div style={{position:"absolute",bottom:"calc(100% + 8px)",right:0,background:"#fff",borderRadius:14,boxShadow:"0 4px 24px rgba(30,36,100,.18)",border:"1px solid #e6e9f4",padding:10,zIndex:60,width:250}}>
                               <div style={{display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:3}}>
                                 {EMOJI_LIST.map(e=>(
                                   <button key={e} style={{border:"none",background:"none",fontSize:20,cursor:"pointer",padding:3,borderRadius:7,lineHeight:1,transition:"transform .1s"}}
@@ -2793,11 +2793,11 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
                       <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📎 Fichiers partagés dans #{msgChan}</div>
                       {MSG_FILES.map((f,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
-                          <div style={{width:42,height:42,background:"#f0f2f9",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{f.icon}</div>
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #eceef7"}}>
+                          <div style={{width:42,height:42,background:"#f1f3fb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{f.icon}</div>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                            <div style={{fontSize:11,color:"#8890aa"}}>{f.size} · {f.from} · {f.time}</div>
+                            <div style={{fontSize:11,color:"#8b91b0"}}>{f.size} · {f.from} · {f.time}</div>
                           </div>
                           <button className="em-btn em-btn-outline em-btn-sm">↓</button>
                         </div>
@@ -2821,7 +2821,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:8,color:"#92400e"}} onClick={()=>togglePin(m.id)}>Désépingler</button>
                           </div>
                         ))
-                        : <div style={{textAlign:"center",padding:"48px 0",color:"#8890aa"}}>
+                        : <div style={{textAlign:"center",padding:"48px 0",color:"#8b91b0"}}>
                             <div style={{fontSize:40,marginBottom:10}}>📌</div>
                             <div style={{fontWeight:600}}>Aucun message épinglé</div>
                             <div style={{fontSize:12,marginTop:4}}>Survole un message et clique 📌 pour l&apos;épingler</div>
@@ -2837,8 +2837,8 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>✅ Tâches du canal</div>
                         <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("Fonctionnalité bientôt disponible")}>+ Nouvelle tâche</button>
                       </div>
-                      <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>{taskDone.length}/{MSG_TASKS.length} tâches terminées</div>
-                      <div style={{background:"#f0f2f9",borderRadius:6,height:5,marginBottom:16}}>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>{taskDone.length}/{MSG_TASKS.length} tâches terminées</div>
+                      <div style={{background:"#f1f3fb",borderRadius:6,height:5,marginBottom:16}}>
                         <div style={{background:"#276749",borderRadius:6,height:"100%",width:`${Math.round(taskDone.length/MSG_TASKS.length*100)}%`,transition:"width .3s"}} />
                       </div>
                       {MSG_TASKS.map(t=>(
@@ -2848,8 +2848,8 @@ const [showSalle, setShowSalle]       = useState(false);
                             {taskDone.includes(t.id) && <span style={{color:"#fff",fontSize:11}}>✓</span>}
                           </div>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:13,fontWeight:500,color:taskDone.includes(t.id)?"#8890aa":"#1a1d3a",textDecoration:taskDone.includes(t.id)?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:1}}>👤 {t.assignee} · 📅 {t.due}</div>
+                            <div style={{fontSize:13,fontWeight:500,color:taskDone.includes(t.id)?"#8b91b0":"#1a1d3a",textDecoration:taskDone.includes(t.id)?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div>
+                            <div style={{fontSize:11,color:"#8b91b0",marginTop:1}}>👤 {t.assignee} · 📅 {t.due}</div>
                           </div>
                         </div>
                       ))}
@@ -2865,20 +2865,20 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div className="em-thread-panel">
                     <div className="em-thread-hdr">
                       <span>↩ Fil de discussion</span>
-                      <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
+                      <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8b91b0",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
                     </div>
                     {(() => {
                       const orig = displayMessages.find(m=>m.id===openThread);
                       return orig ? (
-                        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",background:"#fafbff"}}>
-                          <div style={{fontSize:10,fontWeight:700,color:"#8890aa",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
+                        <div style={{padding:"12px 14px",borderBottom:"1px solid #eceef7",background:"#fafbff"}}>
+                          <div style={{fontSize:10,fontWeight:700,color:"#8b91b0",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
                           <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{orig.text}</div>
                         </div>
                       ) : null;
                     })()}
                     <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
                       {(threadReplies[openThread]??[]).length===0 && (
-                        <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:12}}>Première réponse dans ce fil</div>
+                        <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:12}}>Première réponse dans ce fil</div>
                       )}
                       {(threadReplies[openThread]??[]).map(r=>(
                         <div key={r.id} className={`em-msg${r.mine?" mine":""}`} style={{padding:"4px 14px"}}>
@@ -2886,13 +2886,13 @@ const [showSalle, setShowSalle]       = useState(false);
                           <div>
                             {!r.mine && <div style={{fontSize:10,fontWeight:700,color:"#1e2464",marginBottom:2}}>{r.from}</div>}
                             <div className="em-bubble em-reading-zone em-reading-text" style={{fontSize:12}}>{r.text}</div>
-                            <div style={{fontSize:9,color:"#8890aa",marginTop:2,textAlign:r.mine?"right":"left"}}>{r.time}</div>
+                            <div style={{fontSize:9,color:"#8b91b0",marginTop:2,textAlign:r.mine?"right":"left"}}>{r.time}</div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div style={{padding:"8px 12px 10px",borderTop:"1px solid rgba(30,36,100,.08)"}}>
-                      <div style={{display:"flex",gap:6,background:"#f7f8fc",borderRadius:10,padding:"6px 8px",border:"1.5px solid rgba(30,36,100,.1)"}}>
+                    <div style={{padding:"8px 12px 10px",borderTop:"1px solid #eceef7"}}>
+                      <div style={{display:"flex",gap:6,background:"#f7f8fc",borderRadius:10,padding:"6px 8px",border:"1.5px solid #e6e9f4"}}>
                         <textarea className="em-msg-input" rows={1}
                           style={{background:"transparent",border:"none",padding:0,resize:"none",flex:1,fontSize:12,minHeight:20}}
                           placeholder="Répondre dans le fil…"
@@ -2956,7 +2956,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 </div>
                 {/* Notes et événements du jour sélectionné */}
                 {calSelectedDate !== null && (
-                  <div style={{marginTop:14,borderTop:"1px solid rgba(30,36,100,.1)",paddingTop:14}}>
+                  <div style={{marginTop:14,borderTop:"1px solid #e6e9f4",paddingTop:14}}>
                     <div style={{fontWeight:700,fontSize:12,color:"#1e2464",marginBottom:8}}>
                       📅 {calSelectedDate} {["jan.","fév.","mar.","avr.","mai","juin","juil.","août","sep.","oct.","nov.","déc."][calMonth]} {calYear}
                     </div>
@@ -2990,14 +2990,14 @@ const [showSalle, setShowSalle]       = useState(false);
                 {events.length > 0 ? events.map(ev => (
                   <div key={ev.id} className="em-card-sm" style={{marginBottom:8}}>
                     <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{ev.title}</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>
+                    <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>
                       {new Date(ev.date).toLocaleDateString("fr-CH")} · {ev.time_start?.slice(0,5)}
                     </div>
-                    {ev.location && <div style={{fontSize:11,color:"#8890aa"}}>📍 {ev.location}</div>}
+                    {ev.location && <div style={{fontSize:11,color:"#8b91b0"}}>📍 {ev.location}</div>}
                     <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,width:"100%",textDecoration:"none",textAlign:"center",display:"block"}}>Participer →</a>
                   </div>
                 )) : (
-                  <div className="em-card-sm" style={{color:"#8890aa",fontSize:13,textAlign:"center",padding:"24px 0"}}>
+                  <div className="em-card-sm" style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"24px 0"}}>
                     Aucun événement à venir
                   </div>
                 )}
@@ -3023,7 +3023,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
               />
             ) : (
-              <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8890aa",gap:8,textAlign:"center",padding:16}}>
+              <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8b91b0",gap:8,textAlign:"center",padding:16}}>
                 {!liveLoaded ? (
                   <div style={{fontSize:13}}>Chargement du direct…</div>
                 ) : !liveConfigured ? (
@@ -3049,7 +3049,7 @@ const [showSalle, setShowSalle]       = useState(false);
               ].map(s => (
                 <div key={s.title} className="em-card-sm" style={{display:"flex",gap:12,alignItems:"flex-start"}}>
                   <span style={{fontSize:20}}>{s.ico}</span>
-                  <div><div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{s.title}</div><div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{s.desc}</div></div>
+                  <div><div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{s.title}</div><div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>{s.desc}</div></div>
                 </div>
               ))}
             </div>
@@ -3065,7 +3065,7 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="priere"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
-                <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8890aa",padding:"0 0 6px",display:"block"}}>← Retour</button>
+                <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8b91b0",padding:"0 0 6px",display:"block"}}>← Retour</button>
                 <div className="em-sect-title">Prière & Bible</div>
                 <div className="em-sect-sub">Lecture, étude, prières communautaires</div>
               </div>
@@ -3113,7 +3113,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div className="em-card">
                     <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 Plans de lecture actifs</div>
                     {Object.keys(rpProgress).length === 0 && (
-                      <div style={{color:"#8890aa",fontSize:13,textAlign:"center",padding:"8px 0"}}>
+                      <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"8px 0"}}>
                         Aucun plan actif.
                         <button className="em-btn em-btn-outline em-btn-sm" style={{display:"block",width:"100%",marginTop:8}} onClick={()=>setBTab("plans")}>Choisir un plan →</button>
                       </div>
@@ -3126,9 +3126,9 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div key={pid} style={{marginBottom:12}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                             <span style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{plan.titre}</span>
-                            <span style={{fontSize:11,color:"#8890aa"}}>Jour {day}/{plan.total_days}</span>
+                            <span style={{fontSize:11,color:"#8b91b0"}}>Jour {day}/{plan.total_days}</span>
                           </div>
-                          <div style={{background:"#f0f2f9",borderRadius:6,height:6,marginBottom:6}}>
+                          <div style={{background:"#f1f3fb",borderRadius:6,height:6,marginBottom:6}}>
                             <div style={{background:"#1e2464",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
                           </div>
                           {day < plan.total_days && (
@@ -3142,12 +3142,12 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div className="em-card">
                     <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Prières récentes</div>
                     {prayers.slice(0,3).length > 0 ? prayers.slice(0,3).map(p => (
-                      <div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                      <div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid #eceef7"}}>
                         <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{p.title}</div>
-                        <div style={{fontSize:11,color:"#8890aa"}}>{p.prayer_count} prières · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
+                        <div style={{fontSize:11,color:"#8b91b0"}}>{p.prayer_count} prières · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
                       </div>
                     )) : (
-                      <div style={{color:"#8890aa",fontSize:13,textAlign:"center",padding:"12px 0"}}>Aucune prière pour l&apos;instant</div>
+                      <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"12px 0"}}>Aucune prière pour l&apos;instant</div>
                     )}
                     <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%",marginTop:10}} onClick={() => setBTab("mur")}>Voir toutes les prières →</button>
                   </div>
@@ -3179,7 +3179,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     </select>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setBCh(c=>Math.min(BOOKS[bBook].c,c+1))} disabled={bCh>=BOOKS[bBook].c}>›</button>
                   </div>
-                  <span style={{fontSize:13,color:"#8890aa",alignSelf:"center",fontStyle:"italic"}}>
+                  <span style={{fontSize:13,color:"#8b91b0",alignSelf:"center",fontStyle:"italic"}}>
                     {BOOKS[bBook].n} {bCh}
                   </span>
                   <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setNoteRef(`${BOOKS[bBook].n} ${bCh}`);setNoteContent("");setShowNote(true);}}>📝 Note</button>
@@ -3187,15 +3187,15 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-card" style={{minHeight:300}}>
                   {bLoading ? (
                     <div style={{textAlign:"center",padding:"40px 0"}}>
-                      <div style={{width:32,height:32,border:"3px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto"}} />
+                      <div style={{width:32,height:32,border:"3px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto"}} />
                       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                      <div style={{marginTop:8,color:"#8890aa",fontSize:13}}>Chargement de {BOOKS[bBook].n} {bCh}…</div>
+                      <div style={{marginTop:8,color:"#8b91b0",fontSize:13}}>Chargement de {BOOKS[bBook].n} {bCh}…</div>
                     </div>
                   ) : bError ? (
                     <div style={{textAlign:"center",padding:"40px 0"}}>
                       <div style={{fontSize:36,marginBottom:10}}>⚠️</div>
                       <div style={{fontWeight:600,color:"#e53e3e",marginBottom:6}}>{bError}</div>
-                      <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Vérifiez votre connexion internet</div>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>Vérifiez votre connexion internet</div>
                       <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadChapter(bBook,bCh,bTrans)}>↺ Réessayer</button>
                     </div>
                   ) : bVerses.length > 0 ? (
@@ -3212,7 +3212,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       ))}
                     </div>
                   ) : (
-                    <div style={{textAlign:"center",padding:"40px 0",color:"#8890aa"}}>
+                    <div style={{textAlign:"center",padding:"40px 0",color:"#8b91b0"}}>
                       <div style={{fontSize:32,marginBottom:8}}>📖</div>
                       <div style={{fontWeight:600}}>Sélectionne un livre et un chapitre</div>
                     </div>
@@ -3234,8 +3234,8 @@ const [showSalle, setShowSalle]       = useState(false);
                       </button>
                     </div>
                     {bHlLoading && (
-                      <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 0",color:"#8890aa",fontSize:13}}>
-                        <div style={{width:16,height:16,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
+                      <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 0",color:"#8b91b0",fontSize:13}}>
+                        <div style={{width:16,height:16,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
                         Analyse en cours…
                       </div>
                     )}
@@ -3324,8 +3324,8 @@ const [showSalle, setShowSalle]       = useState(false);
                 {/* Résultat IA — référence libre */}
                 {etudeAILoading && (
                   <div className="em-card" style={{textAlign:"center",padding:"32px 0"}}>
-                    <div style={{width:32,height:32,border:"3px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}} />
-                    <div style={{fontSize:13,color:"#8890aa"}}>L&apos;IA analyse {etudeInput || etudeRef}…</div>
+                    <div style={{width:32,height:32,border:"3px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}} />
+                    <div style={{fontSize:13,color:"#8b91b0"}}>L&apos;IA analyse {etudeInput || etudeRef}…</div>
                   </div>
                 )}
                 {!etudeAILoading && etudeAI && (
@@ -3335,7 +3335,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                     <div className="em-card" style={{marginBottom:12}}>
                       <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>🔍 Analyse biblique</div>
-                      <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070",whiteSpace:"pre-wrap"}}>{etudeAI.content}</p>
+                      <p style={{fontSize:13.5,lineHeight:1.8,color:"#5c6280",whiteSpace:"pre-wrap"}}>{etudeAI.content}</p>
                     </div>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeAI(null);setEtudeInput("");}}>← Nouvelle étude</button>
                   </div>
@@ -3356,7 +3356,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     ].map(s => (
                       <div key={s.title} className="em-card" style={{marginBottom:12}}>
                         <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>{s.title}</div>
-                        <p style={{fontSize:13.5,lineHeight:1.7,color:"#4a5070"}}>{s.content}</p>
+                        <p style={{fontSize:13.5,lineHeight:1.7,color:"#5c6280"}}>{s.content}</p>
                       </div>
                     ))}
                     <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>generateEtudeAI(etudeRef)}>
@@ -3388,21 +3388,21 @@ const [showSalle, setShowSalle]       = useState(false);
                     </button>
                   </div>
                   {concordLoading && (
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8890aa",fontSize:13}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8b91b0",fontSize:13}}>
                       <div style={{width:14,height:14,border:"2px solid #d8ddf0",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
                       Recherche dans la Bible…
                     </div>
                   )}
                   {concordResults.length > 0 && (
                     <div style={{marginTop:14}}>
-                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>
                         {concordResults.length} résultat{concordResults.length>1?"s":""} — Bible du Semeur 2015
                       </div>
                       <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:320,overflowY:"auto"}}>
                         {concordResults.map((v,i) => (
                           <div key={i} style={{background:"#fff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
                             <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
-                            <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
+                            <p style={{fontSize:13,lineHeight:1.7,color:"#5c6280",fontStyle:"italic",margin:0}}>{v.text}</p>
                           </div>
                         ))}
                       </div>
@@ -3428,23 +3428,23 @@ const [showSalle, setShowSalle]       = useState(false);
                     </button>
                   </div>
                   {theoAskLoading && (
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8890aa",fontSize:13}}>
-                      <div style={{width:16,height:16,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8b91b0",fontSize:13}}>
+                      <div style={{width:16,height:16,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
                       Réflexion en cours…
                     </div>
                   )}
                   {theoAnswer && (
-                    <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #eef1f8"}}>
-                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Réponse IA</div>
+                    <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #f1f3fb"}}>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>Réponse IA</div>
                       <p style={{fontSize:13.5,lineHeight:1.8,color:"#2d3461",whiteSpace:"pre-wrap"}}>{theoAnswer}</p>
                       {theoAnsVerses.length > 0 && (
                         <div style={{marginTop:14}}>
-                          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>📖 Versets de référence (BDS)</div>
                           <div style={{display:"flex",flexDirection:"column",gap:8}}>
                             {theoAnsVerses.map((v,i) => (
                               <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
                                 <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
-                                <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
+                                <p style={{fontSize:13,lineHeight:1.7,color:"#5c6280",fontStyle:"italic",margin:0}}>{v.text}</p>
                               </div>
                             ))}
                           </div>
@@ -3460,7 +3460,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div>
                     {THEO_CATS.map(cat => (
                       <button key={cat.id} className={`em-ni${theoCat===cat.id?" active":""}`}
-                        style={{width:"100%",background:theoCat===cat.id?"#eef1f8":"transparent",color:theoCat===cat.id?"#1e2464":"#4a5070",borderRadius:8,marginBottom:3}}
+                        style={{width:"100%",background:theoCat===cat.id?"#f1f3fb":"transparent",color:theoCat===cat.id?"#1e2464":"#5c6280",borderRadius:8,marginBottom:3}}
                         onClick={()=>{setTheoCat(cat.id);setTheoItem(null);}}>
                         <span>{cat.icon}</span><span style={{marginLeft:8,fontSize:13}}>{cat.title}</span>
                       </button>
@@ -3473,7 +3473,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           {THEO_CATS.find(c=>c.id===theoCat)?.items.map(item => (
                             <div key={item.id} className="em-theo" onClick={()=>setTheoItem(item.id)}>
                               <div style={{fontWeight:600,fontSize:13,color:"#1e2464"}}>{item.title}</div>
-                              <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>{item.sub}</div>
+                              <div style={{fontSize:12,color:"#8b91b0",marginTop:3}}>{item.sub}</div>
                             </div>
                           ))}
                         </div>
@@ -3491,28 +3491,28 @@ const [showSalle, setShowSalle]       = useState(false);
                             return (
                               <div>
                                 <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
-                                <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>{item.sub}</div>
+                                <div style={{fontSize:12,color:"#8b91b0",marginBottom:14}}>{item.sub}</div>
                                 {content ? (
                                   <>
-                                    <p style={{fontSize:13.5,lineHeight:1.8,color:"#4a5070",whiteSpace:"pre-wrap"}}>{content}</p>
+                                    <p style={{fontSize:13.5,lineHeight:1.8,color:"#5c6280",whiteSpace:"pre-wrap"}}>{content}</p>
                                     {aiContent && theoItemVerses[item.id]?.length > 0 && (
                                       <div style={{marginTop:16}}>
-                                        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                                        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>📖 Versets de référence (BDS)</div>
                                         <div style={{display:"flex",flexDirection:"column",gap:8}}>
                                           {theoItemVerses[item.id].map((v,i) => (
                                             <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
                                               <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:4}}>{v.ref}</div>
-                                              <p style={{fontSize:13,lineHeight:1.7,color:"#4a5070",fontStyle:"italic",margin:0}}>{v.text}</p>
+                                              <p style={{fontSize:13,lineHeight:1.7,color:"#5c6280",fontStyle:"italic",margin:0}}>{v.text}</p>
                                             </div>
                                           ))}
                                         </div>
                                       </div>
                                     )}
-                                    {aiContent && <div style={{fontSize:11,color:"#8890aa",marginTop:10,fontStyle:"italic"}}>✨ Généré par l&apos;IA ARC</div>}
+                                    {aiContent && <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>✨ Généré par l&apos;IA ARC</div>}
                                   </>
                                 ) : (
                                   <div style={{textAlign:"center",padding:"16px 0"}}>
-                                    <p style={{fontSize:13,color:"#8890aa",marginBottom:12}}>Contenu en cours de rédaction par l&apos;équipe pastorale.</p>
+                                    <p style={{fontSize:13,color:"#8b91b0",marginBottom:12}}>Contenu en cours de rédaction par l&apos;équipe pastorale.</p>
                                     <button
                                       className="em-btn em-btn-primary em-btn-sm"
                                       onClick={()=>generateTheoItem(item.id, item.title)}
@@ -3542,13 +3542,13 @@ const [showSalle, setShowSalle]       = useState(false);
             {bTab==="mur" && (
               <div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                  <div style={{fontSize:13,color:"#8890aa"}}>{prayers.filter(p=>!p.is_answered).length} demande(s) active(s)</div>
+                  <div style={{fontSize:13,color:"#8b91b0"}}>{prayers.filter(p=>!p.is_answered).length} demande(s) active(s)</div>
                   {canPost && (
                     <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setPTitle("");setPDesc("");setPAnon(false);setPVisibility("all");setPTargetGroups([]);setPTargetMembers([]);setPMemberSearch("");setPMembersLoaded(false);setShowNewPrayer(true);}}>🙏 Partager une prière</button>
                   )}
                 </div>
                 {pLoading
-                  ? <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement…</div>
+                  ? <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement…</div>
                   : prayers.filter(p=>!p.is_answered).map(p => {
                     const author = p.is_anonymous ? "Anonyme"
                       : [p.profiles?.first_name,p.profiles?.last_name].filter(Boolean).join(" ") || "Membre";
@@ -3558,7 +3558,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:8}}>
                           <div>
                             <div className="em-reading-text" style={{fontWeight:600,color:"#1a1d3a"}}>{p.title}</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{author} · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
+                            <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>{author} · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
                           </div>
                           <div style={{display:"flex",gap:6,flexShrink:0}}>
                             <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>prayFor(p.id)}>
@@ -3572,7 +3572,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             )}
                           </div>
                         </div>
-                        {p.description && <p className="em-reading-text" style={{color:"#4a5070",marginBottom:0}}>{p.description}</p>}
+                        {p.description && <p className="em-reading-text" style={{color:"#5c6280",marginBottom:0}}>{p.description}</p>}
                       </div>
                     );
                   })
@@ -3606,12 +3606,12 @@ const [showSalle, setShowSalle]       = useState(false);
               <div>
 
                 {/* ── Plans personnels IA ────────────────────────────── */}
-                {aiRpLoading && <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa",fontSize:13}}>Chargement de vos plans…</div>}
+                {aiRpLoading && <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>Chargement de vos plans…</div>}
                 {!aiRpLoading && aiRpPlans.length > 0 && (
                   <div style={{marginBottom:20}}>
                     <div style={{fontWeight:700,fontSize:13,color:"#5a3d8a",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
                       <span>✨</span> Mes plans personnels
-                      <span style={{fontSize:10,color:"#8890aa",fontWeight:400}}>— créés dans l&apos;Assistant IA</span>
+                      <span style={{fontSize:10,color:"#8b91b0",fontWeight:400}}>— créés dans l&apos;Assistant IA</span>
                     </div>
                     {aiRpPlans.map(plan => {
                       const currentDay = getAIPlanCurrentDay(plan);
@@ -3741,9 +3741,9 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                 )}
 
-                {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des plans…</div>}
+                {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des plans…</div>}
                 {!rpLoading && rpPlans.length === 0 && aiRpPlans.length === 0 && (
-                  <div className="em-card" style={{textAlign:"center",color:"#8890aa",padding:24}}>Aucun plan de lecture disponible pour le moment.</div>
+                  <div className="em-card" style={{textAlign:"center",color:"#8b91b0",padding:24}}>Aucun plan de lecture disponible pour le moment.</div>
                 )}
                 {!rpLoading && rpPlans.map(plan => {
                   const currentDay = rpProgress[plan.id];
@@ -3759,8 +3759,8 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                         <div>
                           <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>{plan.titre}</div>
-                          {plan.description && <div style={{fontSize:12,color:"#8890aa",marginTop:2}}>{plan.description}</div>}
-                          <div style={{fontSize:11,color:"#8890aa",marginTop:4}}>{plan.total_days} jour{plan.total_days>1?"s":""}</div>
+                          {plan.description && <div style={{fontSize:12,color:"#8b91b0",marginTop:2}}>{plan.description}</div>}
+                          <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>{plan.total_days} jour{plan.total_days>1?"s":""}</div>
                         </div>
                         {done && <span className="em-tag-vert em-tag" style={{fontSize:10,flexShrink:0}}>Terminé ✓</span>}
                         {enrolled && !done && <span className="em-tag em-tag-bleu" style={{fontSize:10,flexShrink:0}}>Actif · Jour {currentDay}</span>}
@@ -3768,10 +3768,10 @@ const [showSalle, setShowSalle]       = useState(false);
                       {enrolled && (
                         <>
                           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                            <div style={{flex:1,background:"#f0f2f9",borderRadius:6,height:8}}>
+                            <div style={{flex:1,background:"#f1f3fb",borderRadius:6,height:8}}>
                               <div style={{background:"#1e2464",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
                             </div>
-                            <span style={{fontSize:11,color:"#8890aa",flexShrink:0}}>{pct}%</span>
+                            <span style={{fontSize:11,color:"#8b91b0",flexShrink:0}}>{pct}%</span>
                           </div>
 
                           {/* Bouton pour afficher le verset du jour */}
@@ -3793,8 +3793,8 @@ const [showSalle, setShowSalle]       = useState(false);
                           {expanded && (
                             <div style={{background:"#f7f8fc",borderRadius:10,padding:14,marginBottom:10}}>
                               {dayLoading && (
-                                <div style={{textAlign:"center",padding:"12px 0",color:"#8890aa",fontSize:13}}>
-                                  <div style={{width:20,height:20,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
+                                <div style={{textAlign:"center",padding:"12px 0",color:"#8b91b0",fontSize:13}}>
+                                  <div style={{width:20,height:20,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
                                   Chargement du passage…
                                 </div>
                               )}
@@ -3811,8 +3811,8 @@ const [showSalle, setShowSalle]       = useState(false);
                                   ))}
                                   {dayContent.reflection && (
                                     <div style={{marginTop:10}}>
-                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:4}}>Réflexion</div>
-                                      <div style={{fontSize:13,color:"#4a5070",fontStyle:"italic"}}>{dayContent.reflection}</div>
+                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:4}}>Réflexion</div>
+                                      <div style={{fontSize:13,color:"#5c6280",fontStyle:"italic"}}>{dayContent.reflection}</div>
                                     </div>
                                   )}
                                   {dayContent.prayer_guide && (
@@ -3855,7 +3855,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:4}}>
                       {new Date(jSelected.date).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
                     </div>
-                    {jSelected.mood && <div style={{fontSize:11,color:"#8890aa",marginBottom:10}}>Humeur : {jSelected.mood}</div>}
+                    {jSelected.mood && <div style={{fontSize:11,color:"#8b91b0",marginBottom:10}}>Humeur : {jSelected.mood}</div>}
                     <div className="em-card" style={{marginBottom:12}}>
                       <p style={{fontSize:13.5,lineHeight:1.8,color:"#3a3d5c",whiteSpace:"pre-wrap"}}>{jSelected.content}</p>
                     </div>
@@ -3884,7 +3884,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       />
                       <div style={{display:"flex",gap:10,alignItems:"center",marginTop:10,flexWrap:"wrap"}}>
                         <div style={{display:"flex",gap:6,alignItems:"center",flex:1}}>
-                          <span style={{fontSize:11,color:"#8890aa",flexShrink:0}}>Humeur :</span>
+                          <span style={{fontSize:11,color:"#8b91b0",flexShrink:0}}>Humeur :</span>
                           <select className="em-select" style={{fontSize:12,flex:1}} value={jMood} onChange={e=>setJMood(e.target.value)}>
                             <option value="">—</option>
                             {["Serein(e)","Reconnaissant(e)","Inquiet(e)","En deuil","Joyeux(se)","Confiant(e)","Questionneur(se)"].map(m=>(
@@ -3905,13 +3905,13 @@ const [showSalle, setShowSalle]       = useState(false);
 
                     {/* Liste des entrées */}
                     {jLoading && (
-                      <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:13}}>
-                        <div style={{width:24,height:24,border:"2px solid #eef1f8",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
+                      <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:13}}>
+                        <div style={{width:24,height:24,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
                         Chargement…
                       </div>
                     )}
                     {!jLoading && jEntries.length === 0 && (
-                      <div className="em-card" style={{textAlign:"center",color:"#8890aa",padding:"28px 0"}}>
+                      <div className="em-card" style={{textAlign:"center",color:"#8b91b0",padding:"28px 0"}}>
                         <div style={{fontSize:32,marginBottom:8}}>📓</div>
                         <div style={{fontWeight:600,marginBottom:4}}>Journal vide</div>
                         <div style={{fontSize:12}}>Commencez à noter vos pensées et réflexions spirituelles</div>
@@ -3924,11 +3924,11 @@ const [showSalle, setShowSalle]       = useState(false);
                             <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>
                               {new Date(e.date).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}
                             </div>
-                            {e.mood && <span style={{fontSize:10,color:"#8890aa",flexShrink:0,marginLeft:8}}>{e.mood}</span>}
+                            {e.mood && <span style={{fontSize:10,color:"#8b91b0",flexShrink:0,marginLeft:8}}>{e.mood}</span>}
                           </div>
-                          <p style={{fontSize:13,color:"#4a5070",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{e.content}</p>
+                          <p style={{fontSize:13,color:"#5c6280",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{e.content}</p>
                           {e.ai_reflection && (
-                            <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #eef1fb",fontSize:12,color:"#8890aa",fontStyle:"italic",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
+                            <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #eef1fb",fontSize:12,color:"#8b91b0",fontStyle:"italic",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
                               ✦ {e.ai_reflection}
                             </div>
                           )}
@@ -3955,7 +3955,7 @@ const [showSalle, setShowSalle]       = useState(false);
               </select>
             </div>
             {mLoading && (
-              <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des membres…</div>
+              <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des membres…</div>
             )}
             {!mLoading && (
               <div className="em-g4">
@@ -3973,7 +3973,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div key={m.id} className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}}>
                         <div className="em-av" style={{width:48,height:48,fontSize:18,background:color,margin:"0 auto 10px"}}>{initL}</div>
                         <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div>
-                        <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{m.role}</div>
+                        <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>{m.role}</div>
                         {m.groups && m.groups.length > 0 && (
                           <div style={{fontSize:10,color:"#8899cc",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.groups[0]}</div>
                         )}
@@ -3986,7 +3986,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     );
                   })}
                 {members.filter(m=>m.validated).length === 0 && !mLoading && (
-                  <div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:"#8890aa"}}>
+                  <div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:"#8b91b0"}}>
                     <div style={{fontSize:36,marginBottom:8}}>👥</div>
                     <div>Aucun membre validé pour l&apos;instant</div>
                   </div>
@@ -4020,19 +4020,19 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-card">
               <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Mes présences récentes</div>
               {presLoading ? (
-                <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa",fontSize:13}}>Chargement…</div>
+                <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>Chargement…</div>
               ) : myPresences.length === 0 ? (
-                <div style={{textAlign:"center",padding:"24px 0",color:"#8890aa",fontSize:13}}>
+                <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:13}}>
                   <div style={{fontSize:32,marginBottom:8}}>📋</div>
                   <div>Aucune présence enregistrée.</div>
                   <div style={{fontSize:12,marginTop:4}}>Utilise <a href="/espace-membres/agenda" style={{color:"#2d3a8c"}}>l&apos;agenda</a> pour pointer ta présence à un événement.</div>
                 </div>
               ) : (
                 myPresences.map((p) => (
-                  <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
+                  <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
                     <div>
                       <div style={{fontWeight:600,color:"#1e2464"}}>{(p.events as {title:string;date:string}|null)?.title ?? "Événement"}</div>
-                      <div style={{fontSize:11,color:"#8890aa"}}>
+                      <div style={{fontSize:11,color:"#8b91b0"}}>
                         {(p.events as {title:string;date:string}|null)?.date
                           ? new Date((p.events as {title:string;date:string}).date+"T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})
                           : new Date(p.created_at).toLocaleDateString("fr-CH")}
@@ -4056,9 +4056,9 @@ const [showSalle, setShowSalle]       = useState(false);
             </div>
             <div className="em-card">
               {actLoading ? (
-                <div style={{textAlign:"center",padding:"32px 0",color:"#8890aa",fontSize:13}}>Chargement…</div>
+                <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>Chargement…</div>
               ) : activities.length === 0 ? (
-                <div style={{textAlign:"center",padding:"32px 0",color:"#8890aa",fontSize:13}}>
+                <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>
                   <div style={{fontSize:32,marginBottom:8}}>🔔</div>
                   <div>Aucune activité récente dans la communauté.</div>
                 </div>
@@ -4068,7 +4068,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div className="em-act-ico">{a.icon}</div>
                     <div style={{flex:1}}>
                       <div style={{fontSize:13.5,color:"#1a1d3a"}}>{a.text}</div>
-                      <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>{a.time}</div>
+                      <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>{a.time}</div>
                     </div>
                   </div>
                 ))
@@ -4084,13 +4084,13 @@ const [showSalle, setShowSalle]       = useState(false);
               <div>
                 <div className="em-card" style={{marginBottom:14}}>
                   <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Faire un don</div>
-                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8890aa"}}>Catégorie</div>
+                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8b91b0"}}>Catégorie</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
                     {["Dîme","Offrande","Mission","Construction","Jeunesse"].map(l=>(
                       <button key={l} className={`em-btn em-btn-sm${donLabel===l?" em-btn-primary":" em-btn-outline"}`} onClick={()=>setDonLabel(l)}>{l}</button>
                     ))}
                   </div>
-                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8890aa"}}>Montant (CHF)</div>
+                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8b91b0"}}>Montant (CHF)</div>
                   <div className="em-g4" style={{marginBottom:12}}>
                     {[20,50,100,200].map(a=>(
                       <button key={a} className={`em-amt${donAmt===a?" sel":""}`} onClick={()=>{setDonAmt(a);setDonCustom("");}}>{a}</button>
@@ -4098,7 +4098,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                   <input className="em-input" type="number" placeholder="Autre montant" value={donCustom}
                     onChange={e=>{setDonCustom(e.target.value);setDonAmt(+e.target.value||0);}} style={{marginBottom:16}} />
-                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8890aa"}}>Méthode de paiement</div>
+                  <div style={{marginBottom:10,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:"#8b91b0"}}>Méthode de paiement</div>
                   <div style={{display:"flex",gap:10,marginBottom:18}}>
                     {[["twint","TWINT 📱"],["stripe","Carte 💳"],["postfinance","PostFinance 🏦"],["virement","Virement 🏛"]].map(([v,l])=>(
                       <button key={v} className={`em-btn em-btn-sm${donMethod===v?" em-btn-primary":" em-btn-outline"}`} onClick={()=>setDonMethod(v)}>{l}</button>
@@ -4114,10 +4114,10 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-card">
                   <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Dons récents</div>
                   {DONS_RECENTS.map((d,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
+                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
                       <div>
                         <div style={{fontWeight:500}}>{d.name}</div>
-                        <div style={{fontSize:11,color:"#8890aa"}}>{d.method} · {d.date}</div>
+                        <div style={{fontSize:11,color:"#8b91b0"}}>{d.method} · {d.date}</div>
                       </div>
                       <div style={{fontWeight:700,color:"#276749"}}>{d.amount}</div>
                     </div>
@@ -4192,7 +4192,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     {canAdminFull && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>✉️ Inviter</button>}
                   </div>
                   {mLoading
-                    ? <div style={{textAlign:"center",padding:"20px 0",color:"#8890aa"}}>Chargement…</div>
+                    ? <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0"}}>Chargement…</div>
                     : (
                       <table className="em-tbl">
                         <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Groupes</th><th>Statut</th><th>Date</th><th></th></tr></thead>
@@ -4203,7 +4203,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           ).map(m=>(
                             <tr key={m.id}>
                               <td style={{fontWeight:500}}>{[m.first_name,m.last_name].filter(Boolean).join(" ")||"—"}</td>
-                              <td style={{color:"#8890aa",fontSize:12}}>{m.email}</td>
+                              <td style={{color:"#8b91b0",fontSize:12}}>{m.email}</td>
                               <td><span className="em-tag em-tag-marine">{m.role}</span></td>
                               <td style={{fontSize:11}}>{(m.groups??[]).slice(0,2).join(", ")||"—"}</td>
                               <td>
@@ -4211,12 +4211,12 @@ const [showSalle, setShowSalle]       = useState(false);
                                   ? <span className="em-tag em-tag-vert">Actif</span>
                                   : <span className="em-tag em-tag-orange">En attente</span>}
                               </td>
-                              <td style={{color:"#8890aa",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
+                              <td style={{color:"#8b91b0",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
                               <td><a href={`/admin/crm/${m.id}`} className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",fontSize:11,whiteSpace:"nowrap"}}>Gérer →</a></td>
                             </tr>
                           ))}
                           {members.length===0 && !mLoading && (
-                            <tr><td colSpan={7} style={{textAlign:"center",padding:"20px",color:"#8890aa"}}>
+                            <tr><td colSpan={7} style={{textAlign:"center",padding:"20px",color:"#8b91b0"}}>
                               Clique sur Actualiser pour charger les membres
                             </td></tr>
                           )}
@@ -4231,7 +4231,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {adminTab==="groupes" && (
                 <div>
                   {mLoading ? (
-                    <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Chargement des groupes…</div>
+                    <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des groupes…</div>
                   ) : (
                     <div className="em-g3">
                       {GROUPES.map(g => {
@@ -4244,8 +4244,8 @@ const [showSalle, setShowSalle]       = useState(false);
                               <Icon name={gDef.icon} variant="line" size={24} alt={g.name} />
                             </div>
                             <div style={{fontWeight:700,fontSize:13,color:"#1e2464",flex:1}}>{g.name}</div>
-                            <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>
-                              <span style={{fontWeight:600,color:count>0?"#1e2464":"#8890aa"}}>{count}</span> membre{count !== 1 ? "s" : ""}
+                            <div style={{fontSize:12,color:"#8b91b0",marginTop:3}}>
+                              <span style={{fontWeight:600,color:count>0?"#1e2464":"#8b91b0"}}>{count}</span> membre{count !== 1 ? "s" : ""}
                             </div>
                             {mgrCount > 0 && (
                               <div style={{fontSize:11,color:"#C9A227",marginTop:2}}>👑 {mgrCount} manager{mgrCount > 1 ? "s" : ""}</div>
@@ -4262,7 +4262,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       })}
                     </div>
                   )}
-                  <div style={{marginTop:12,fontSize:12,color:"#8890aa",textAlign:"right"}}>
+                  <div style={{marginTop:12,fontSize:12,color:"#8b91b0",textAlign:"right"}}>
                     {members.length > 0 && `${members.length} profils chargés`}
                   </div>
                 </div>
@@ -4278,8 +4278,8 @@ const [showSalle, setShowSalle]       = useState(false);
                       {members.filter(m=>m.role==="visiteur"||!m.validated).slice(0,10).map(m=>(
                         <tr key={m.id}>
                           <td>{[m.first_name,m.last_name].filter(Boolean).join(" ")||"—"}</td>
-                          <td style={{color:"#8890aa",fontSize:12}}>{m.email}</td>
-                          <td style={{color:"#8890aa",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
+                          <td style={{color:"#8b91b0",fontSize:12}}>{m.email}</td>
+                          <td style={{color:"#8b91b0",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
                           <td>
                             <button className="em-btn em-btn-success em-btn-sm" onClick={async()=>{
                               const res = await updateMemberValidation(m.id, true);
@@ -4291,7 +4291,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         </tr>
                       ))}
                       {members.filter(m=>!m.validated).length===0 && (
-                        <tr><td colSpan={4} style={{textAlign:"center",padding:"20px",color:"#8890aa"}}>Aucun visiteur en attente</td></tr>
+                        <tr><td colSpan={4} style={{textAlign:"center",padding:"20px",color:"#8b91b0"}}>Aucun visiteur en attente</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -4303,11 +4303,11 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div style={{textAlign:"center",padding:"32px 16px"}}>
                   <div style={{fontSize:44,marginBottom:12}}>🗂️</div>
                   <div style={{fontWeight:700,fontSize:15,color:"#1e2464",marginBottom:8}}>CRM Pastoral</div>
-                  <p style={{fontSize:12,color:"#8890aa",marginBottom:20,maxWidth:380,margin:"0 auto 20px"}}>Gérez les membres, les notes pastorales, les tags et les suivis depuis le CRM complet.</p>
+                  <p style={{fontSize:12,color:"#8b91b0",marginBottom:20,maxWidth:380,margin:"0 auto 20px"}}>Gérez les membres, les notes pastorales, les tags et les suivis depuis le CRM complet.</p>
                   <a href="/espace-membres/crm" className="em-btn em-btn-primary" style={{textDecoration:"none",display:"inline-block",marginBottom:10}}>
                     Ouvrir le CRM Pastoral →
                   </a>
-                  <div style={{fontSize:11,color:"#8890aa",marginTop:6}}>Membres en attente de validation · Notes pastorales · Tags · Groupes</div>
+                  <div style={{fontSize:11,color:"#8b91b0",marginTop:6}}>Membres en attente de validation · Notes pastorales · Tags · Groupes</div>
                 </div>
               )}
 
@@ -4320,7 +4320,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div style={{padding:16,background:"#f7f8fc",borderRadius:12,textAlign:"center"}}>
                         <div style={{fontSize:32,marginBottom:8}}>💻</div>
                         <div style={{fontWeight:700,color:"#1e2464",marginBottom:6}}>RustDesk — Accès distant</div>
-                        <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Contrôle à distance sécurisé</div>
+                        <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Contrôle à distance sécurisé</div>
                         <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{
                           if(confirm("⚠️ Vous êtes sur le point d'activer l'accès distant RustDesk. Confirmez-vous ?")) {
                             setToast("RustDesk activé — en attente de connexion");
@@ -4331,7 +4331,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{padding:16,background:"#f7f8fc",borderRadius:12}}>
                       <div style={{fontWeight:700,color:"#1e2464",marginBottom:10}}>Tickets récents</div>
                       {[{title:"Problème connexion WiFi",status:"Résolu"},{title:"Mise à jour serveur",status:"En cours"},{title:"Backup base de données",status:"Planifié"}].map(t=>(
-                        <div key={t.title} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)",fontSize:13}}>
+                        <div key={t.title} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
                           <span>{t.title}</span>
                           <span className={`em-tag ${t.status==="Résolu"?"em-tag-vert":t.status==="En cours"?"em-tag-orange":"em-tag-marine"}`}>{t.status}</span>
                         </div>
@@ -4370,7 +4370,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                   <div className="em-card">
                     <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Évolution des membres</div>
-                    <div style={{height:120,background:"#f0f2f9",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#8890aa",fontSize:13}}>
+                    <div style={{height:120,background:"#f1f3fb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#8b91b0",fontSize:13}}>
                       Graphique d&apos;évolution — Bientôt disponible
                     </div>
                   </div>
@@ -4396,7 +4396,7 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className="em-rp-sec">
             <div className="em-rp-title">En ligne — {onlineMembers.length}</div>
             {onlineMembers.length === 0 ? (
-              <span style={{fontSize:12,color:"#8890aa"}}>Aucun membre actif</span>
+              <span style={{fontSize:12,color:"#8b91b0"}}>Aucun membre actif</span>
             ) : onlineMembers.slice(0,6).map(m => (
               <div key={m.userId} style={{display:"flex",alignItems:"center",gap:7,padding:"4px 0"}}>
                 <div style={{position:"relative",flexShrink:0}}>
@@ -4421,11 +4421,11 @@ const [showSalle, setShowSalle]       = useState(false);
               {lbl:"Total utilisateurs",num:totalUsers,     color:"#1e2464"},
             ].map(s => (
               <div key={s.lbl} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
-                <span style={{fontSize:12,color:"#4a5070"}}>{s.lbl}</span>
+                <span style={{fontSize:12,color:"#5c6280"}}>{s.lbl}</span>
                 <span style={{fontSize:14,fontWeight:700,color:s.color}}>{s.num}</span>
               </div>
             ))}
-            <div style={{marginTop:10,fontSize:11,color:"#8890aa"}}>
+            <div style={{marginTop:10,fontSize:11,color:"#8b91b0"}}>
               {prayerCount > 0
                 ? <><span className="em-dot-green" style={{display:"inline-block",marginRight:5,verticalAlign:"middle"}} />{prayerCount} prière{prayerCount > 1 ? "s" : ""} active{prayerCount > 1 ? "s" : ""}</>
                 : "Aucune prière active"}
@@ -4435,9 +4435,9 @@ const [showSalle, setShowSalle]       = useState(false);
           {/* Prochain culte */}
           <div className="em-rp-sec">
             <div className="em-rp-title">Prochain culte</div>
-            <div style={{fontSize:12,color:"#4a5070",marginBottom:6}}>Dimanche {new Date(new Date().getTime()+((7-new Date().getDay())%7||7)*86400000).toLocaleDateString("fr-CH",{day:"numeric",month:"short"})} · 9h30</div>
+            <div style={{fontSize:12,color:"#5c6280",marginBottom:6}}>Dimanche {new Date(new Date().getTime()+((7-new Date().getDay())%7||7)*86400000).toLocaleDateString("fr-CH",{day:"numeric",month:"short"})} · 9h30</div>
             <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464",lineHeight:1.2}}>{countdown}</div>
-            <div style={{fontSize:11,color:"#8890aa",marginTop:4}}>📍 La Chaux-de-Fonds</div>
+            <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>📍 La Chaux-de-Fonds</div>
           </div>
 
           {/* Quick actions */}
@@ -4471,13 +4471,13 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className="em-rp-sec">
             <div className="em-rp-title">Activités récentes</div>
             {activities.length === 0 ? (
-              <div style={{fontSize:11,color:"#8890aa",padding:"4px 0"}}>Aucune activité récente.</div>
+              <div style={{fontSize:11,color:"#8b91b0",padding:"4px 0"}}>Aucune activité récente.</div>
             ) : activities.slice(0,4).map((a)=>(
               <div key={a.id} style={{display:"flex",gap:8,padding:"6px 0",borderBottom:"1px solid rgba(30,36,100,.06)"}}>
                 <span style={{fontSize:14}}>{a.icon}</span>
                 <div>
-                  <div style={{fontSize:11.5,color:"#4a5070",lineHeight:1.4}}>{a.text}</div>
-                  <div style={{fontSize:10,color:"#8890aa",marginTop:1}}>{a.time}</div>
+                  <div style={{fontSize:11.5,color:"#5c6280",lineHeight:1.4}}>{a.text}</div>
+                  <div style={{fontSize:10,color:"#8b91b0",marginTop:1}}>{a.time}</div>
                 </div>
               </div>
             ))}
@@ -4582,7 +4582,7 @@ const [showSalle, setShowSalle]       = useState(false);
             </div>
             <div className="em-modal-body">
               <input className="em-input" placeholder="Membres, prières, événements…" value={searchQ} onChange={e=>setSearchQ(e.target.value)} autoFocus />
-              <div style={{marginTop:16,fontSize:13,color:"#8890aa",textAlign:"center"}}>
+              <div style={{marginTop:16,fontSize:13,color:"#8b91b0",textAlign:"center"}}>
                 Tape au moins 2 caractères pour rechercher
               </div>
             </div>
@@ -4776,7 +4776,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 </div>
                 <div style={{background:"#f7f8fc",borderRadius:12,padding:16}}>
                   <div style={{fontWeight:700,color:"#e53e3e",marginBottom:8}}>▶ YouTube Live</div>
-                  <label style={{fontSize:11,color:"#8890aa",fontWeight:600,display:"block",marginBottom:4}}>ID de la chaîne YouTube</label>
+                  <label style={{fontSize:11,color:"#8b91b0",fontWeight:600,display:"block",marginBottom:4}}>ID de la chaîne YouTube</label>
                   <input
                     className="em-input"
                     placeholder="UC… ou lien youtube.com/channel/…"
@@ -4784,7 +4784,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     onChange={e=>setYtChannelInput(e.target.value)}
                     style={{marginBottom:6}}
                   />
-                  <div style={{fontSize:11,color:"#8890aa",marginBottom:8}}>Sert au lecteur live de l&apos;onglet Streaming. Enregistré dans les réglages.</div>
+                  <div style={{fontSize:11,color:"#8b91b0",marginBottom:8}}>Sert au lecteur live de l&apos;onglet Streaming. Enregistré dans les réglages.</div>
                   <button
                     className="em-btn em-btn-danger"
                     style={{width:"100%",opacity:ytSaving?0.6:1}}
@@ -4806,7 +4806,7 @@ const [showSalle, setShowSalle]       = useState(false);
               </div>
               <div style={{marginTop:16,padding:14,background:"#fff0f0",borderRadius:12}}>
                 <div style={{fontWeight:700,color:"#e53e3e",marginBottom:6}}>🔴 Démarrer le Live</div>
-                <div style={{fontSize:12,color:"#8890aa",marginBottom:10}}>Cette action démarre la diffusion Zoom + YouTube simultanément.</div>
+                <div style={{fontSize:12,color:"#8b91b0",marginBottom:10}}>Cette action démarre la diffusion Zoom + YouTube simultanément.</div>
                 <button className="em-btn em-btn-danger" style={{width:"100%"}} onClick={async()=>{
                   setToast("🔴 Stream démarré !");
                   setShowGS(false);
@@ -4844,9 +4844,9 @@ const [showSalle, setShowSalle]       = useState(false);
               <button onClick={()=>setShowGD(false)} style={{width:34,height:34,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",color:"white",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             </div>
             {/* Tabs */}
-            <div style={{display:"flex",background:"#f7f8fc",borderBottom:"1px solid rgba(30,36,100,.1)",flexShrink:0}}>
+            <div style={{display:"flex",background:"#f7f8fc",borderBottom:"1px solid #e6e9f4",flexShrink:0}}>
               {([["matrix","🔐 Matrice des droits"],["pasteurs","👑 Gestion Pasteurs"],["membres","👥 Gestion Membres"],["audit","📋 Journal d'audit"]] as ["matrix"|"pasteurs"|"membres"|"audit",string][]).map(([t,l])=>(
-                <button key={t} onClick={()=>setGdTab(t)} style={{padding:"12px 20px",fontSize:13,fontWeight:600,color:gdTab===t?"#c53030":"#8890aa",borderBottom:gdTab===t?"2.5px solid #c53030":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>
+                <button key={t} onClick={()=>setGdTab(t)} style={{padding:"12px 20px",fontSize:13,fontWeight:600,color:gdTab===t?"#c53030":"#8b91b0",borderBottom:gdTab===t?"2.5px solid #c53030":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>
                   {l}
                 </button>
               ))}
@@ -4858,7 +4858,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div>
                   <div style={{marginBottom:16}}>
                     <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464"}}>Matrice des droits par groupe</div>
-                    <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>Cliquez sur un interrupteur pour accorder ou révoquer une permission.</div>
+                    <div style={{fontSize:12,color:"#8b91b0",marginTop:3}}>Cliquez sur un interrupteur pour accorder ou révoquer une permission.</div>
                   </div>
                   <div style={{overflowX:"auto"}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -4873,12 +4873,12 @@ const [showSalle, setShowSalle]       = useState(false);
                       <tbody>
                         {GD_FEATURES.map((f,fi) => (
                           <tr key={f.id} style={{background:fi%2===0?"#f7f8fc":"white"}}>
-                            <td style={{padding:"8px 12px",fontWeight:500,fontSize:12,color:"#1e2464",position:"sticky",left:0,background:fi%2===0?"#f7f8fc":"white",borderBottom:"1px solid rgba(30,36,100,.07)"}}>{f.label}</td>
+                            <td style={{padding:"8px 12px",fontWeight:500,fontSize:12,color:"#1e2464",position:"sticky",left:0,background:fi%2===0?"#f7f8fc":"white",borderBottom:"1px solid #eceef7"}}>{f.label}</td>
                             {GD_GROUPS.map(g => {
                               const on = gdPerms[f.id]?.[g] ?? false;
                               const disabled = f.id==="pastor_manage" && g!=="admin";
                               return (
-                                <td key={g} style={{textAlign:"center",padding:6,borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                                <td key={g} style={{textAlign:"center",padding:6,borderBottom:"1px solid #eceef7"}}>
                                   <button
                                     disabled={disabled}
                                     onClick={()=>{
@@ -4905,7 +4905,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       else { setToast("💾 Matrice sauvegardée ✅"); }
                     }}>💾 Sauvegarder</button>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{const p:Record<string,Record<string,boolean>>={};for(const k in GD_DEFAULTS)p[k]={...GD_DEFAULTS[k]};setGdPerms(p);setToast("↺ Matrice réinitialisée aux défauts");}}>↺ Réinitialiser aux défauts</button>
-                    <span style={{fontSize:11,color:"#8890aa",marginLeft:8}}>Les modifications sont propagées via Supabase RLS en production</span>
+                    <span style={{fontSize:11,color:"#8b91b0",marginLeft:8}}>Les modifications sont propagées via Supabase RLS en production</span>
                   </div>
                 </div>
               )}
@@ -4913,7 +4913,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {gdTab==="pasteurs" && (
                 <div>
                   <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des Pasteurs</div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Seul l&apos;Admin peut modifier les rôles des Pasteurs ou révoquer leur statut pastoral.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>Seul l&apos;Admin peut modifier les rôles des Pasteurs ou révoquer leur statut pastoral.</div>
                   <div style={{background:"rgba(229,62,62,.06)",border:"1px solid rgba(229,62,62,.15)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
                     <span style={{fontSize:18}}>⚠️</span>
                     <div style={{fontSize:12,color:"#c53030"}}>La révocation d&apos;un Pasteur est irréversible sans intervention manuelle. Toute modification est journalisée.</div>
@@ -4923,11 +4923,11 @@ const [showSalle, setShowSalle]       = useState(false);
                       const name = [m.first_name,m.last_name].filter(Boolean).join(" ")||m.email;
                       const initL = (m.first_name?.[0]??m.email[0]).toUpperCase();
                       return (
-                        <div key={m.id} style={{background:"#f7f8fc",border:"1px solid rgba(30,36,100,.1)",borderRadius:14,padding:18,display:"flex",alignItems:"center",gap:14}}>
+                        <div key={m.id} style={{background:"#f7f8fc",border:"1px solid #e6e9f4",borderRadius:14,padding:18,display:"flex",alignItems:"center",gap:14}}>
                           <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#8899cc)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
                           <div>
                             <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>{name}</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Pasteur · {m.email}</div>
+                            <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>Pasteur · {m.email}</div>
                           </div>
                           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
                             <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast(`✏️ Modifier ${name}`)}>✏️ Modifier</button>
@@ -4937,7 +4937,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       );
                     })}
                     {members.filter(m=>m.role==="pasteur").length===0 && (
-                      <div style={{textAlign:"center",padding:"30px 0",color:"#8890aa"}}>Aucun pasteur chargé — actualisez la liste dans l&apos;onglet Membres.</div>
+                      <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Aucun pasteur chargé — actualisez la liste dans l&apos;onglet Membres.</div>
                     )}
                   </div>
                 </div>
@@ -4946,7 +4946,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {gdTab==="membres" && (
                 <div>
                   <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des membres &amp; rôles</div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Rôle, fonctions et accès — cliquez sur 📋 pour modifier les fonctions d&apos;un membre.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>Rôle, fonctions et accès — cliquez sur 📋 pour modifier les fonctions d&apos;un membre.</div>
                   <input className="em-input" style={{marginBottom:14,width:"100%",maxWidth:360}} placeholder="🔍 Rechercher un membre…" value={mSearch} onChange={e=>setMSearch(e.target.value)} />
                   <div style={{display:"flex",flexDirection:"column",gap:1}}>
                     {members.filter(m=>mSearch ? `${m.first_name??""} ${m.last_name??""} ${m.email}`.toLowerCase().includes(mSearch.toLowerCase()) : true).slice(0,20).map(m => {
@@ -4960,7 +4960,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#1e2464,#4a54b0)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"white",flexShrink:0}}>{initL}</div>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{name}</div>
-                              <div style={{fontSize:11,color:"#8890aa"}}>{m.email} · {m.role}{(m.groups??[]).length>0?` · ${(m.groups??[]).join(", ")}`:""}</div>
+                              <div style={{fontSize:11,color:"#8b91b0"}}>{m.email} · {m.role}{(m.groups??[]).length>0?` · ${(m.groups??[]).join(", ")}`:""}</div>
                             </div>
                             <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:110}} defaultValue={m.role} onChange={async e=>{
                               const newRole = e.target.value;
@@ -4985,12 +4985,12 @@ const [showSalle, setShowSalle]       = useState(false);
                           </div>
                           {isExpanded && (
                             <div style={{padding:"8px 58px 14px",background:"rgba(30,36,100,.03)",borderTop:"1px solid rgba(30,36,100,.06)"}}>
-                              <div style={{fontSize:10,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Fonctions attribuées</div>
+                              <div style={{fontSize:10,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Fonctions attribuées</div>
                               <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                                 {FUNC_GROUPS.map(g=>{
                                   const checked = (m.groups??[]).includes(g);
                                   return (
-                                    <label key={g} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,cursor:"pointer",padding:"4px 8px",borderRadius:6,background:checked?"rgba(30,36,100,.08)":"transparent",border:"1px solid",borderColor:checked?"rgba(30,36,100,.2)":"rgba(30,36,100,.08)",transition:"all .15s"}}>
+                                    <label key={g} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,cursor:"pointer",padding:"4px 8px",borderRadius:6,background:checked?"#eceef7":"transparent",border:"1px solid",borderColor:checked?"rgba(30,36,100,.2)":"#eceef7",transition:"all .15s"}}>
                                       <input type="checkbox" checked={checked} style={{accentColor:"#1e2464"}} onChange={async()=>{
                                         const cur = m.groups??[];
                                         const next = checked ? cur.filter(x=>x!==g) : [...cur, g];
@@ -4998,7 +4998,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                         if (res?.error) setToast(`❌ ${res.error}`);
                                         else { setToast(`✅ Fonctions de ${name} mises à jour`); await loadMembers(); }
                                       }} />
-                                      <span style={{color:checked?"#1e2464":"#8890aa",fontWeight:checked?600:400,textTransform:"capitalize"}}>{g}</span>
+                                      <span style={{color:checked?"#1e2464":"#8b91b0",fontWeight:checked?600:400,textTransform:"capitalize"}}>{g}</span>
                                     </label>
                                   );
                                 })}
@@ -5015,16 +5015,16 @@ const [showSalle, setShowSalle]       = useState(false);
               {gdTab==="audit" && (
                 <div>
                   <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Journal d&apos;audit système</div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Toutes les actions d&apos;administration sont journalisées. Seul l&apos;Admin y a accès.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>Toutes les actions d&apos;administration sont journalisées. Seul l&apos;Admin y a accès.</div>
                   <div style={{fontFamily:"Courier New,monospace",fontSize:11,background:"#0a0d1a",color:"#a8e6cf",borderRadius:10,padding:16,maxHeight:400,overflowY:"auto",lineHeight:1.8}}>
-                    <div style={{color:"#8890aa"}}>Aucune entrée — le journal sera alimenté automatiquement par les actions admin.</div>
+                    <div style={{color:"#8b91b0"}}>Aucune entrée — le journal sera alimenté automatiquement par les actions admin.</div>
                   </div>
                 </div>
               )}
             </div>
             {/* Footer */}
-            <div style={{padding:"14px 22px",borderTop:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-              <div style={{fontSize:11,color:"#8890aa"}}>Modifications propagées via Supabase RLS · Journalisées dans l&apos;audit</div>
+            <div style={{padding:"14px 22px",borderTop:"1px solid #e6e9f4",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <div style={{fontSize:11,color:"#8b91b0"}}>Modifications propagées via Supabase RLS · Journalisées dans l&apos;audit</div>
               <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowGD(false)}>Fermer</button>
             </div>
           </div>
@@ -5046,18 +5046,18 @@ const [showSalle, setShowSalle]       = useState(false);
             </div>
             <div style={{flex:1,display:"flex",overflow:"hidden"}}>
               {/* Sidebar */}
-              <div style={{width:220,borderRight:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",padding:16,display:"flex",flexDirection:"column",gap:6,flexShrink:0,overflowY:"auto"}}>
-                <div style={{fontSize:10,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>4 Modules Plateformes</div>
+              <div style={{width:220,borderRight:"1px solid #e6e9f4",background:"#f7f8fc",padding:16,display:"flex",flexDirection:"column",gap:6,flexShrink:0,overflowY:"auto"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>4 Modules Plateformes</div>
                 {mpCards.map((card,i) => (
                   <button key={card.id} onClick={()=>setMpCard(i)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"none",background:mpCard===i?"rgba(85,60,154,.12)":"transparent",cursor:"pointer",textAlign:"left",outline:mpCard===i?"2px solid #8b5cf6":"none"}}>
                     <div style={{width:40,height:28,borderRadius:6,background:card.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{card.icon}</div>
                     <div>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464"}}>{card.title}</div>
-                      <div style={{fontSize:10,color:"#8890aa"}}>{card.tag}</div>
+                      <div style={{fontSize:10,color:"#8b91b0"}}>{card.tag}</div>
                     </div>
                   </button>
                 ))}
-                <div style={{marginTop:"auto",paddingTop:16,borderTop:"1px solid rgba(30,36,100,.1)"}}>
+                <div style={{marginTop:"auto",paddingTop:16,borderTop:"1px solid #e6e9f4"}}>
                   <button className="em-btn em-btn-primary em-btn-sm" style={{width:"100%",justifyContent:"center"}} onClick={()=>{setToast("🚀 Toutes les cartes publiées sur arc-eglise.ch !");setShowMP(false);}}>🚀 Publier toutes les cartes</button>
                 </div>
               </div>
@@ -5067,7 +5067,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div>
                     {/* Aperçu */}
                     <div style={{marginBottom:20,textAlign:"center"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Aperçu en temps réel</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Aperçu en temps réel</div>
                       <div style={{width:220,height:140,borderRadius:14,overflow:"hidden",margin:"0 auto",position:"relative",display:"inline-flex",flexDirection:"column",justifyContent:"flex-end",padding:12,boxShadow:"0 8px 24px rgba(0,0,0,.2)"}}>
                         <div style={{position:"absolute",inset:0,background:card.bg,zIndex:0}} />
                         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)",zIndex:1}} />
@@ -5089,19 +5089,19 @@ const [showSalle, setShowSalle]       = useState(false);
                     {/* Textes */}
                     <div style={{marginBottom:14}}>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>✏️ Textes</div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Titre principal</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Titre principal</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.title} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,title:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Étiquette (tag)</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Étiquette (tag)</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.tag} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,tag:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Description courte</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Description courte</label>
                       <textarea className="em-input" style={{minHeight:60,resize:"vertical",width:"100%",marginBottom:8}} value={card.desc} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,desc:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte du bouton CTA</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Texte du bouton CTA</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.cta} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,cta:e.target.value}:x))} />
                     </div>
                     {/* Image / Vidéo */}
                     <div style={{marginBottom:14}}>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🖼 Média (image / vidéo)</div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Importer depuis l&apos;ordinateur / téléphone</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Importer depuis l&apos;ordinateur / téléphone</label>
                       <input type="file" accept="image/*,video/*" disabled={mpMediaUploading}
                         style={{display:"block",width:"100%",fontSize:12,marginBottom:8,cursor:"pointer"}}
                         onChange={async(e)=>{
@@ -5122,10 +5122,10 @@ const [showSalle, setShowSalle]       = useState(false);
                           e.target.value = "";
                         }}
                       />
-                      {mpMediaUploading && <div style={{fontSize:11,color:"#8890aa",marginBottom:6}}>⏳ Upload en cours…</div>}
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Ou URL de l&apos;image / photo</label>
+                      {mpMediaUploading && <div style={{fontSize:11,color:"#8b91b0",marginBottom:6}}>⏳ Upload en cours…</div>}
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Ou URL de l&apos;image / photo</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.image_url} placeholder="https://... ou laisser vide" onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,image_url:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>URL mini-vidéo YouTube (optionnel)</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>URL mini-vidéo YouTube (optionnel)</label>
                       <input className="em-input" style={{marginBottom:4,width:"100%"}} value={card.video} placeholder="https://youtu.be/..." onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,video:e.target.value}:x))} />
                       {card.image_url && (
                         <div style={{marginTop:8,borderRadius:8,overflow:"hidden",maxHeight:120,background:"#000"}}>
@@ -5136,19 +5136,19 @@ const [showSalle, setShowSalle]       = useState(false);
                     {/* Liens */}
                     <div>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:8}}>🔗 Liens &amp; Infos</div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Lien CTA</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Lien CTA</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.link} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,link:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaire du groupe</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Horaire du groupe</label>
                       <input className="em-input" style={{marginBottom:8,width:"100%"}} value={card.schedule} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,schedule:e.target.value}:x))} />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Responsable / Contact</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Responsable / Contact</label>
                       <input className="em-input" style={{width:"100%"}} value={card.contact} onChange={e=>setMpCards(c=>c.map((x,xi)=>xi===mpCard?{...x,contact:e.target.value}:x))} />
                     </div>
                   </div>
                 );})()}
               </div>
             </div>
-            <div style={{padding:"14px 22px",borderTop:"1px solid rgba(30,36,100,.1)",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,flexWrap:"wrap",gap:8}}>
-              <div style={{fontSize:11,color:"#8890aa"}}>Modifications publiées instantanément sur arc-eglise.ch via API Supabase</div>
+            <div style={{padding:"14px 22px",borderTop:"1px solid #e6e9f4",background:"#f7f8fc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,flexWrap:"wrap",gap:8}}>
+              <div style={{fontSize:11,color:"#8b91b0"}}>Modifications publiées instantanément sur arc-eglise.ch via API Supabase</div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowMP(false)}>Annuler</button>
                 <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white"}} onClick={async()=>{
@@ -5266,10 +5266,10 @@ const [showSalle, setShowSalle]       = useState(false);
               <button className="em-modal-close" onClick={()=>setShowMajInfo(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <div style={{fontSize:11,color:"#8890aa",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
-              <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(30,36,100,.1)",marginBottom:16,overflowX:"auto"}}>
+              <div style={{fontSize:11,color:"#8b91b0",marginBottom:14}}>arc-eglise.ch · Modifications visibles immédiatement</div>
+              <div style={{display:"flex",gap:0,borderBottom:"1px solid #e6e9f4",marginBottom:16,overflowX:"auto"}}>
                 {(([["sermons","📺 Sermons"],["events","📅 Événements"],["infos","📍 Infos"],["citations","💬 Citations"],["verset","📖 Verset"],["equipe","👥 Équipe"],["theme","🎨 Thème"]] as [MajInfoTab,string][]).filter(([t]) => canAdmin || t === "infos" || t === "citations")).map(([t,l]) => (
-                  <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8890aa",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
+                  <button key={t} onClick={()=>setMajInfoTab(t)} style={{padding:"8px 16px",fontSize:12,fontWeight:600,color:majInfoTab===t?"#1e2464":"#8b91b0",borderBottom:majInfoTab===t?"2.5px solid #1e2464":"2.5px solid transparent",border:"none",background:"transparent",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                 ))}
               </div>
               {majInfoTab==="sermons" && (
@@ -5278,7 +5278,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Sermons sur le site vitrine</div>
                     <a href="/admin/sermons" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>+ Gérer les sermons →</a>
                   </div>
-                  <p style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Les sermons publiés apparaissent automatiquement sur le site vitrine. Cliquez sur le bouton ci-dessus pour ajouter, modifier ou supprimer des sermons.</p>
+                  <p style={{fontSize:12,color:"#8b91b0",marginBottom:14}}>Les sermons publiés apparaissent automatiquement sur le site vitrine. Cliquez sur le bouton ci-dessus pour ajouter, modifier ou supprimer des sermons.</p>
                   <a href="/admin/sermons" className="em-btn em-btn-primary" style={{width:"100%",display:"block",textAlign:"center",textDecoration:"none"}}>📺 Ouvrir la gestion des sermons</a>
                 </div>
               )}
@@ -5289,10 +5289,10 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
               {majInfoTab==="infos" && (
                 <div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:12}}>Ces informations apparaissent sur le site vitrine et dans la bannière défilante.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Ces informations apparaissent sur le site vitrine et dans la bannière défilante.</div>
 
                   {/* Horaires des cultes — source bannière + vitrine */}
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Horaires des cultes (bannière + vitrine)</div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>Horaires des cultes (bannière + vitrine)</div>
                   <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
                     <input className="em-input" value={majInfoCulte1} onChange={e=>setMajInfoCulte1(e.target.value)} placeholder="Ex : Dimanche 09h30 — Culte principal" />
                     <input className="em-input" value={majInfoCulte2} onChange={e=>setMajInfoCulte2(e.target.value)} placeholder="Ex : Dimanche 17h00 — Culte du soir" />
@@ -5300,48 +5300,48 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
 
                   {/* Infos contact */}
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Informations de contact</div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>Informations de contact</div>
                   <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
                     <div style={{flex:1}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Adresse</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Adresse</label>
                       <textarea className="em-input" rows={2} value={majInfoAddress} onChange={e=>setMajInfoAddress(e.target.value)} placeholder="Av. Charles-Naine 39, 2300 La Chaux-de-Fonds" style={{resize:"vertical"}} />
                     </div>
                     <div style={{flex:1}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Horaires résumés (carte contact)</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Horaires résumés (carte contact)</label>
                       <textarea className="em-input" rows={2} value={majInfoCulte} onChange={e=>setMajInfoCulte(e.target.value)} placeholder="Dimanche 09h30 & 17h00" style={{resize:"vertical"}} />
                     </div>
                   </div>
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email de contact</label>
+                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Email de contact</label>
                   <input className="em-input" style={{marginBottom:14}} value={majInfoEmail} onChange={e=>setMajInfoEmail(e.target.value)} placeholder="contact@arc-eglise.ch" />
 
                   {/* Réseaux sociaux */}
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:6}}>Réseaux sociaux</div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>Réseaux sociaux</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                     <div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Facebook</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Facebook</label>
                       <input className="em-input" value={majInfoFacebook} onChange={e=>setMajInfoFacebook(e.target.value)} placeholder="https://www.facebook.com/..." />
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Instagram</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Instagram</label>
                       <input className="em-input" value={majInfoInstagram} onChange={e=>setMajInfoInstagram(e.target.value)} placeholder="https://www.instagram.com/..." />
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>YouTube</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>YouTube</label>
                       <input className="em-input" value={majInfoYoutube} onChange={e=>setMajInfoYoutube(e.target.value)} placeholder="https://www.youtube.com/@..." />
                     </div>
                     <div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>WhatsApp</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>WhatsApp</label>
                       <input className="em-input" value={majInfoWhatsapp} onChange={e=>setMajInfoWhatsapp(e.target.value)} placeholder="https://wa.me/41..." />
                     </div>
                     <div style={{gridColumn:"1/-1"}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Zoom (lien de réunion)</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Zoom (lien de réunion)</label>
                       <input className="em-input" value={majInfoZoom} onChange={e=>setMajInfoZoom(e.target.value)} placeholder="https://zoom.us/j/..." />
                     </div>
                   </div>
 
                   {/* Liens personnalisés */}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,marginTop:14}}>
-                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa"}}>Liens personnalisés ({majInfoCustomLinks.length}/10)</div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0"}}>Liens personnalisés ({majInfoCustomLinks.length}/10)</div>
                     {majInfoCustomLinks.length < 10 && (
                       <button
                         type="button"
@@ -5390,36 +5390,36 @@ const [showSalle, setShowSalle]       = useState(false);
                   >{majInfoSaving?"Enregistrement…":"📤 Publier les informations de contact"}</button>
 
                   {/* ── Notre Histoire ── */}
-                  <div style={{marginTop:28,paddingTop:22,borderTop:"1px solid rgba(30,36,100,.1)"}}>
+                  <div style={{marginTop:28,paddingTop:22,borderTop:"1px solid #e6e9f4"}}>
                     <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#1e2464",marginBottom:14}}>📖 Notre Histoire</div>
 
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                       <div>
-                        <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Titre H2</label>
+                        <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Titre H2</label>
                         <input className="em-input" value={majHistoireTitre} onChange={e=>setMajHistoireTitre(e.target.value)} placeholder="Une église enracinée" />
                       </div>
                       <div>
-                        <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Partie en italique (dorée)</label>
+                        <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Partie en italique (dorée)</label>
                         <input className="em-input" value={majHistoireTitreEm} onChange={e=>setMajHistoireTitreEm(e.target.value)} placeholder="dans la Parole" />
                       </div>
                     </div>
 
-                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Paragraphe 1</label>
+                    <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Paragraphe 1</label>
                     <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={majHistoireP1} onChange={e=>setMajHistoireP1(e.target.value)} placeholder="Fondée en 2018 par le Pasteur Pedro Obova…" />
 
-                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Paragraphe 2</label>
+                    <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Paragraphe 2</label>
                     <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={majHistoireP2} onChange={e=>setMajHistoireP2(e.target.value)} placeholder="Nous croyons en une foi authentique…" />
 
-                    <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Citation blockquote</label>
+                    <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Citation blockquote</label>
                     <textarea className="em-input" rows={2} style={{marginBottom:14,resize:"vertical"}} value={majHistoireCitation} onChange={e=>setMajHistoireCitation(e.target.value)} placeholder="« Construisons des générations… »" />
 
-                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"#8890aa",marginBottom:10}}>4 cartes valeurs</div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"#8b91b0",marginBottom:10}}>4 cartes valeurs</div>
                     {majValeurs.map((v, i) => (
                       <div key={i} style={{background:"#f7f8fc",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1.5px solid #e2e5f0"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#1e2464",marginBottom:8}}>Carte {i+1}</div>
                         <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:8,marginBottom:6}}>
                           <div>
-                            <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Icône</label>
+                            <label style={{fontSize:10,color:"#8b91b0",display:"block",marginBottom:2}}>Icône</label>
                             <select
                               className="em-input"
                               style={{fontSize:12}}
@@ -5441,11 +5441,11 @@ const [showSalle, setShowSalle]       = useState(false);
                             </select>
                           </div>
                           <div>
-                            <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Titre</label>
+                            <label style={{fontSize:10,color:"#8b91b0",display:"block",marginBottom:2}}>Titre</label>
                             <input className="em-input" style={{fontSize:12}} value={v.titre} onChange={e=>setMajValeurs(prev=>prev.map((x,j)=>j===i?{...x,titre:e.target.value}:x))} placeholder="La Parole" />
                           </div>
                         </div>
-                        <label style={{fontSize:10,color:"#8890aa",display:"block",marginBottom:2}}>Texte descriptif</label>
+                        <label style={{fontSize:10,color:"#8b91b0",display:"block",marginBottom:2}}>Texte descriptif</label>
                         <input className="em-input" style={{fontSize:12}} value={v.texte} onChange={e=>setMajValeurs(prev=>prev.map((x,j)=>j===i?{...x,texte:e.target.value}:x))} placeholder="Description de la valeur…" />
                       </div>
                     ))}
@@ -5461,7 +5461,7 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
               {majInfoTab==="citations" && (
                 <div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>La citation active s&apos;affiche dans le panneau gauche de la page de connexion. Une seule citation peut être active à la fois.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:14}}>La citation active s&apos;affiche dans le panneau gauche de la page de connexion. Une seule citation peut être active à la fois.</div>
 
                   <button
                     className="em-btn em-btn-primary em-btn-sm"
@@ -5472,15 +5472,15 @@ const [showSalle, setShowSalle]       = useState(false);
                   {citationEditing === "new" && (
                     <div style={{background:"#f0f4ff",border:"1.5px solid #c7d2fe",borderRadius:12,padding:16,marginBottom:14}}>
                       <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:10}}>Nouvelle citation</div>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte de la citation</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Texte de la citation</label>
                       <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={citationForm.texte} onChange={e=>setCitationForm(p=>({...p,texte:e.target.value}))} placeholder="Construisons des générations de disciples…" />
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                         <div>
-                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Auteur</label>
+                          <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Auteur</label>
                           <input className="em-input" value={citationForm.auteur} onChange={e=>setCitationForm(p=>({...p,auteur:e.target.value}))} placeholder="Pasteur Pedro Obova" />
                         </div>
                         <div>
-                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Rôle / mention</label>
+                          <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Rôle / mention</label>
                           <input className="em-input" value={citationForm.role_mention} onChange={e=>setCitationForm(p=>({...p,role_mention:e.target.value}))} placeholder="Fondateur ARC" />
                         </div>
                       </div>
@@ -5503,7 +5503,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   )}
 
-                  {citationsLoading && <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Chargement…</div>}
+                  {citationsLoading && <div style={{fontSize:12,color:"#8b91b0",padding:"10px 0"}}>Chargement…</div>}
 
                   {!citationsLoading && citations.length === 0 && (
                     <div style={{fontSize:12,color:"#b0b5cc",padding:"10px 12px",background:"#f7f8fc",borderRadius:8}}>
@@ -5512,18 +5512,18 @@ const [showSalle, setShowSalle]       = useState(false);
                   )}
 
                   {citations.map(c => (
-                    <div key={c.id} style={{background:"#fff",border:`1.5px solid ${c.is_active?"#C9A227":"rgba(30,36,100,.12)"}`,borderRadius:12,padding:14,marginBottom:10}}>
+                    <div key={c.id} style={{background:"#fff",border:`1.5px solid ${c.is_active?"#C9A227":"#e6e9f4"}`,borderRadius:12,padding:14,marginBottom:10}}>
                       {citationEditing === c.id ? (
                         <div>
-                          <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte</label>
+                          <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Texte</label>
                           <textarea className="em-input" rows={3} style={{marginBottom:8,resize:"vertical"}} value={citationForm.texte} onChange={e=>setCitationForm(p=>({...p,texte:e.target.value}))} />
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
                             <div>
-                              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Auteur</label>
+                              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Auteur</label>
                               <input className="em-input" value={citationForm.auteur} onChange={e=>setCitationForm(p=>({...p,auteur:e.target.value}))} />
                             </div>
                             <div>
-                              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Rôle / mention</label>
+                              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Rôle / mention</label>
                               <input className="em-input" value={citationForm.role_mention} onChange={e=>setCitationForm(p=>({...p,role_mention:e.target.value}))} />
                             </div>
                           </div>
@@ -5548,7 +5548,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <>
                           {c.is_active && <div style={{fontSize:10,fontWeight:700,color:"#C9A227",textTransform:"uppercase",letterSpacing:".08em",marginBottom:6}}>● Actif — affiché sur /connexion</div>}
                           <div style={{fontSize:14,fontStyle:"italic",color:"#1e2464",marginBottom:6,lineHeight:1.5}}>« {c.texte} »</div>
-                          <div style={{fontSize:12,color:"#8890aa"}}>— {c.auteur}{c.role_mention ? ` · ${c.role_mention}` : ""}</div>
+                          <div style={{fontSize:12,color:"#8b91b0"}}>— {c.auteur}{c.role_mention ? ` · ${c.role_mention}` : ""}</div>
                           <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
                             {!c.is_active && (
                               <button
@@ -5587,7 +5587,7 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
               {majInfoTab==="verset" && (
                 <div>
-                  <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Le verset s&apos;affiche dans la bannière défilante du site. Choisissez le mode d&apos;affichage.</div>
+                  <div style={{fontSize:12,color:"#8b91b0",marginBottom:14}}>Le verset s&apos;affiche dans la bannière défilante du site. Choisissez le mode d&apos;affichage.</div>
 
                   {/* ── Sélecteur de mode ── */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
@@ -5603,7 +5603,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     >
                       <div style={{fontSize:20,marginBottom:4}}>🤖</div>
                       <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Automatique</div>
-                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Verset aléatoire — change à 0h00</div>
+                      <div style={{fontSize:10,color:"#8b91b0",marginTop:2,lineHeight:1.4}}>Verset aléatoire — change à 0h00</div>
                     </button>
 
                     {/* Thématique */}
@@ -5618,7 +5618,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     >
                       <div style={{fontSize:20,marginBottom:4}}>📚</div>
                       <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Thématique</div>
-                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Versets d&apos;un thème choisi</div>
+                      <div style={{fontSize:10,color:"#8b91b0",marginTop:2,lineHeight:1.4}}>Versets d&apos;un thème choisi</div>
                     </button>
 
                     {/* Manuel */}
@@ -5633,14 +5633,14 @@ const [showSalle, setShowSalle]       = useState(false);
                     >
                       <div style={{fontSize:20,marginBottom:4}}>✍️</div>
                       <div style={{fontSize:11,fontWeight:700,color:"#1e2464"}}>Manuel</div>
-                      <div style={{fontSize:10,color:"#8890aa",marginTop:2,lineHeight:1.4}}>Le pasteur choisit le verset</div>
+                      <div style={{fontSize:10,color:"#8b91b0",marginTop:2,lineHeight:1.4}}>Le pasteur choisit le verset</div>
                     </button>
                   </div>
 
                   {/* ── Options selon le mode ── */}
                   {majInfoVersetMode==="auto" && (
                     <div style={{background:"#f7f8fc",borderRadius:12,padding:"14px 14px 10px",marginBottom:14,border:"1.5px solid #e2e5f0"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Fréquence de changement</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Fréquence de changement</div>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
                         <button
                           type="button"
@@ -5674,9 +5674,9 @@ const [showSalle, setShowSalle]       = useState(false);
                         const preview = getAutoVerset(majInfoVersetInterval);
                         return (
                           <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
-                            <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui</div>
+                            <div style={{fontSize:10,color:"#8b91b0",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui</div>
                             <div style={{fontSize:12,color:"#1e2464",fontStyle:"italic",lineHeight:1.5}}>« {preview.text} »</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
+                            <div style={{fontSize:11,color:"#8b91b0",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
                           </div>
                         );
                       })()}
@@ -5685,7 +5685,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
                   {majInfoVersetMode==="thematique" && (
                     <div style={{background:"#f7f8fc",borderRadius:12,padding:"14px 14px 10px",marginBottom:14,border:"1.5px solid #e2e5f0"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Choisir un thème</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>Choisir un thème</div>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
                         {VERSE_THEMES.map(t=>(
                           <button
@@ -5705,9 +5705,9 @@ const [showSalle, setShowSalle]       = useState(false);
                           </button>
                         ))}
                       </div>
-                      <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Intervalle de changement</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Intervalle de changement</div>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                        <span style={{fontSize:12,color:"#8890aa",whiteSpace:"nowrap"}}>Changer toutes les</span>
+                        <span style={{fontSize:12,color:"#8b91b0",whiteSpace:"nowrap"}}>Changer toutes les</span>
                         <select
                           value={majInfoVersetThemeInterval}
                           onChange={e=>setMajInfoVersetThemeInterval(Number(e.target.value))}
@@ -5723,9 +5723,9 @@ const [showSalle, setShowSalle]       = useState(false);
                         const preview = getThemedVerset(majInfoVersetTheme, majInfoVersetThemeInterval);
                         return (
                           <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #e2e5f0"}}>
-                            <div style={{fontSize:10,color:"#8890aa",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui ({VERSE_THEMES.find(t=>t.id===majInfoVersetTheme)?.label})</div>
+                            <div style={{fontSize:10,color:"#8b91b0",fontWeight:600,marginBottom:4}}>APERÇU — verset d&apos;aujourd&apos;hui ({VERSE_THEMES.find(t=>t.id===majInfoVersetTheme)?.label})</div>
                             <div style={{fontSize:12,color:"#1e2464",fontStyle:"italic",lineHeight:1.5}}>« {preview.text} »</div>
-                            <div style={{fontSize:11,color:"#8890aa",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
+                            <div style={{fontSize:11,color:"#8b91b0",marginTop:4,fontWeight:600}}>— {preview.ref}</div>
                           </div>
                         );
                       })()}
@@ -5734,7 +5734,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
                   {majInfoVersetMode==="manuel" && (
                     <div style={{marginBottom:14}}>
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Référence (ex : Jean 3:16)</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Référence (ex : Jean 3:16)</label>
                       <input
                         className="em-input"
                         style={{marginBottom:10}}
@@ -5742,7 +5742,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         onChange={e=>setMajInfoVersetRef(e.target.value)}
                         placeholder="Jean 3:16"
                       />
-                      <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Texte complet du verset</label>
+                      <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Texte complet du verset</label>
                       <textarea
                         className="em-input"
                         rows={3}
@@ -5754,7 +5754,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
                       {/* ── Durée d'affichage ── */}
                       <div style={{background:"#f7f8fc",borderRadius:12,padding:"12px 14px",border:"1.5px solid #e2e5f0"}}>
-                        <div style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>
                           ⏱ Durée d&apos;affichage (max 10 jours)
                         </div>
                         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:10}}>
@@ -5807,7 +5807,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>Équipe pastorale visible sur le site</div>
                     <a href="/espace-membres/equipe" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Gérer l&apos;équipe →</a>
                   </div>
-                  <p style={{fontSize:12,color:"#8890aa"}}>Ajoutez, modifiez ou supprimez les membres de l&apos;équipe pastorale visibles sur le site.</p>
+                  <p style={{fontSize:12,color:"#8b91b0"}}>Ajoutez, modifiez ou supprimez les membres de l&apos;équipe pastorale visibles sur le site.</p>
                   <a href="/espace-membres/equipe" className="em-btn em-btn-primary" style={{width:"100%",marginTop:12,display:"block",textAlign:"center",textDecoration:"none"}}>✏️ Ouvrir la gestion d&apos;équipe</a>
                 </div>
               )}
@@ -5852,11 +5852,11 @@ const [showSalle, setShowSalle]       = useState(false);
 
                 {/* ── Managers ── */}
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>
                     👑 Managers ({mgrCount}/2)
                   </div>
                   {groupManagers.length === 0 ? (
-                    <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Aucun manager désigné pour ce groupe.</div>
+                    <div style={{fontSize:12,color:"#8b91b0",padding:"10px 0"}}>Aucun manager désigné pour ce groupe.</div>
                   ) : (
                     <div style={{display:"flex",flexDirection:"column",gap:6}}>
                       {groupManagers.map(mgr => (
@@ -5886,25 +5886,25 @@ const [showSalle, setShowSalle]       = useState(false);
 
                 {/* ── Membres du groupe ── */}
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>
                     Membres ({groupMembers.length})
                   </div>
                   {groupMembers.length === 0 ? (
-                    <div style={{fontSize:12,color:"#8890aa",padding:"10px 0"}}>Aucun membre dans ce groupe.</div>
+                    <div style={{fontSize:12,color:"#8b91b0",padding:"10px 0"}}>Aucun membre dans ce groupe.</div>
                   ) : (
                     <div style={{display:"flex",flexDirection:"column",gap:5}}>
                       {groupMembers.map(m => {
                         const isMgr      = groupManagerIds.has(m.id);
                         const canPromote = !isMgr && mgrCount < 2;
                         return (
-                          <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",borderRadius:10,background:"#f7f8fc",border:"1px solid rgba(30,36,100,.08)"}}>
+                          <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",borderRadius:10,background:"#f7f8fc",border:"1px solid #eceef7"}}>
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
                               <div style={{width:30,height:30,borderRadius:"50%",background:"#1e2464",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:10,fontWeight:700,flexShrink:0}}>
                                 {((m.first_name?.[0] ?? "") + (m.last_name?.[0] ?? "")).toUpperCase() || "?"}
                               </div>
                               <div>
                                 <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{[m.first_name,m.last_name].filter(Boolean).join(" ") || "—"}</div>
-                                <div style={{fontSize:11,color:"#8890aa"}}>{m.role}{isMgr ? " · 👑 Manager" : ""}</div>
+                                <div style={{fontSize:11,color:"#8b91b0"}}>{m.role}{isMgr ? " · 👑 Manager" : ""}</div>
                               </div>
                             </div>
                             <div style={{display:"flex",gap:6,flexShrink:0}}>
@@ -5947,7 +5947,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 {/* ── Ajouter un membre ── */}
                 {nonMembers.length > 0 && (
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:8}}>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>
                       Ajouter un membre
                     </div>
                     <div style={{display:"flex",gap:8}}>
@@ -5990,18 +5990,18 @@ const [showSalle, setShowSalle]       = useState(false);
               <button className="em-modal-close" onClick={()=>setShowBanniere(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>
+              <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>
                 La bannière défile tout en haut du site vitrine. Modifications visibles immédiatement.
               </div>
 
               {/* Activation globale */}
-              <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,fontWeight:700,color:"#1e2464",padding:"10px 12px",background:"#f7f8fc",borderRadius:10,border:"1.5px solid rgba(30,36,100,.12)",marginBottom:16,cursor:"pointer"}}>
+              <label style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,fontWeight:700,color:"#1e2464",padding:"10px 12px",background:"#f7f8fc",borderRadius:10,border:"1.5px solid #e6e9f4",marginBottom:16,cursor:"pointer"}}>
                 <span>Afficher la bannière sur le site</span>
                 <input type="checkbox" checked={banniereEnabled} onChange={e=>setBanniereEnabled(e.target.checked)} style={{width:18,height:18,cursor:"pointer"}} />
               </label>
 
               {/* Message de bienvenue */}
-              <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",display:"block",marginBottom:4}}>Message de bienvenue</label>
+              <label style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",display:"block",marginBottom:4}}>Message de bienvenue</label>
               <input
                 className="em-input"
                 style={{marginBottom:16}}
@@ -6011,29 +6011,29 @@ const [showSalle, setShowSalle]       = useState(false);
               />
 
               {/* Éléments affichés */}
-              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8890aa",marginBottom:10}}>Éléments affichés</div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:10}}>Éléments affichés</div>
 
-              <div style={{display:"flex",flexDirection:"column",gap:0,border:"1.5px solid rgba(30,36,100,.1)",borderRadius:10,overflow:"hidden",marginBottom:18}}>
-                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.07)",cursor:"pointer",gap:12}}>
+              <div style={{display:"flex",flexDirection:"column",gap:0,border:"1.5px solid #e6e9f4",borderRadius:10,overflow:"hidden",marginBottom:18}}>
+                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid #eceef7",cursor:"pointer",gap:12}}>
                   <div>
                     <div style={{fontWeight:600,color:"#1a1d3a"}}>Horaires des cultes</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>
+                    <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>
                       {[majInfoCulte1, majInfoCulte2, majInfoCulte3].filter(Boolean).join(" · ") || "À configurer dans l'onglet Infos"}
                     </div>
                   </div>
                   <input type="checkbox" checked={banniereShowSchedules} onChange={e=>setBanniereShowSchedules(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
                 </label>
-                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.07)",cursor:"pointer",gap:12}}>
+                <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",borderBottom:"1px solid #eceef7",cursor:"pointer",gap:12}}>
                   <div>
                     <div style={{fontWeight:600,color:"#1a1d3a"}}>Prochains événements</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Événements publiés dans l&apos;agenda public (3 max)</div>
+                    <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>Événements publiés dans l&apos;agenda public (3 max)</div>
                   </div>
                   <input type="checkbox" checked={banniereShowEvents} onChange={e=>setBanniereShowEvents(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
                 </label>
                 <label style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",fontSize:13,padding:"12px 14px",cursor:"pointer",gap:12}}>
                   <div>
                     <div style={{fontWeight:600,color:"#1a1d3a"}}>Verset du jour</div>
-                    <div style={{fontSize:11,color:"#8890aa",marginTop:2}}>Référence biblique configurée dans Paramètres site</div>
+                    <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>Référence biblique configurée dans Paramètres site</div>
                   </div>
                   <input type="checkbox" checked={banniereShowVerset} onChange={e=>setBanniereShowVerset(e.target.checked)} style={{width:17,height:17,cursor:"pointer",flexShrink:0,marginTop:2}} />
                 </label>
@@ -6065,19 +6065,19 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}} onClick={()=>{setShowVideoCall(false);setToast("🎥 Réunion Jitsi Meet démarrée ! Lien copié.");}}>
                   <div style={{fontSize:28,marginBottom:6}}>🎥</div>
                   <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>Jitsi Meet</div>
-                  <div style={{fontSize:11,color:"#8890aa"}}>Gratuit · Sécurisé</div>
+                  <div style={{fontSize:11,color:"#8b91b0"}}>Gratuit · Sécurisé</div>
                 </div>
                 <div className="em-card-sm em-card-hover" style={{textAlign:"center",cursor:"pointer"}} onClick={()=>{setShowVideoCall(false);setToast("📹 Zoom ouvert — Lien de réunion partagé dans le canal");}}>
                   <div style={{fontSize:28,marginBottom:6}}>📹</div>
                   <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>Zoom</div>
-                  <div style={{fontSize:11,color:"#8890aa"}}>Partager un lien</div>
+                  <div style={{fontSize:11,color:"#8b91b0"}}>Partager un lien</div>
                 </div>
               </div>
               <div style={{background:"#f7f8fc",borderRadius:10,padding:12,marginBottom:14,display:"flex",alignItems:"center",gap:10}}>
-                <div style={{fontSize:11,color:"#4a5070",flex:1}}>Lien de réunion : <strong>meet.arc-eglise.ch/reunion-{Math.random().toString(36).slice(2,6)}</strong></div>
+                <div style={{fontSize:11,color:"#5c6280",flex:1}}>Lien de réunion : <strong>meet.arc-eglise.ch/reunion-{Math.random().toString(36).slice(2,6)}</strong></div>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast("📋 Lien copié !")}>Copier</button>
               </div>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Inviter des participants</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Inviter des participants</label>
               <select className="em-select" multiple style={{minHeight:80,width:"100%",marginBottom:14}}>
                 {members.filter(m=>m.validated).slice(0,10).map(m => (
                   <option key={m.id}>{[m.first_name,m.last_name].filter(Boolean).join(" ")||m.email}</option>
@@ -6098,17 +6098,17 @@ const [showSalle, setShowSalle]       = useState(false);
               <button className="em-modal-close" onClick={()=>setShowDoleance(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>Signaler un problème ou faire une suggestion à l&apos;équipe ARC</div>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Type</label>
+              <div style={{fontSize:12,color:"#8b91b0",marginBottom:14}}>Signaler un problème ou faire une suggestion à l&apos;équipe ARC</div>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Type</label>
               <select className="em-select" style={{marginBottom:12}} value={doleanceType} onChange={e=>setDoleanceType(e.target.value)}>
                 <option value="bug">🐛 Problème technique</option>
                 <option value="suggestion">💡 Suggestion d&apos;amélioration</option>
                 <option value="pastoral">🤝 Question pastorale</option>
                 <option value="autre">⚠️ Autre</option>
               </select>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Description</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Description</label>
               <textarea className="em-input" style={{minHeight:100,resize:"vertical",marginBottom:12,width:"100%"}} placeholder="Décrivez votre problème ou suggestion en détail…" value={doleanceText} onChange={e=>setDoleanceText(e.target.value)} />
-              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#4a5070",cursor:"pointer",marginBottom:16}}>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:"#5c6280",cursor:"pointer",marginBottom:16}}>
                 <input type="checkbox" checked={doleanceAnon} onChange={e=>setDoleanceAnon(e.target.checked)} />
                 Signalement anonyme
               </label>
@@ -6144,7 +6144,7 @@ const [showSalle, setShowSalle]       = useState(false);
               <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:16}}>
                 <div style={{display:"flex",flexDirection:"column",gap:2}}>
                   {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"],["affichage","🔤 Affichage"],["securite","🔑 Sécurité"]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite",string][]).map(([s,l])=>(
-                    <button key={s} onClick={()=>{setSettingsSection(s);setPwdError(null);setPwdSuccess(false);}} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#eef1f8":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8890aa",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
+                    <button key={s} onClick={()=>{setSettingsSection(s);setPwdError(null);setPwdSuccess(false);}} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#f1f3fb":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8b91b0",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                   ))}
                 </div>
                 <div>
@@ -6152,7 +6152,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔔 Notifications</div>
                       {([["dm","Messages directs"],["culte","Rappels de culte"],["priere","Intentions de prière"],["verset","Verset du jour"],["events","Nouveaux événements"]] as [keyof typeof settingsNotifs,string][]).map(([k,l])=>(
-                        <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                        <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                           <span>{l}</span>
                           <input type="checkbox" checked={settingsNotifs[k]} onChange={e=>setSettingsNotifs(n=>({...n,[k]:e.target.checked}))} />
                         </label>
@@ -6163,7 +6163,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔒 Confidentialité</div>
                       {[["Afficher mon profil dans les contacts","true"],["Partager mes présences avec le groupe","true"],["Recevoir des messages directs","true"]].map(([l,v])=>(
-                        <label key={l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid rgba(30,36,100,.07)"}}>
+                        <label key={l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                           <span>{l}</span>
                           <input type="checkbox" defaultChecked={v==="true"} />
                         </label>
@@ -6173,13 +6173,13 @@ const [showSalle, setShowSalle]       = useState(false);
                   {settingsSection==="langue" && (
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🌐 Langue &amp; Région</div>
-                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
                       <select className="em-select" style={{marginBottom:12}} defaultValue="fr">
                         <option value="fr">🇫🇷 Français</option>
                         <option value="en">🇬🇧 English</option>
                         <option value="kg">🇨🇩 Lingala</option>
                       </select>
-                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Format de date</label>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Format de date</label>
                       <select className="em-select" defaultValue="fr-CH">
                         <option value="fr-CH">DD/MM/YYYY (Suisse)</option>
                         <option value="fr-FR">DD/MM/YYYY (France)</option>
@@ -6190,16 +6190,16 @@ const [showSalle, setShowSalle]       = useState(false);
                   {settingsSection==="affichage" && (
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔤 Taille du texte</div>
-                      <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>S&apos;applique à Prière &amp; Bible et Messagerie</div>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>S&apos;applique à Prière &amp; Bible et Messagerie</div>
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
-                        <span style={{fontSize:11,color:"#8890aa"}}>A</span>
+                        <span style={{fontSize:11,color:"#8b91b0"}}>A</span>
                         <input
                           type="range" min={13} max={26} step={1}
                           value={readingPrefs.font_size_px}
                           onChange={e=>updateReadingPrefs({ font_size_px: Number(e.target.value) })}
                           style={{flex:1,accentColor:"#1e2464"}}
                         />
-                        <span style={{fontSize:15,color:"#8890aa"}}>A</span>
+                        <span style={{fontSize:15,color:"#8b91b0"}}>A</span>
                       </div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                         {([{px:14,lbl:"Petit"},{px:16,lbl:"Normal"},{px:18,lbl:"Moyen"},{px:20,lbl:"Grand"},{px:22,lbl:"Très grand"}]).map(({px,lbl})=>(
@@ -6209,7 +6209,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           </button>
                         ))}
                       </div>
-                      <div className="em-reading-zone" style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,lineHeight:1.6,color:"#4a5070"}}>
+                      <div className="em-reading-zone" style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,lineHeight:1.6,color:"#5c6280"}}>
                         <span className="em-reading-text">Aperçu — &ldquo;Car Dieu a tant aimé le monde qu&apos;il a donné son Fils unique.&rdquo; Jean 3:16</span>
                       </div>
                     </div>
@@ -6217,7 +6217,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   {settingsSection==="bible" && (
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>📖 Préférences Bible</div>
-                      <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Traduction par défaut</label>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Traduction par défaut</label>
                       <select className="em-select" style={{marginBottom:12}} defaultValue="NBS">
                         <option value="NBS">NBS — Nouvelle Bible Segond</option>
                         <option value="BDS">BDS — Bible du Semeur</option>
@@ -6243,28 +6243,28 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{display:"flex",flexDirection:"column",gap:10}}>
                           {pwdError && <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991b1b"}}>⚠️ {pwdError}</div>}
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Mot de passe actuel</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Mot de passe actuel</label>
                             <div style={{position:"relative"}}>
                               <input type={pwdShowCurrent?"text":"password"} value={pwdCurrent} onChange={e=>setPwdCurrent(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
-                              <button type="button" onClick={()=>setPwdShowCurrent(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8890aa",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowCurrent?"Masquer":"Voir"}</button>
+                              <button type="button" onClick={()=>setPwdShowCurrent(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowCurrent?"Masquer":"Voir"}</button>
                             </div>
                           </div>
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Nouveau mot de passe</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Nouveau mot de passe</label>
                             <div style={{position:"relative"}}>
                               <input type={pwdShowNew?"text":"password"} value={pwdNew} onChange={e=>setPwdNew(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
-                              <button type="button" onClick={()=>setPwdShowNew(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8890aa",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowNew?"Masquer":"Voir"}</button>
+                              <button type="button" onClick={()=>setPwdShowNew(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowNew?"Masquer":"Voir"}</button>
                             </div>
                             {pwdNew.length>0 && (
                               <ul style={{marginTop:6,padding:0,listStyle:"none",fontSize:11,display:"flex",flexDirection:"column",gap:2}}>
-                                <li style={{color:pwdNew.length>=8?"#166534":"#8890aa"}}>{pwdNew.length>=8?"✓":"○"} 8 caractères minimum</li>
-                                <li style={{color:/[A-Z]/.test(pwdNew)?"#166534":"#8890aa"}}>{/[A-Z]/.test(pwdNew)?"✓":"○"} 1 lettre majuscule</li>
-                                <li style={{color:/\d/.test(pwdNew)?"#166534":"#8890aa"}}>{/\d/.test(pwdNew)?"✓":"○"} 1 chiffre</li>
+                                <li style={{color:pwdNew.length>=8?"#166534":"#8b91b0"}}>{pwdNew.length>=8?"✓":"○"} 8 caractères minimum</li>
+                                <li style={{color:/[A-Z]/.test(pwdNew)?"#166534":"#8b91b0"}}>{/[A-Z]/.test(pwdNew)?"✓":"○"} 1 lettre majuscule</li>
+                                <li style={{color:/\d/.test(pwdNew)?"#166534":"#8b91b0"}}>{/\d/.test(pwdNew)?"✓":"○"} 1 chiffre</li>
                               </ul>
                             )}
                           </div>
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8890aa",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Confirmer le nouveau mot de passe</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Confirmer le nouveau mot de passe</label>
                             <input type={pwdShowNew?"text":"password"} value={pwdNewConfirm} onChange={e=>setPwdNewConfirm(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${pwdNewConfirm&&pwdNewConfirm!==pwdNew?"#f87171":pwdNewConfirm&&pwdNewConfirm===pwdNew?"#4ade80":"rgba(30,36,100,.2)"}`,fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
                           </div>
                           <button
@@ -6298,22 +6298,22 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-modal-body">
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Prénom</label>
+                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Prénom</label>
                   <input className="em-input" placeholder="Prénom" value={invitePrenom} onChange={e=>setInvitePrenom(e.target.value)} />
                 </div>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Nom</label>
+                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Nom</label>
                   <input className="em-input" placeholder="Nom de famille" value={inviteNom} onChange={e=>setInviteNom(e.target.value)} />
                 </div>
               </div>
-              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Email</label>
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Email</label>
               <input className="em-input" type="email" placeholder="adresse@email.com" style={{marginBottom:10}} value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} />
-              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Groupe proposé (optionnel)</label>
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Groupe proposé (optionnel)</label>
               <select className="em-select" style={{marginBottom:10}} value={inviteGroupe} onChange={e=>setInviteGroupe(e.target.value)}>
                 <option value="">Aucun groupe pour l&apos;instant</option>
                 {GROUPES.map(g=><option key={g.name} value={g.name}>{g.name}</option>)}
               </select>
-              <label style={{fontSize:11,color:"#8890aa",display:"block",marginBottom:3}}>Message personnalisé</label>
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Message personnalisé</label>
               <textarea className="em-input" style={{minHeight:80,resize:"vertical",width:"100%",marginBottom:14}} defaultValue={`Bonjour${invitePrenom ? ` ${invitePrenom}` : ""},\n\nJe vous invite à rejoindre l'espace membres de l'Église ARC La Chaux-de-Fonds.\n\nQue Dieu vous bénisse !`} />
               <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!inviteEmail.trim()){setToast("⚠️ L'email est requis");return;}setShowInvite(false);setToast(`✅ Invitation envoyée à ${inviteEmail} ! Le lien expire dans 7 jours.`);}}>Envoyer l&apos;invitation</button>
             </div>
@@ -6330,7 +6330,7 @@ const [showSalle, setShowSalle]       = useState(false);
               <button className="em-modal-close" onClick={()=>setShowSalle(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Salle</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Salle</label>
               <select className="em-select" style={{marginBottom:12}} value={salleDraft.salle} onChange={e=>setSalleDraft(d=>({...d,salle:e.target.value}))}>
                 <option>📚 Écodim 0–6 ans (Libre)</option>
                 <option>🏢 Bureau Pastoral (Libre)</option>
@@ -6339,28 +6339,28 @@ const [showSalle, setShowSalle]       = useState(false);
               </select>
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
+                  <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Date</label>
                   <input type="date" className="em-input" value={salleDraft.date} onChange={e=>setSalleDraft(d=>({...d,date:e.target.value}))} />
                 </div>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure début</label>
+                  <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Heure début</label>
                   <input type="time" className="em-input" value={salleDraft.heureDebut} onChange={e=>setSalleDraft(d=>({...d,heureDebut:e.target.value}))} />
                 </div>
               </div>
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure fin</label>
+                  <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Heure fin</label>
                   <input type="time" className="em-input" value={salleDraft.heureFin} onChange={e=>setSalleDraft(d=>({...d,heureFin:e.target.value}))} />
                 </div>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Groupe</label>
+                  <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Groupe</label>
                   <select className="em-select" style={{marginBottom:0}} value={salleDraft.groupe} onChange={e=>setSalleDraft(d=>({...d,groupe:e.target.value}))}>
                     <option value="">—</option>
                     {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
                   </select>
                 </div>
               </div>
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Motif</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Motif</label>
               <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" value={salleDraft.motif} onChange={e=>setSalleDraft(d=>({...d,motif:e.target.value}))} />
               <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={!salleDraft.motif.trim()} onClick={()=>{setShowSalle(false);setToast(`✅ Demande envoyée : ${salleDraft.salle.replace(/\s*\(.*\)/,"")} le ${new Date(salleDraft.date).toLocaleDateString("fr-CH")} ${salleDraft.heureDebut}–${salleDraft.heureFin}${salleDraft.motif?` · ${salleDraft.motif}`:""}`);}}>Confirmer la réservation</button>
             </div>
@@ -6377,11 +6377,11 @@ const [showSalle, setShowSalle]       = useState(false);
               <button className="em-modal-close" onClick={()=>setShowNote(false)}>✕</button>
             </div>
             <div className="em-modal-body">
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Référence</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Référence</label>
               <input className="em-input" style={{marginBottom:12}} placeholder="Ex : Jean 3:16, Psaumes 23…" value={noteRef} onChange={e=>setNoteRef(e.target.value)} />
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Ma note</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Ma note</label>
               <textarea className="em-input" style={{minHeight:140,resize:"vertical",width:"100%",marginBottom:12}} placeholder="Votre note, méditation, application pratique…" value={noteContent} onChange={e=>setNoteContent(e.target.value)} />
-              <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Couleur</label>
+              <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Couleur</label>
               <div style={{display:"flex",gap:8,marginBottom:14}}>
                 {[["#fffbeb","#fef3c7"],["#eff6ff","#bfdbfe"],["#f0fdf4","#bbf7d0"],["#fdf2f8","#fbcfe8"]].map(([bg,border])=>(
                   <button key={bg} onClick={()=>setToast("🎨 Couleur sélectionnée")} style={{width:28,height:28,borderRadius:"50%",background:bg,border:`2px solid ${border}`,cursor:"pointer"}} />
