@@ -8,6 +8,7 @@ import {
   reactToMessage,
   togglePinMessage,
   deleteMessage,
+  markAsRead,
 } from "@/lib/actions/messagerie";
 
 export interface PanelMessage {
@@ -137,6 +138,7 @@ export function useChannelMessages(opts: {
       setMessages(raw.map(map));
       setLoading(false);
       loadReactions(raw.map(m => m.id));
+      markAsRead(cid);   // marque la conversation comme lue à l'ouverture
 
       // Temps réel — topic unique par montage pour éviter la réutilisation d'un
       // canal déjà souscrit (bug "on after subscribe"). Dédup par id.
