@@ -2986,18 +2986,25 @@ const [showSalle, setShowSalle]       = useState(false);
                 )}
               </div>
               <div>
-                <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>Événements à venir</div>
-                {events.length > 0 ? events.map(ev => (
-                  <div key={ev.id} className="em-card-sm" style={{marginBottom:8}}>
-                    <div style={{fontSize:13,fontWeight:600,color:"#1e2464"}}>{ev.title}</div>
-                    <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>
-                      {new Date(ev.date).toLocaleDateString("fr-CH")} · {ev.time_start?.slice(0,5)}
+                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:16,fontWeight:600,color:"#151a4a",marginBottom:12}}>Événements à venir</div>
+                {events.length > 0 ? events.map(ev => {
+                  const d = new Date(ev.date + "T00:00:00");
+                  return (
+                  <div key={ev.id} style={{display:"flex",gap:12,background:"#fff",border:"1px solid #e6e9f4",borderRadius:14,padding:14,marginBottom:10,alignItems:"flex-start"}}>
+                    <div style={{width:52,flex:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:1,padding:"8px 0",borderRadius:11,background:"#f1f3fb"}}>
+                      <span style={{fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"#8b91b0"}}>{["dim","lun","mar","mer","jeu","ven","sam"][d.getDay()]}</span>
+                      <span style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,lineHeight:1,color:"#151a4a"}}>{d.getDate()}</span>
+                      <span style={{fontSize:9,letterSpacing:".1em",textTransform:"uppercase",color:"#8b91b0"}}>{["jan","fév","mar","avr","mai","juin","juil","août","sep","oct","nov","déc"][d.getMonth()]}</span>
                     </div>
-                    {ev.location && <div style={{fontSize:11,color:"#8b91b0"}}>📍 {ev.location}</div>}
-                    <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,width:"100%",textDecoration:"none",textAlign:"center",display:"block"}}>Participer →</a>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13.5,fontWeight:600,color:"#22263f"}}>{ev.title}</div>
+                      <div style={{fontSize:11.5,color:"#767c9c",marginTop:3}}>{ev.time_start?.slice(0,5)}{ev.location?` · ${ev.location}`:""}</div>
+                      <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,textDecoration:"none",display:"inline-block"}}>Participer →</a>
+                    </div>
                   </div>
-                )) : (
-                  <div className="em-card-sm" style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"24px 0"}}>
+                  );
+                }) : (
+                  <div style={{background:"#fff",border:"1px solid #e6e9f4",borderRadius:14,color:"#8b91b0",fontSize:13,textAlign:"center",padding:"28px 0"}}>
                     Aucun événement à venir
                   </div>
                 )}
