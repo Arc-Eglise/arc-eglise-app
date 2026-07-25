@@ -45,8 +45,10 @@ export function useChannelMessages(opts: {
   channelName: string;
   currentUserId: string;
   enabled?: boolean;
+  /** DM / groupe existant : ouvre directement cette conversation (sinon canal par clé). */
+  conversationId?: string | null;
 }) {
-  const { channelKey, channelName, currentUserId, enabled = true } = opts;
+  const { channelKey, channelName, currentUserId, enabled = true, conversationId = null } = opts;
   const [messages, setMessages] = useState<PanelMessage[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,9 +104,15 @@ export function useChannelMessages(opts: {
     setMyReactions({});
 
     (async () => {
-      const res = await getOrCreateChannel(channelKey, channelName);
-      if (cancelled || !("conversationId" in res) || !res.conversationId) { setLoading(false); return; }
-      const cid = res.conversationId;
+      // DM/groupe existant : id direct ; sinon canal résolu/créé par clé.
+      let cid: string;
+      if (conversationId) {
+        cid = conversationId;
+      } else {
+        const res = await getOrCreateChannel(channelKey, channelName);
+        if (cancelled || !("conversationId" in res) || !res.conversationId) { setLoading(false); return; }
+        cid = res.conversationId;
+      }
       convIdRef.current = cid;
       setConvId(cid);
 
@@ -154,7 +162,7 @@ export function useChannelMessages(opts: {
       if (channel) supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelKey, currentUserId, enabled]);
+  }, [channelKey, conversationId, currentUserId, enabled]);
 
   async function send(text: string) {
     const cid = convIdRef.current;

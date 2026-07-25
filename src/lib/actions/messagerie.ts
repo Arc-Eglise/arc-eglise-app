@@ -168,12 +168,12 @@ export async function sendMessage(
         type: "message",
         title: `💬 ${senderName}`,
         body: trimmed.slice(0, 90) || "📎 Pièce jointe",
-        link: `/espace-membres/messagerie/${conversationId}`,
+        link: `/espace-membres?panel=messagerie&dm=${conversationId}`,
       });
     }
   } catch { /* best-effort */ }
 
-  revalidatePath(`/espace-membres/messagerie/${conversationId}`);
+  revalidatePath("/espace-membres");
   return { success: true };
 }
 
@@ -199,6 +199,73 @@ export async function contactPastor() {
   if (!pastor) return { error: "Aucun responsable disponible pour le moment." };
 
   return getOrCreateConversation(pastor.id as string);
+}
+
+export interface DmSummary {
+  id: string;
+  name: string;
+  initial: string;
+  avatar: string | null;
+  isGroup: boolean;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  hasUnread: boolean;
+}
+
+/**
+ * Liste les conversations directes (1-1) et groupes du membre courant, pour le
+ * panneau « Messages directs ». Exclut les canaux communautaires (channel_key).
+ */
+export async function listMyConversations(): Promise<DmSummary[]> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const admin = createAdminClient();
+  const { data: myParts } = await admin
+    .from("conversation_participants")
+    .select("conversation_id, last_read_at")
+    .eq("user_id", user.id);
+  const convIds = (myParts ?? []).map(p => p.conversation_id);
+  if (!convIds.length) return [];
+
+  const [metaRes, othersRes, lastRes] = await Promise.all([
+    admin.from("conversations").select("id, name, is_group, channel_key").in("id", convIds),
+    admin.from("conversation_participants")
+      .select("conversation_id, user_id, profiles(first_name, last_name, avatar_url)")
+      .in("conversation_id", convIds).neq("user_id", user.id),
+    admin.from("messages")
+      .select("conversation_id, content, created_at")
+      .in("conversation_id", convIds).order("created_at", { ascending: false }).limit(convIds.length * 4),
+  ]);
+
+  type Other = { conversation_id: string; user_id: string; profiles: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null };
+  const others = (othersRes.data ?? []) as unknown as Other[];
+  const lasts = lastRes.data ?? [];
+  const metaById = new Map(((metaRes.data ?? []) as { id: string; name: string | null; is_group: boolean | null; channel_key: string | null }[]).map(c => [c.id, c]));
+
+  const out: DmSummary[] = [];
+  for (const part of myParts ?? []) {
+    const meta = metaById.get(part.conversation_id);
+    if (!meta || meta.channel_key) continue;   // canaux communautaires exclus
+    const last = lasts.find(m => m.conversation_id === part.conversation_id);
+    const unread = last ? new Date(last.created_at) > new Date(part.last_read_at ?? 0) : false;
+    if (meta.is_group) {
+      out.push({
+        id: part.conversation_id, name: meta.name || "Groupe", initial: "👥", avatar: null,
+        isGroup: true, lastMessage: last?.content ?? null, lastMessageAt: last?.created_at ?? null, hasUnread: unread,
+      });
+    } else {
+      const o = others.find(x => x.conversation_id === part.conversation_id);
+      const name = [o?.profiles?.first_name, o?.profiles?.last_name].filter(Boolean).join(" ") || "Membre";
+      out.push({
+        id: part.conversation_id, name, initial: (o?.profiles?.first_name?.[0] ?? "?").toUpperCase(),
+        avatar: o?.profiles?.avatar_url ?? null, isGroup: false,
+        lastMessage: last?.content ?? null, lastMessageAt: last?.created_at ?? null, hasUnread: unread,
+      });
+    }
+  }
+  return out.sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
 }
 
 export async function markAsRead(conversationId: string) {
