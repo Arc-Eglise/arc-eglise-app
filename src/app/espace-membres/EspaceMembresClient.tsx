@@ -366,6 +366,12 @@ export default function EspaceMembresClient({ profile, userId, totalUsers, membr
   const [showGD, setShowGD] = useState(false);
   const [showNewPrayer, setShowNewPrayer] = useState(false);
 const [showSalle, setShowSalle]       = useState(false);
+  const [salleDraft, setSalleDraft]     = useState({
+    salle: "📚 Écodim 0–6 ans (Libre)",
+    date: new Date().toISOString().split("T")[0],
+    heureDebut: "17:00", heureFin: "19:00",
+    groupe: "", motif: "",
+  });
   const [showMP, setShowMP]           = useState(false);
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
   const [testimonialContent, setTestimonialContent]   = useState("");
@@ -777,13 +783,21 @@ const [showSalle, setShowSalle]       = useState(false);
           : (a.bookId != null ? { book: a.bookId, chapter: a.chapter ?? 1 }
             : (a.book ? parseVerseRef(`${a.book} ${a.chapter ?? 1}`) : null));
         if (!parsed || parsed.book < 0) { setToast("Référence biblique introuvable."); break; }
+        const verse = (parsed as { verse?: number }).verse ?? a.verse ?? null;
         nav("priere"); setBTab("lecteur"); setBBook(parsed.book); setBCh(parsed.chapter);
+        setBHl(verse); setBHlExplain(null);
         break;
       }
       case "launch_reading_plan": await launchReadingPlan(a); break;
       case "create_event_draft":
+        setSalleDraft(d => ({
+          ...d,
+          motif: a.title ?? a.description ?? d.motif,
+          date: a.date && /^\d{4}-\d{2}-\d{2}/.test(a.date) ? a.date.slice(0, 10) : d.date,
+          heureDebut: a.time && /^\d{1,2}:\d{2}/.test(a.time) ? a.time : d.heureDebut,
+        }));
         nav("agenda"); setShowSalle(true);
-        setToast(`📅 Complète les détails${a.title ? ` — « ${a.title} »` : ""}`);
+        setToast("📅 J'ai prérempli ta réservation — vérifie et confirme.");
         break;
       case "search_messages": await runMessageSearch(pushAiCard({ kind: "messages", query: a.query, loading: true }), a.query); break;
       case "search_mail": await runMailSearch(pushAiCard({ kind: "mail", query: a.query, loading: true }), a.query); break;
@@ -1345,6 +1359,13 @@ const [showSalle, setShowSalle]       = useState(false);
   useEffect(() => {
     if (bTab === "lecteur") loadChapter(bBook, bCh, bTrans);
   }, [bBook, bCh, bTrans, bTab, loadChapter]);
+
+  // Scrolle vers le verset surligné (ex. ouvert depuis ARC IA) une fois le chapitre chargé.
+  useEffect(() => {
+    if (bTab !== "lecteur" || !bHl || bVerses.length === 0) return;
+    const el = document.getElementById(`arcv-${bHl}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [bVerses, bHl, bTab]);
 
   /* ── Data fetchers ───────────────────────────────────────────── */
   async function loadPrayers() {
@@ -2332,7 +2353,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>✦</div>
                   <div>
                     <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Assistant IA</div>
-                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>Prière &amp; Bible</div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Source Serif 4,Georgia,serif",lineHeight:1.2}}>Prière &amp; Bible</div>
                     <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique IA · Dictionnaire · Plans de lecture</div>
                   </div>
                 </div>
@@ -2350,7 +2371,7 @@ const [showSalle, setShowSalle]       = useState(false);
               <div className="em-card" style={{background:"#fff0f0",border:"1px solid #fde8e8"}}>
                 <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#e53e3e",marginBottom:10}}>⏱ Prochain culte</div>
                 <div style={{fontSize:11,color:"#8890aa",marginBottom:4}}>Dimanche à 9h30 · La Chaux-de-Fonds</div>
-                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:28,fontWeight:700,color:"#1e2464",lineHeight:1.1,marginTop:8}}>{countdown || "Chargement…"}</div>
+                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:28,fontWeight:700,color:"#1e2464",lineHeight:1.1,marginTop:8}}>{countdown || "Chargement…"}</div>
                 <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:12}} onClick={() => nav("streaming")}>Voir le streaming ▶</button>
               </div>
             </div>
@@ -2362,7 +2383,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 {events.length > 0 ? events.slice(0,4).map(ev => (
                   <div key={ev.id} style={{display:"flex",gap:12,paddingBottom:12,borderBottom:"1px solid rgba(30,36,100,.07)",marginBottom:12}}>
                     <div style={{textAlign:"center",minWidth:36}}>
-                      <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",lineHeight:1}}>{new Date(ev.date).getDate()}</div>
+                      <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",lineHeight:1}}>{new Date(ev.date).getDate()}</div>
                       <div style={{fontSize:9,color:"#8899cc",fontWeight:700,textTransform:"uppercase"}}>{new Date(ev.date).toLocaleDateString("fr-CH",{month:"short"})}</div>
                     </div>
                     <div>
@@ -2908,7 +2929,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <button className="em-btn em-btn-ghost em-btn-sm" onClick={() => {
                     if(calMonth===0){setCalMonth(11);setCalYear(y=>y-1);}else setCalMonth(m=>m-1);
                   }}>‹</button>
-                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464"}}>
+                  <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464"}}>
                     {MONTHS_FR[calMonth]} {calYear}
                   </div>
                   <button className="em-btn em-btn-ghost em-btn-sm" onClick={() => {
@@ -3179,11 +3200,11 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   ) : bVerses.length > 0 ? (
                     <div className="em-reading-zone">
-                      <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"#1e2464",marginBottom:16}}>
+                      <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:20,fontWeight:700,color:"#1e2464",marginBottom:16}}>
                         {BOOKS[bBook].n} {bCh}
                       </div>
                       {bVerses.map(v => (
-                        <div key={v.verse}
+                        <div key={v.verse} id={`arcv-${v.verse}`}
                           className={`em-bible-v${bHl===v.verse?" hl":""}`}
                           onClick={()=>{setBHl(bHl===v.verse?null:v.verse);setBHlExplain(null);}}>
                           <sup>{v.verse}</sup>{v.text}
@@ -3469,7 +3490,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             const content = aiContent ?? staticContent;
                             return (
                               <div>
-                                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
+                                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:6}}>{item.title}</div>
                                 <div style={{fontSize:12,color:"#8890aa",marginBottom:14}}>{item.sub}</div>
                                 {content ? (
                                   <>
@@ -4415,7 +4436,7 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className="em-rp-sec">
             <div className="em-rp-title">Prochain culte</div>
             <div style={{fontSize:12,color:"#4a5070",marginBottom:6}}>Dimanche {new Date(new Date().getTime()+((7-new Date().getDay())%7||7)*86400000).toLocaleDateString("fr-CH",{day:"numeric",month:"short"})} · 9h30</div>
-            <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464",lineHeight:1.2}}>{countdown}</div>
+            <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464",lineHeight:1.2}}>{countdown}</div>
             <div style={{fontSize:11,color:"#8890aa",marginTop:4}}>📍 La Chaux-de-Fonds</div>
           </div>
 
@@ -4816,7 +4837,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div style={{background:"linear-gradient(135deg,#c53030,#9b2c2c)",padding:"16px 22px",display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
               <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>⚡</div>
               <div>
-                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Gestion des Droits &amp; Accès</div>
+                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Gestion des Droits &amp; Accès</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,.65)"}}>Super-Admin (Jaise) · Contrôle total sur tous les rôles, droits et accès</div>
               </div>
               <div style={{marginLeft:"auto",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"4px 12px",fontSize:10,fontWeight:700,color:"white",letterSpacing:.5}}>⚡ SUPER-ADMIN UNIQUEMENT</div>
@@ -4836,7 +4857,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {gdTab==="matrix" && (
                 <div>
                   <div style={{marginBottom:16}}>
-                    <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464"}}>Matrice des droits par groupe</div>
+                    <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464"}}>Matrice des droits par groupe</div>
                     <div style={{fontSize:12,color:"#8890aa",marginTop:3}}>Cliquez sur un interrupteur pour accorder ou révoquer une permission.</div>
                   </div>
                   <div style={{overflowX:"auto"}}>
@@ -4891,7 +4912,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {/* ── Gestion Pasteurs ── */}
               {gdTab==="pasteurs" && (
                 <div>
-                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des Pasteurs</div>
+                  <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des Pasteurs</div>
                   <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Seul l&apos;Admin peut modifier les rôles des Pasteurs ou révoquer leur statut pastoral.</div>
                   <div style={{background:"rgba(229,62,62,.06)",border:"1px solid rgba(229,62,62,.15)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
                     <span style={{fontSize:18}}>⚠️</span>
@@ -4924,7 +4945,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {/* ── Gestion Membres ── */}
               {gdTab==="membres" && (
                 <div>
-                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des membres &amp; rôles</div>
+                  <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Gestion des membres &amp; rôles</div>
                   <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Rôle, fonctions et accès — cliquez sur 📋 pour modifier les fonctions d&apos;un membre.</div>
                   <input className="em-input" style={{marginBottom:14,width:"100%",maxWidth:360}} placeholder="🔍 Rechercher un membre…" value={mSearch} onChange={e=>setMSearch(e.target.value)} />
                   <div style={{display:"flex",flexDirection:"column",gap:1}}>
@@ -4993,7 +5014,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {/* ── Journal d'audit ── */}
               {gdTab==="audit" && (
                 <div>
-                  <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Journal d&apos;audit système</div>
+                  <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:22,fontWeight:700,color:"#1e2464",marginBottom:4}}>Journal d&apos;audit système</div>
                   <div style={{fontSize:12,color:"#8890aa",marginBottom:16}}>Toutes les actions d&apos;administration sont journalisées. Seul l&apos;Admin y a accès.</div>
                   <div style={{fontFamily:"Courier New,monospace",fontSize:11,background:"#0a0d1a",color:"#a8e6cf",borderRadius:10,padding:16,maxHeight:400,overflowY:"auto",lineHeight:1.8}}>
                     <div style={{color:"#8890aa"}}>Aucune entrée — le journal sera alimenté automatiquement par les actions admin.</div>
@@ -5017,7 +5038,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",padding:"16px 22px",display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
               <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🖼️</div>
               <div>
-                <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Maj Plateformes — Modules Vitrine</div>
+                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:20,fontWeight:700,color:"white"}}>Maj Plateformes — Modules Vitrine</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,.65)"}}>Gestion des 4 cartes &laquo;Des plateformes pour tous&raquo; · arc-eglise.ch</div>
               </div>
               <div style={{marginLeft:"auto",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:20,padding:"4px 12px",fontSize:10,fontWeight:700,color:"white"}}>📡 COMMUNICATION UNIQUEMENT</div>
@@ -5052,7 +5073,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)",zIndex:1}} />
                         <div style={{position:"relative",zIndex:2,textAlign:"left"}}>
                           <div style={{fontSize:9,color:"rgba(255,255,255,.7)",marginBottom:2,textTransform:"uppercase",letterSpacing:.5}}>{card.tag}</div>
-                          <div style={{fontFamily:"Cormorant Garamond,Georgia,serif",fontSize:16,fontWeight:700,color:"white",lineHeight:1.2}}>{card.title}</div>
+                          <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:16,fontWeight:700,color:"white",lineHeight:1.2}}>{card.title}</div>
                         </div>
                       </div>
                     </div>
@@ -6310,7 +6331,7 @@ const [showSalle, setShowSalle]       = useState(false);
             </div>
             <div className="em-modal-body">
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:6}}>Salle</label>
-              <select className="em-select" style={{marginBottom:12}}>
+              <select className="em-select" style={{marginBottom:12}} value={salleDraft.salle} onChange={e=>setSalleDraft(d=>({...d,salle:e.target.value}))}>
                 <option>📚 Écodim 0–6 ans (Libre)</option>
                 <option>🏢 Bureau Pastoral (Libre)</option>
                 <option disabled>🎵 Salle de musique (Réservée — Chorale sam 15h)</option>
@@ -6319,28 +6340,29 @@ const [showSalle, setShowSalle]       = useState(false);
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Date</label>
-                  <input type="date" className="em-input" defaultValue={new Date().toISOString().split("T")[0]} />
+                  <input type="date" className="em-input" value={salleDraft.date} onChange={e=>setSalleDraft(d=>({...d,date:e.target.value}))} />
                 </div>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure début</label>
-                  <input type="time" className="em-input" defaultValue="17:00" />
+                  <input type="time" className="em-input" value={salleDraft.heureDebut} onChange={e=>setSalleDraft(d=>({...d,heureDebut:e.target.value}))} />
                 </div>
               </div>
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Heure fin</label>
-                  <input type="time" className="em-input" defaultValue="19:00" />
+                  <input type="time" className="em-input" value={salleDraft.heureFin} onChange={e=>setSalleDraft(d=>({...d,heureFin:e.target.value}))} />
                 </div>
                 <div style={{flex:1}}>
                   <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Groupe</label>
-                  <select className="em-select" style={{marginBottom:0}}>
+                  <select className="em-select" style={{marginBottom:0}} value={salleDraft.groupe} onChange={e=>setSalleDraft(d=>({...d,groupe:e.target.value}))}>
+                    <option value="">—</option>
                     {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
                   </select>
                 </div>
               </div>
               <label style={{fontSize:12,color:"#4a5070",display:"block",marginBottom:4}}>Motif</label>
-              <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{setShowSalle(false);setToast("✅ Salle réservée ! Confirmation envoyée par email.");}}>Confirmer la réservation</button>
+              <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" value={salleDraft.motif} onChange={e=>setSalleDraft(d=>({...d,motif:e.target.value}))} />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={!salleDraft.motif.trim()} onClick={()=>{setShowSalle(false);setToast(`✅ Demande envoyée : ${salleDraft.salle.replace(/\s*\(.*\)/,"")} le ${new Date(salleDraft.date).toLocaleDateString("fr-CH")} ${salleDraft.heureDebut}–${salleDraft.heureFin}${salleDraft.motif?` · ${salleDraft.motif}`:""}`);}}>Confirmer la réservation</button>
             </div>
           </div>
         </div>

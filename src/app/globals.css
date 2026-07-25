@@ -3,17 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --font-cormorant: 'Cormorant Garamond', Georgia, serif;
-  --font-manrope:   'Manrope', system-ui, sans-serif;
+  /* Refonte visuelle (maquette « Espace Membre ARC ») — Source Serif 4 + DM Sans */
+  --font-cormorant: 'Source Serif 4', Georgia, serif;
+  --font-manrope:   'DM Sans', system-ui, sans-serif;
   --navy:     #1e2464;
-  --navy-900: #141738;
-  --navy-700: #2b327f;
-  --gold:     #C9A227;
-  --gold-soft:#E6C763;
+  --navy-900: #151a4a;
+  --navy-700: #2c3596;
+  --gold:     #b8863b;
+  --gold-soft:#d8a94e;
   --cream:    #FAF7F0;
-  --ink:      #1a1c2e;
-  --muted:    #6b6f86;
-  --line:     rgba(30,36,100,.12);
+  --ink:      #1a1d33;
+  --muted:    #767c9c;
+  --line:     #e6e9f4;
+  /* Neutres maquette */
+  --em-bg:      #f5f6fb;
+  --em-sidebar: #151a4a;
+  --em-card-line:#e6e9f4;
+  --em-muted-2: #8b91b0;
 }
 
 @layer base {
@@ -186,7 +192,7 @@
 }
 .em-logo {
   display: flex; align-items: center; gap: 9px;
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Source Serif 4', Georgia, serif;
   font-size: 14px; font-weight: 700; color: #1e2464;
   white-space: nowrap; text-decoration: none;
 }
@@ -220,8 +226,9 @@
 .em-body { flex: 1; display: flex; overflow: hidden; }
 .em-sb {
   width: var(--SW); flex-shrink: 0;
-  background: linear-gradient(180deg, #1e2464 0%, #0f123a 100%);
+  background: var(--em-sidebar, #151a4a);
   display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  border-right: 1px solid #0e1235;
 }
 .em-sb-section {
   padding: 14px 12px 4px;
@@ -237,11 +244,11 @@
   position: relative; user-select: none;
   border: none; background: transparent; width: calc(100% - 16px); text-align: left;
 }
-.em-ni:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
-.em-ni.active { background: rgba(136,153,204,.2); color: #fff; font-weight: 600; }
+.em-ni:hover { background: rgba(255,255,255,.07); color: #fff; }
+.em-ni.active { background: rgba(184,134,59,.16); color: #fff; font-weight: 600; }
 .em-ni.active::before {
-  content: ''; position: absolute; left: -8px; top: 20%; height: 60%;
-  width: 3px; background: var(--BP); border-radius: 0 3px 3px 0;
+  content: ''; position: absolute; left: -8px; top: 18%; height: 64%;
+  width: 3px; background: var(--gold, #b8863b); border-radius: 0 3px 3px 0;
 }
 .em-ni-ico { width: 18px; text-align: center; font-size: 14px; flex-shrink: 0; }
 .em-ni-lbl { flex: 1; line-height: 1; }
@@ -255,7 +262,7 @@
 }
 .em-sb-user:hover { background: rgba(255,255,255,.06); }
 .em-sb-sep { margin: 6px 16px; border: none; border-top: 1px solid rgba(255,255,255,.1); }
-.em-main { flex: 1; overflow-y: auto; padding: 22px; }
+.em-main { flex: 1; overflow-y: auto; padding: 22px; background: var(--em-bg, #f5f6fb); }
 .em-rp {
   width: var(--RP); flex-shrink: 0;
   background: #fff; border-left: 1px solid rgba(30,36,100,.09);
@@ -271,15 +278,15 @@
 .em-av img { width: 100%; height: 100%; object-fit: cover; }
 .em-panel { display: none; }
 .em-panel.active { display: block; }
-.em-card { background: #fff; border: 1px solid rgba(30,36,100,.09); border-radius: 14px; padding: 20px; }
-.em-card-dark { background: linear-gradient(135deg, #1e2464 0%, #0f123a 100%); border-radius: 14px; padding: 20px; color: #fff; }
-.em-card-sm { background: #fff; border: 1px solid rgba(30,36,100,.09); border-radius: 12px; padding: 14px; }
+.em-card { background: #fff; border: 1px solid var(--em-card-line, #e6e9f4); border-radius: 16px; padding: 20px; }
+.em-card-dark { background: #151a4a; border-radius: 16px; padding: 22px; color: #fff; }
+.em-card-sm { background: #fff; border: 1px solid var(--em-card-line, #e6e9f4); border-radius: 12px; padding: 14px; }
 .em-card-hover { transition: all .2s; cursor: pointer; }
 .em-card-hover:hover { box-shadow: 0 8px 24px rgba(30,36,100,.14); transform: translateY(-2px); }
 .em-g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
 .em-g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
 .em-g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
-.em-stat-num { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 28px; font-weight: 700; color: #1e2464; line-height: 1; }
+.em-stat-num { font-family: 'Source Serif 4', Georgia, serif; font-size: 28px; font-weight: 700; color: #1e2464; line-height: 1; }
 .em-stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #8890aa; margin-top: 3px; }
 /* ── Boutons espace membres — design moderne charte ARC ──────────────── */
 .em-btn {
@@ -347,7 +354,7 @@
 .em-bible-v:hover { background: #eef1f8; }
 .em-bible-v.hl { background: #fef9c3; }
 .em-bible-v sup { color: var(--B); font-size: 10px; font-weight: 700; margin-right: 3px; }
-.em-verset-card { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; font-style: italic; line-height: 1.55; color: rgba(255,255,255,.95); }
+.em-verset-card { font-family: 'Source Serif 4', Georgia, serif; font-size: 20px; font-style: italic; line-height: 1.55; color: rgba(255,255,255,.95); }
 .em-chat { display: grid; grid-template-columns: 210px 1fr; border: 1px solid rgba(30,36,100,.09); border-radius: 14px; overflow: hidden; background: #fff; height: calc(100vh - 56px - 90px); }
 .em-channels { background: #f7f8fc; border-right: 1px solid rgba(30,36,100,.08); overflow-y: auto; }
 .em-ch-sec { padding: 12px 12px 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #8890aa; }
@@ -374,7 +381,7 @@
 .em-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .em-modal { background: #fff; border-radius: 20px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 .em-modal-hdr { padding: 18px 22px; border-bottom: 1px solid rgba(30,36,100,.1); display: flex; align-items: center; justify-content: space-between; }
-.em-modal-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 20px; font-weight: 700; color: #1e2464; }
+.em-modal-title { font-family: 'Source Serif 4', Georgia, serif; font-size: 20px; font-weight: 700; color: #1e2464; }
 .em-modal-body { padding: 22px; }
 .em-modal-close { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f0f2f9; cursor: pointer; font-size: 15px; transition: all .15s; border: none; color: #8890aa; }
 .em-modal-close:hover { background: #e4e8f5; color: var(--navy,#1e2464); transform: scale(1.08); }
@@ -529,7 +536,7 @@
 .em-qa { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; transition: background .1s; font-size: 13px; color: #4a5070; border: none; background: transparent; width: 100%; text-align: left; font-family: var(--font-manrope); }
 .em-qa:hover { background: #eef1f8; color: #1e2464; }
 .em-qa-ico { font-size: 16px; width: 20px; text-align: center; }
-.em-sect-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 24px; font-weight: 700; color: #1e2464; margin-bottom: 4px; }
+.em-sect-title { font-family: 'Source Serif 4', Georgia, serif; font-size: 24px; font-weight: 700; color: #1e2464; margin-bottom: 4px; }
 .em-sect-sub { font-size: 13px; color: #8890aa; margin-bottom: 18px; }
 .em-divider { border: none; border-top: 1px solid rgba(30,36,100,.09); margin: 18px 0; }
 /* ── Responsive breakpoints ───────────────────────────────────── */

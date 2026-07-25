@@ -1,20 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Source_Serif_4, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { SITE_BASE } from "@/lib/url";
 import { createClient } from "@/lib/supabase/server";
 
-const cormorant = Cormorant_Garamond({
+// Refonte visuelle (maquette « Espace Membre ARC ») : Source Serif 4 (titres/versets)
+// + DM Sans (corps). On conserve les noms de variables CSS existants pour que toute
+// l'app bascule sans toucher chaque référence.
+const cormorant = Source_Serif_4({
   subsets: ["latin"],
-  weight: ["300", "400", "600", "700"],
+  weight: ["400", "600", "700"],
   style: ["normal", "italic"],
   variable: "--font-cormorant",
   display: "swap",
 });
 
-const manrope = Manrope({
+const manrope = DM_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-manrope",
   display: "swap",
 });
