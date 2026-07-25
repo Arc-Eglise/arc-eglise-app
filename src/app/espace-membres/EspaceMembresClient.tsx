@@ -14,7 +14,7 @@ import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerCl
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
-import { listMyConversations, getOrCreateConversation, type DmSummary } from "@/lib/actions/messagerie";
+import { listMyConversations, getOrCreateConversation, createGroupConversation, type DmSummary } from "@/lib/actions/messagerie";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
@@ -536,6 +536,10 @@ const [showSalle, setShowSalle]       = useState(false);
   // Messages directs réels (1-1 + groupes) — chargés depuis la DB.
   const [dmList, setDmList]                 = useState<DmSummary[]>([]);
   const [showNewDm, setShowNewDm]           = useState(false);
+  const [newDmMode, setNewDmMode]           = useState<"dm"|"group">("dm");
+  const [groupName, setGroupName]           = useState("");
+  const [groupMembers, setGroupMembers]     = useState<string[]>([]);
+  const [groupBusy, setGroupBusy]           = useState(false);
 
   // Convention : msgChan == "dm:<conversationId>" pour un message direct.
   const dmId = msgChan.startsWith("dm:") ? msgChan.slice(3) : null;
@@ -557,8 +561,12 @@ const [showSalle, setShowSalle]       = useState(false);
     return () => { cancelled = true; };
   }, [panel]);
 
+  function closeNewDm() {
+    setShowNewDm(false); setNewDmMode("dm"); setGroupName(""); setGroupMembers([]);
+  }
+
   async function startDm(otherUserId: string) {
-    setShowNewDm(false);
+    closeNewDm();
     const res = await getOrCreateConversation(otherUserId);
     if ("conversationId" in res && res.conversationId) {
       const list = await listMyConversations();
@@ -566,6 +574,26 @@ const [showSalle, setShowSalle]       = useState(false);
       setMsgChan(`dm:${res.conversationId}`);
       setMsgTab("msgs");
       setOpenThread(null);
+    } else {
+      setToast("error" in res ? res.error ?? "Erreur" : "Erreur");
+    }
+  }
+
+  async function createGroup() {
+    const name = groupName.trim();
+    if (!name) { setToast("Nom du groupe requis"); return; }
+    if (groupMembers.length < 2) { setToast("Choisis au moins 2 membres"); return; }
+    setGroupBusy(true);
+    const res = await createGroupConversation(name, groupMembers);
+    setGroupBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      closeNewDm();
+      const list = await listMyConversations();
+      setDmList(list);
+      setMsgChan(`dm:${res.conversationId}`);
+      setMsgTab("msgs");
+      setOpenThread(null);
+      setToast("Groupe créé 👥");
     } else {
       setToast("error" in res ? res.error ?? "Erreur" : "Erreur");
     }
@@ -2205,20 +2233,57 @@ const [showSalle, setShowSalle]       = useState(false);
                     style={{border:"none",background:"none",color:"rgba(255,255,255,.55)",fontSize:15,cursor:"pointer",lineHeight:1,padding:"0 2px"}}
                     onClick={()=>{ if(members.length===0) loadMembers(); setShowNewDm(v=>!v); }}>＋</button>
                 </div>
-                {/* Sélecteur : démarrer un nouveau message direct */}
+                {/* Sélecteur : nouveau message direct OU nouveau groupe */}
                 {showNewDm && (
-                  <div style={{margin:"0 8px 6px",background:"rgba(255,255,255,.06)",borderRadius:8,padding:4,maxHeight:180,overflowY:"auto"}}>
-                    {members.filter(m=>m.validated && m.id!==userId).length===0
-                      ? <div style={{fontSize:11,color:"rgba(255,255,255,.5)",padding:"8px 6px",textAlign:"center"}}>Chargement…</div>
-                      : members.filter(m=>m.validated && m.id!==userId).map(m=>{
-                          const nm=[m.first_name,m.last_name].filter(Boolean).join(" ")||"Membre";
-                          return (
-                            <button key={m.id} className="em-ch-item" style={{width:"100%"}} onClick={()=>startDm(m.id)}>
-                              <div className="em-av" style={{width:20,height:20,fontSize:9,background:"#1e2464"}}>{(m.first_name?.[0]??"?").toUpperCase()}</div>
-                              <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{nm}</span>
-                            </button>
-                          );
-                        })}
+                  <div style={{margin:"0 8px 6px",background:"rgba(255,255,255,.06)",borderRadius:8,padding:4}}>
+                    {/* Onglets Message / Groupe */}
+                    <div style={{display:"flex",gap:4,padding:"2px 2px 6px"}}>
+                      {(["dm","group"] as const).map(mode=>(
+                        <button key={mode} onClick={()=>setNewDmMode(mode)}
+                          style={{flex:1,fontSize:11,fontWeight:600,padding:"5px 0",borderRadius:6,cursor:"pointer",border:"none",
+                            background:newDmMode===mode?"rgba(255,255,255,.16)":"transparent",
+                            color:newDmMode===mode?"#fff":"rgba(255,255,255,.55)"}}>
+                          {mode==="dm"?"💬 Message":"👥 Groupe"}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Champ nom (groupe uniquement) */}
+                    {newDmMode==="group" && (
+                      <input value={groupName} onChange={e=>setGroupName(e.target.value)}
+                        placeholder="Nom du groupe…"
+                        style={{width:"100%",boxSizing:"border-box",margin:"0 0 4px",padding:"6px 8px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(0,0,0,.2)",color:"#fff",fontSize:12,outline:"none"}} />
+                    )}
+                    {/* Liste des membres */}
+                    <div style={{maxHeight:170,overflowY:"auto"}}>
+                      {members.filter(m=>m.validated && m.id!==userId).length===0
+                        ? <div style={{fontSize:11,color:"rgba(255,255,255,.5)",padding:"8px 6px",textAlign:"center"}}>Chargement…</div>
+                        : members.filter(m=>m.validated && m.id!==userId).map(m=>{
+                            const nm=[m.first_name,m.last_name].filter(Boolean).join(" ")||"Membre";
+                            const checked = groupMembers.includes(m.id);
+                            return (
+                              <button key={m.id} className="em-ch-item" style={{width:"100%"}}
+                                onClick={()=> newDmMode==="dm"
+                                  ? startDm(m.id)
+                                  : setGroupMembers(prev=>checked?prev.filter(i=>i!==m.id):[...prev,m.id])}>
+                                {newDmMode==="group" && (
+                                  <span style={{width:14,height:14,borderRadius:4,flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:10,
+                                    border:checked?"none":"1.5px solid rgba(255,255,255,.35)",background:checked?"#C9A227":"transparent",color:"#1a1d3a"}}>{checked?"✓":""}</span>
+                                )}
+                                <div className="em-av" style={{width:20,height:20,fontSize:9,background:"#1e2464"}}>{(m.first_name?.[0]??"?").toUpperCase()}</div>
+                                <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:12}}>{nm}</span>
+                              </button>
+                            );
+                          })}
+                    </div>
+                    {/* Bouton créer (groupe uniquement) */}
+                    {newDmMode==="group" && (
+                      <button onClick={createGroup} disabled={groupBusy || !groupName.trim() || groupMembers.length<2}
+                        style={{width:"100%",marginTop:6,padding:"7px 0",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                          background:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.12)":"#C9A227",
+                          color:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.4)":"#1a1d3a"}}>
+                        {groupBusy?"Création…":`Créer le groupe${groupMembers.length?` (${groupMembers.length})`:""}`}
+                      </button>
+                    )}
                   </div>
                 )}
                 {dmList.length===0 && !showNewDm && (
