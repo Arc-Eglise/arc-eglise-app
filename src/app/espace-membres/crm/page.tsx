@@ -5,14 +5,6 @@ import Link from "next/link";
 import GroupBadge from "@/components/GroupBadge";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 
-const ROLE_STYLE: Record<string, string> = {
-  admin:    "text-red-700 bg-red-50 border-red-200",
-  pasteur:  "text-purple-700 bg-purple-50 border-purple-200",
-  support:  "text-blue-700 bg-blue-50 border-blue-200",
-  membre:   "text-green-700 bg-green-50 border-green-200",
-  visiteur: "text-gray-700 bg-gray-50 border-gray-200",
-};
-
 const TAG_COLORS = [
   "bg-orange-100 text-orange-700",
   "bg-teal-100 text-teal-700",
@@ -144,8 +136,6 @@ export default async function CrmPage({
 
   const filteredValidated = filtered.filter(m => m.validated);
   const filteredPending   = filtered.filter(m => !m.validated);
-
-  const showAll = !hasFilter;
 
   // Tags & fonctions disponibles (pour les filtres de segmentation)
   const allTags = Array.from(new Set(all.flatMap(m => (m.crm_tags as string[] | null) ?? []))).sort();
@@ -357,41 +347,49 @@ export default async function CrmPage({
         </div>
       )}
 
-      {/* En attente */}
-      {filteredPending.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">
-            ⏳ En attente de validation ({filteredPending.length})
-          </h2>
-          <div className="space-y-2">
-            {filteredPending.map(m => (
-              <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} pending />
-            ))}
+      {/* Kanban pastoral — vue maquette (colonnes par étape) */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-arc-blue">
+          Pipeline pastoral · {filtered.length} membre{filtered.length !== 1 ? "s" : ""}
+        </h2>
+        {filteredPending.length > 0 && (
+          <span className="text-[11px] font-semibold text-amber-600">⏳ {filteredPending.length} en attente</span>
+        )}
+      </div>
+      {filtered.length === 0 ? (
+        <div className="bg-white border border-arc-border rounded-2xl py-10 text-center text-arc-text3 text-sm">
+          Aucun membre trouvé.
+        </div>
+      ) : (
+        <div className="overflow-x-auto -mx-1 px-1 pb-2">
+          <div className="flex gap-3 items-start min-w-max">
+            {STAGES.map(s => {
+              const col = filtered.filter(m => (m.pastoral_stage ?? "visiteur") === s.key);
+              return (
+                <div key={s.key} className="w-[264px] flex-none rounded-2xl p-3 flex flex-col gap-2.5" style={{ background: "#f1f3fb" }}>
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
+                      <span className="text-xs font-bold text-arc-text2">{s.label}</span>
+                    </div>
+                    <span className="text-[11px] text-arc-text3">{col.length}</span>
+                  </div>
+                  {col.length === 0
+                    ? <div className="text-[11px] text-arc-text3 text-center py-5">—</div>
+                    : col.map(m => (
+                        <KanbanCard key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} />
+                      ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
-
-      {/* Membres validés */}
-      <div>
-        <h2 className="text-xs font-bold uppercase tracking-widest text-arc-blue mb-3">
-          {showAll ? `Membres validés (${filteredValidated.length})` : `Résultats validés (${filteredValidated.length})`}
-        </h2>
-        <div className="space-y-2">
-          {filteredValidated.length === 0 && (
-            <div className="bg-white border border-arc-border rounded-2xl py-10 text-center text-arc-text3 text-sm">
-              Aucun membre trouvé.
-            </div>
-          )}
-          {filteredValidated.map(m => (
-            <MemberRow key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
 
-function MemberRow({ member: m, noteCount, pending, engStatus }: {
+function KanbanCard({ member: m, noteCount, engStatus }: {
   member: {
     id: string; first_name: string | null; last_name: string | null;
     role: string; validated: boolean; groups: string[] | null;
@@ -400,66 +398,43 @@ function MemberRow({ member: m, noteCount, pending, engStatus }: {
     pastoral_stage: string | null;
   };
   noteCount: number;
-  pending?: boolean;
   engStatus?: EngagementStatus;
 }) {
   const fullName = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
   const initiale = (m.first_name?.[0] ?? "?").toUpperCase();
-  const tags  = m.crm_tags ?? [];
-  const stage = STAGE_MAP[m.pastoral_stage ?? "visiteur"];
-  const eng   = engStatus ? ENGAGEMENT_META[engStatus] : null;
+  const tags = m.crm_tags ?? [];
+  const eng  = engStatus ? ENGAGEMENT_META[engStatus] : null;
 
   return (
     <Link
       href={`/espace-membres/crm/${m.id}`}
-      className="bg-white border border-arc-border rounded-xl p-4 flex items-center gap-3 hover:border-arc-navy hover:shadow-sm transition-all group"
+      className="bg-white border border-arc-border rounded-xl p-3 flex flex-col gap-2 hover:border-arc-navy/40 hover:shadow-sm transition-all group"
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 ${pending ? "bg-amber-100" : "bg-arc-navy"}`}>
-        {m.avatar_url
-          ? <Image src={m.avatar_url} alt={fullName} width={40} height={40} className="w-full h-full object-cover" />
-          : <span className={`font-serif font-bold text-base ${pending ? "text-amber-700" : "text-white"}`}>{initiale}</span>}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          {eng && <span title={`Engagement : ${eng.label}`} className={`w-2 h-2 rounded-full flex-shrink-0 ${eng.dot}`} aria-hidden />}
-          <span className="font-semibold text-arc-navy text-sm group-hover:text-arc-blue transition-colors">{fullName}</span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${ROLE_STYLE[m.role] ?? "text-arc-text3 bg-gray-50 border-gray-200"}`}>
-            {m.role}
-          </span>
-          {stage && (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${stage.color}`}>
-              {stage.label}
-            </span>
-          )}
-          {pending && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">En attente</span>}
+      <div className="flex items-center gap-2.5">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${m.validated ? "bg-arc-navy" : "bg-amber-100"}`}>
+          {m.avatar_url
+            ? <Image src={m.avatar_url} alt={fullName} width={32} height={32} className="w-full h-full object-cover" />
+            : <span className={`font-bold text-[11px] ${m.validated ? "text-white" : "text-amber-700"}`}>{initiale}</span>}
         </div>
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
-          {m.country && <span className="text-[11px] text-arc-text3">📍 {m.country}</span>}
-          <span className="text-[11px] text-arc-text3">Inscrit le {new Date(m.created_at).toLocaleDateString("fr-CH")}</span>
+        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-arc-text truncate group-hover:text-arc-navy transition-colors">{fullName}</span>
+        {eng && <span title={`Engagement : ${eng.label}`} className={`w-2 h-2 rounded-full flex-shrink-0 ${eng.dot}`} aria-hidden />}
+      </div>
+      {(!m.validated || (m.groups ?? []).length > 0 || noteCount > 0) && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {!m.validated && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">En attente</span>}
+          {(m.groups ?? []).slice(0, 2).map((g) => (
+            <GroupBadge key={g} name={g} size="sm" showLabel={false} />
+          ))}
+          {noteCount > 0 && <span className="text-[10px] text-arc-text3">📝 {noteCount}</span>}
         </div>
-        {(m.groups ?? []).length > 0 && (
-          <div className="flex gap-1 mt-1.5 flex-wrap">
-            {(m.groups ?? []).map((g) => (
-              <GroupBadge key={g} name={g} size="sm" showLabel={false} />
-            ))}
-          </div>
-        )}
-        {tags.length > 0 && (
-          <div className="flex gap-1 mt-1.5 flex-wrap">
-            {tags.map((t, i) => (
-              <span key={t} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${TAG_COLORS[i % TAG_COLORS.length]}`}>{t}</span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3 flex-shrink-0 text-right">
-        {noteCount > 0 && (
-          <span className="text-[11px] text-arc-text3">📝 {noteCount}</span>
-        )}
-        <span className="text-arc-text3 group-hover:text-arc-navy transition-colors text-sm">→</span>
-      </div>
+      )}
+      {tags.length > 0 && (
+        <div className="flex gap-1 flex-wrap">
+          {tags.slice(0, 3).map((t, i) => (
+            <span key={t} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${TAG_COLORS[i % TAG_COLORS.length]}`}>{t}</span>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }
