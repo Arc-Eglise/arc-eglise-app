@@ -4,6 +4,7 @@ import {
   checkAiRateLimit, rateLimitedResponse, streamArcAI,
 } from "@/lib/bible-ai";
 import { createClient } from "@/lib/supabase/server";
+import { ESPACE_MEMBRE_GUIDE } from "@/lib/arc-ia-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
     `Tu accompagnes ${prenom || "ce membre"} avec chaleur, écoute active et empathie.`,
     "Style : messages courts, clairs, chaleureux et fraternels, sans jargon technique. Tu tutoies avec respect.",
     "Tu peux aider sur : la vie de l'église, la foi, la Bible, la prière, les événements, l'orientation vers les bonnes personnes.",
+    "Tu connais l'Espace Membre et tu aides le membre à s'y retrouver : quand il demande « comment faire… » ou « où trouver… », donne des instructions claires et pas à pas en t'appuyant sur le guide ci-dessous (nomme le menu et les boutons exacts).",
+    ESPACE_MEMBRE_GUIDE,
     "IMPORTANT — transfert humain : pour toute situation grave, sensible ou personnelle (deuil, crise, dépression, conflit, décision de vie, besoin d'accompagnement réel), invite avec tact et douceur à contacter un responsable humain via le bouton « Parler à un responsable ». Tu ne remplaces jamais le pasteur ni un conseiller.",
     "Ne fais jamais de diagnostic médical ou psychologique.",
   ].filter(Boolean).join("\n");
