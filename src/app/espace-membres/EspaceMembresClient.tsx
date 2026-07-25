@@ -14,6 +14,7 @@ import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerCl
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
+import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -48,7 +49,7 @@ function stripAI(text: string): string {
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type Panel     = "accueil"|"messagerie"|"agenda"|"streaming"|"priere"|"contacts"|"presences"|"activites"|"dons"|"admin"|"mail";
-type BTab      = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes";
+type BTab      = "verset"|"lecteur"|"etude"|"theo"|"mur"|"plans"|"notes"|"dico";
 type ATab      = "membres"|"groupes"|"visiteurs"|"crm"|"support"|"sermons"|"stats";
 type MsgTab    = "msgs"|"files"|"pins"|"tasks";
 type MajInfoTab = "sermons"|"events"|"infos"|"citations"|"verset"|"equipe"|"theme";
@@ -1682,7 +1683,6 @@ const [showSalle, setShowSalle]       = useState(false);
       { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
       { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
       { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
-      { id:"ai-biblique", lbl:"ARC Église AI",  ico:"✦",  Icon:Sparkles,      arcIcon:"arc-ai", href:"/espace-membres/ai-biblique" },
     ]},
     { section:"Communauté", items:[
       { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
@@ -1958,20 +1958,20 @@ const [showSalle, setShowSalle]       = useState(false);
               ))}
             </div>
 
-            {/* ARC Église AI */}
-            <a href="/espace-membres/ai-biblique" style={{display:"block",textDecoration:"none",marginBottom:18}}>
+            {/* Assistant IA — intégré dans Prière & Bible */}
+            <div onClick={() => nav("priere")} style={{display:"block",marginBottom:18,cursor:"pointer"}}>
               <div style={{background:"linear-gradient(135deg,#1e2464 0%,#2d3a8c 60%,#1a4fa8 100%)",borderRadius:16,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,cursor:"pointer",boxShadow:"0 4px 20px rgba(30,36,100,.25)",border:"1px solid rgba(255,255,255,.1)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
                   <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>✦</div>
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Nouveau</div>
-                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>ARC Église AI</div>
-                    <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique · Méditation · Plans de lecture</div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"rgba(255,255,255,.5)",marginBottom:3}}>Assistant IA</div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"Cormorant Garamond,Georgia,serif",lineHeight:1.2}}>Prière &amp; Bible</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>Étude biblique IA · Dictionnaire · Plans de lecture</div>
                   </div>
                 </div>
                 <div style={{fontSize:20,color:"rgba(255,255,255,.4)",flexShrink:0}}>→</div>
               </div>
-            </a>
+            </div>
 
             {/* Verse + Culte */}
             <div className="em-g2" style={{marginBottom:18}}>
@@ -2608,7 +2608,7 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className="em-tabs">
               {([
                 ["verset","✦ Verset du jour"],["lecteur","📖 Lecteur biblique"],
-                ["etude","🔍 Étude"],["theo","📜 Théologie"],
+                ["etude","🔍 Étude"],["theo","📜 Théologie"],["dico","📚 Dictionnaire"],
                 ["mur","🙏 Mur de prière"],["plans","📋 Plans de lecture"],["notes","📓 Journal"],
               ] as [BTab,string][]).map(([t,l]) => (
                 <button key={t} className={`em-tab${bTab===t?" active":""}`} onClick={() => setBTab(t)}>{l}</button>
@@ -3066,6 +3066,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Dictionnaire théologique & personnages bibliques (IA — service intégré) */}
+            {bTab==="dico" && (
+              <DictionaryPanel language="fr" />
             )}
 
             {/* Mur de prière */}
