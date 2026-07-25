@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { getOrCreateChannel, sendMessage } from "@/lib/actions/messagerie";
+import {
+  getOrCreateChannel,
+  sendMessage,
+  reactToMessage,
+  togglePinMessage,
+  deleteMessage,
+} from "@/lib/actions/messagerie";
 
 export interface PanelMessage {
   id: string;
@@ -12,6 +18,8 @@ export interface PanelMessage {
   mine: boolean;
   time: string;
   createdAt: string;
+  pinned: boolean;
+  deleted: boolean;
 }
 
 interface RawMsg {
@@ -20,6 +28,7 @@ interface RawMsg {
   content: string;
   created_at: string;
   deleted_at: string | null;
+  is_pinned: boolean | null;
 }
 
 function fmtTime(iso: string) {
@@ -28,8 +37,8 @@ function fmtTime(iso: string) {
 
 /**
  * Messagerie réelle d'un canal : résout/crée la conversation du canal, charge les
- * messages, s'abonne au temps réel (Supabase Realtime) et expose `send`.
- * Format aligné sur le panneau existant (from/text/mine/time).
+ * messages + réactions + épingles, s'abonne au temps réel (Supabase Realtime) et
+ * expose send / react / togglePin / remove. Format aligné sur le panneau existant.
  */
 export function useChannelMessages(opts: {
   channelKey: string;
@@ -41,6 +50,9 @@ export function useChannelMessages(opts: {
   const [messages, setMessages] = useState<PanelMessage[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Réactions agrégées : { [msgId]: { [emoji]: count } } et les miennes.
+  const [reactions, setReactions] = useState<Record<string, Record<string, number>>>({});
+  const [myReactions, setMyReactions] = useState<Record<string, string[]>>({});
   const convIdRef = useRef<string | null>(null);
   const namesRef = useRef<Record<string, string>>({});
 
@@ -59,7 +71,26 @@ export function useChannelMessages(opts: {
     mine: r.sender_id === currentUserId,
     time: fmtTime(r.created_at),
     createdAt: r.created_at,
+    pinned: !!r.is_pinned && !r.deleted_at,
+    deleted: !!r.deleted_at,
   });
+
+  // Charge et agrège les réactions d'un lot de messages.
+  async function loadReactions(msgIds: string[]) {
+    if (!msgIds.length) { setReactions({}); setMyReactions({}); return; }
+    const { data } = await supabase
+      .from("message_reactions")
+      .select("message_id, user_id, emoji")
+      .in("message_id", msgIds);
+    const agg: Record<string, Record<string, number>> = {};
+    const mine: Record<string, string[]> = {};
+    for (const row of (data ?? []) as { message_id: string; user_id: string; emoji: string }[]) {
+      (agg[row.message_id] ??= {})[row.emoji] = (agg[row.message_id]?.[row.emoji] ?? 0) + 1;
+      if (row.user_id === currentUserId) (mine[row.message_id] ??= []).push(row.emoji);
+    }
+    setReactions(agg);
+    setMyReactions(mine);
+  }
 
   useEffect(() => {
     if (!enabled) return;
@@ -67,6 +98,8 @@ export function useChannelMessages(opts: {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     setLoading(true);
     setMessages([]);
+    setReactions({});
+    setMyReactions({});
 
     (async () => {
       const res = await getOrCreateChannel(channelKey, channelName);
@@ -77,7 +110,7 @@ export function useChannelMessages(opts: {
 
       const { data } = await supabase
         .from("messages")
-        .select("id, sender_id, content, created_at, deleted_at")
+        .select("id, sender_id, content, created_at, deleted_at, is_pinned")
         .eq("conversation_id", cid)
         .order("created_at")
         .limit(300);
@@ -95,6 +128,7 @@ export function useChannelMessages(opts: {
       if (cancelled) return;
       setMessages(raw.map(map));
       setLoading(false);
+      loadReactions(raw.map(m => m.id));
 
       // Temps réel — topic unique par montage pour éviter la réutilisation d'un
       // canal déjà souscrit (bug "on after subscribe"). Dédup par id.
@@ -105,6 +139,12 @@ export function useChannelMessages(opts: {
           ({ new: n }) => {
             const m = map(n as RawMsg);
             setMessages(prev => prev.some(x => x.id === m.id) ? prev : [...prev, m]);
+          })
+        .on("postgres_changes",
+          { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${cid}` },
+          ({ new: n }) => {
+            const m = map(n as RawMsg);
+            setMessages(prev => prev.map(x => x.id === m.id ? m : x));
           })
         .subscribe();
     })();
@@ -125,6 +165,7 @@ export function useChannelMessages(opts: {
     setMessages(prev => [...prev, {
       id: tempId, senderId: currentUserId, from: "Moi", text: body, mine: true,
       time: fmtTime(new Date().toISOString()), createdAt: new Date().toISOString(),
+      pinned: false, deleted: false,
     }]);
     const res = await sendMessage(cid, body);
     if ("error" in res && res.error) {
@@ -132,5 +173,38 @@ export function useChannelMessages(opts: {
     }
   }
 
-  return { messages, send, loading, convId };
+  // Réaction (toggle) — optimiste puis persistance.
+  async function react(msgId: string, emoji: string) {
+    if (msgId.startsWith("tmp-")) return;
+    const had = (myReactions[msgId] ?? []).includes(emoji);
+    setMyReactions(prev => {
+      const cur = prev[msgId] ?? [];
+      return { ...prev, [msgId]: had ? cur.filter(e => e !== emoji) : [...cur, emoji] };
+    });
+    setReactions(prev => {
+      const cur = { ...(prev[msgId] ?? {}) };
+      const next = (cur[emoji] ?? 0) + (had ? -1 : 1);
+      if (next <= 0) delete cur[emoji]; else cur[emoji] = next;
+      return { ...prev, [msgId]: cur };
+    });
+    await reactToMessage(msgId, emoji);
+  }
+
+  // Épingler / désépingler — optimiste puis persistance (realtime confirmera).
+  async function togglePin(msgId: string) {
+    if (msgId.startsWith("tmp-")) return;
+    const cur = messages.find(m => m.id === msgId);
+    const wasPinned = !!cur?.pinned;
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, pinned: !wasPinned } : m));
+    await togglePinMessage(msgId, wasPinned);
+  }
+
+  // Suppression douce (expéditeur uniquement) — optimiste puis persistance.
+  async function remove(msgId: string) {
+    if (msgId.startsWith("tmp-")) return;
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, text: "Message supprimé", deleted: true, pinned: false } : m));
+    await deleteMessage(msgId);
+  }
+
+  return { messages, send, react, togglePin, remove, reactions, myReactions, loading, convId };
 }

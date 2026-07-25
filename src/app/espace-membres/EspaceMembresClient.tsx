@@ -517,13 +517,10 @@ const [showSalle, setShowSalle]       = useState(false);
   const [msgChan, setMsgChan]     = useState("général");
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
-  const [messages, setMessages]   = useState<{id:string;from:string;text:string;mine:boolean;time:string}[]>([]);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
-  const [msgReactions, setMsgReactions]     = useState<Record<string,Record<string,number>>>({});
-  const [myReactions, setMyReactions]       = useState<Record<string,string[]>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
-  const [pinnedMsgs, setPinnedMsgs]         = useState<string[]>([]);
+  // Réactions / épingles : portées par le canal réel (DB + temps réel) via useChannelMessages.
   const [openThread, setOpenThread]         = useState<string|null>(null);
   const [threadReplies, setThreadReplies]   = useState<Record<string,{id:string;from:string;text:string;time:string;mine:boolean}[]>>({});
   const [threadInput, setThreadInput]       = useState("");
@@ -575,6 +572,10 @@ const [showSalle, setShowSalle]       = useState(false);
 
   const isAI = msgChan === "arc-ia";
   const displayMessages = isAI ? aiMessages : chan.messages;
+  // Réactions / épingles dérivées du canal réel (l'assistant IA n'en a pas).
+  const msgReactions: Record<string,Record<string,number>> = isAI ? {} : chan.reactions;
+  const myReactions:  Record<string,string[]>              = isAI ? {} : chan.myReactions;
+  const pinnedMsgs:   string[] = isAI ? [] : chan.messages.filter(m => m.pinned).map(m => m.id);
 
   /* Agenda */
   const [calMonth, setCalMonth]         = useState(() => new Date().getMonth());
@@ -1646,18 +1647,15 @@ const [showSalle, setShowSalle]       = useState(false);
   }
 
   function addReaction(msgId: string, emoji: string) {
-    if ((myReactions[msgId]??[]).includes(emoji)) return;
-    setMsgReactions(prev => {
-      const cur = prev[msgId] ?? {};
-      return {...prev, [msgId]: {...cur, [emoji]: (cur[emoji]??0)+1}};
-    });
-    setMyReactions(prev => ({...prev, [msgId]: [...(prev[msgId]??[]), emoji]}));
     setShowEmojiPicker(null);
+    if (isAI) return;              // pas de réactions sur l'assistant IA
+    chan.react(msgId, emoji);      // toggle réel (DB + optimiste)
   }
 
   function togglePin(msgId: string) {
+    if (isAI) return;
     const wasPin = pinnedMsgs.includes(msgId);
-    setPinnedMsgs(prev => wasPin ? prev.filter(i=>i!==msgId) : [...prev, msgId]);
+    chan.togglePin(msgId);         // persistance réelle (DB + temps réel)
     setToast(wasPin ? "Message désépinglé" : "Message épinglé 📌");
   }
 
@@ -2309,7 +2307,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           <input type="file" style={{display:"none"}} onChange={e=>{
                             if(e.target.files?.[0]){
                               const f=e.target.files[0];
-                              setMessages(prev=>[...prev,{id:Date.now().toString(),from:"Moi",text:`📎 Fichier partagé : ${f.name}`,mine:true,time:new Date().toLocaleTimeString("fr-CH",{hour:"2-digit",minute:"2-digit"})}]);
+                              if(!isAI) chan.send(`📎 Fichier partagé : ${f.name}`);
                               setToast(`"${f.name}" envoyé 📎`);
                               e.target.value="";
                             }
@@ -2391,7 +2389,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
                       <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📌 Messages épinglés</div>
                       {pinnedMsgs.length > 0
-                        ? messages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
+                        ? displayMessages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
                           <div key={m.id} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
                             <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5}}>{m.mine?"Moi":m.from} · {m.time}</div>
                             <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{m.text}</div>
@@ -2445,7 +2443,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8890aa",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
                     </div>
                     {(() => {
-                      const orig = messages.find(m=>m.id===openThread);
+                      const orig = displayMessages.find(m=>m.id===openThread);
                       return orig ? (
                         <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(30,36,100,.08)",background:"#fafbff"}}>
                           <div style={{fontSize:10,fontWeight:700,color:"#8890aa",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
