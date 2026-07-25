@@ -10,7 +10,7 @@ function getResend(): Resend {
 const FROM_NOREPLY = "ARC Église <noreply@arc-eglise.ch>";
 const FROM_CONTACT = "ARC Église <contact@arc-eglise.ch>";
 const REPLY_TO   = "contact@arc-eglise.ch";
-const LOGO_URL   = siteUrl("/logo-arc.jpeg");
+const LOGO_URL   = siteUrl("/images/logo-arc.jpeg");
 const SITE_URL   = SITE_BASE;
 
 // ── Template engine ────────────────────────────────────────────────────────
@@ -444,6 +444,53 @@ export async function sendPasswordChangedEmail(to: string, prenom: string) {
     to,
     subject: "Ton mot de passe ARC Église a été modifié",
     html:    render("password_changed", { prenom, date_heure: dateHeure }),
+  });
+}
+
+// 07 · Billet(s) d'événement avec QR (noreply@)
+// Envoie une ou plusieurs cartes-billets (une par place réservée). Les cartes
+// HTML sont construites en amont (src/lib/tickets/qr.ts) pour garder la charte
+// ici et la génération QR là-bas.
+export async function sendEventTicketEmail(opts: {
+  to: string;
+  holderName: string;
+  eventName: string;
+  eventDate: string;   // déjà formaté
+  location: string;
+  ticketCards: string[];  // HTML d'une carte par place
+}) {
+  const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+  const many = opts.ticketCards.length > 1;
+  const cards = opts.ticketCards.map(c => `<tr><td style="padding:0 0 24px;">${c}</td></tr>`).join("");
+  const body = `
+<h2 style="margin:0 0 18px;color:#2B3475;font-size:22px;font-weight:bold;">
+  ${many ? "Tes billets" : "Ton billet"} pour ${esc(opts.eventName)} 🎟
+</h2>
+<p style="margin:0 0 12px;color:#374151;font-size:15px;line-height:1.7;">
+  Bonjour <strong>${esc(opts.holderName)}</strong>,
+</p>
+<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7;">
+  Ta réservation est confirmée. ${many ? "Voici tes billets" : "Voici ton billet"} —
+  présente${many ? "-les" : "-le"} (le QR code) à l'entrée de l'événement.
+</p>
+<div style="background-color:#f4f6fb;border-left:4px solid #C9A227;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 24px;">
+  <p style="margin:0;color:#374151;font-size:14px;line-height:1.9;">
+    <strong>${esc(opts.eventName)}</strong><br/>
+    📅 ${esc(opts.eventDate)}<br/>
+    📍 ${esc(opts.location)}<br/>
+    👤 ${esc(opts.holderName)}
+  </p>
+</div>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${cards}</table>
+<p style="margin:20px 0 0;color:#6B7280;font-size:13px;line-height:1.7;">
+  À très bientôt à l'ARC Église ! 🙏
+</p>`;
+  await sendEmail({
+    from:    FROM_NOREPLY,
+    replyTo: REPLY_TO,
+    to:      opts.to,
+    subject: `🎟 ${many ? "Tes billets" : "Ton billet"} — ${opts.eventName}`,
+    html:    layout(body),
   });
 }
 
