@@ -2612,8 +2612,10 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-sect-title">Agenda</div>
                 <div className="em-sect-sub">Événements &amp; calendrier de l&apos;église</div>
               </div>
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <a href="/espace-membres/evenements" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>🎟️ Réserver un événement</a>
                 <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>🏢 Réserver une salle</button>
+                {canAdmin && <a href="/espace-membres/scan" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>📷 Scanner billets</a>}
                 {canAdmin && <a href="/espace-membres/agenda" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>📅 Gérer les événements</a>}
               </div>
             </div>
