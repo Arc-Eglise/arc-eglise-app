@@ -78,7 +78,10 @@ export function ReadingPrefsProvider({ children, userId }: { children: ReactNode
 
   return (
     <ReadingPrefsContext.Provider value={{ prefs, update, applyMode, reset }}>
-      <style dangerouslySetInnerHTML={{ __html: buildReadingCSS(prefs) }} />
+      {/* Les préférences viennent de localStorage → le contenu diffère
+          légitimement entre serveur (défauts) et client. On supprime l'avertissement
+          d'hydratation ; React applique la valeur client après hydratation. */}
+      <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: buildReadingCSS(prefs) }} />
       {children}
     </ReadingPrefsContext.Provider>
   )

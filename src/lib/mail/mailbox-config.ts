@@ -23,7 +23,8 @@ const GROUPS_WITH_CONTACT = new Set(["pasteur", "suivi", "support"]);
 
 export function getAuthorizedMailboxes(role: string, groups: string[]): string[] {
   if (role === "admin" || role === "pasteur") {
-    return [CONTACT_MAILBOX, ...Object.values(FUNCTION_MAILBOXES)];
+    // dédup : social et hospitalite pointent vers la même boîte hospitalite@
+    return [CONTACT_MAILBOX, ...Array.from(new Set(Object.values(FUNCTION_MAILBOXES)))];
   }
   const boxes = new Set<string>();
   for (const g of groups) {
