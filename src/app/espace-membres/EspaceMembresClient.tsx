@@ -245,7 +245,6 @@ const GROUPES = [
   {name:"Support",              slug:"support",       count:0, hex:"#334155", hexBg:"#f1f5f9"},
   {name:"Finance",              slug:"finance",       count:0, hex:"#b45309", hexBg:"#fef3c7"},
 ];
-const MSG_FILES: {name:string;size:string;from:string;time:string;icon:string}[] = [];
 // Tâches et statuts chargés depuis Supabase (pas de données fictives)
 const MSG_TASKS: {id:string;title:string;done:boolean;assignee:string;due:string}[] = [];
 const USER_STATUSES: Record<string,"online"|"away"|"busy"|"offline"> = {};
@@ -608,6 +607,7 @@ const [showSalle, setShowSalle]       = useState(false);
   const [recipTab, setRecipTab] = useState<"membre"|"fonction">("membre");
   const [recipSearch, setRecipSearch] = useState("");
   const [recipBusy, setRecipBusy] = useState(false);
+  const [attachBusy, setAttachBusy] = useState(false);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
@@ -2075,6 +2075,25 @@ const [showSalle, setShowSalle]       = useState(false);
     setShowMention(false);
   }
 
+  // Pièce jointe réelle : upload dans le bucket Storage + envoi du message.
+  async function uploadAndSendAttachment(file: File) {
+    if (isAI) { setToast("Les pièces jointes ne sont pas disponibles avec ARC IA."); return; }
+    if (file.size > 10 * 1024 * 1024) { setToast("Fichier trop volumineux (max 10 Mo)."); return; }
+    setAttachBusy(true);
+    try {
+      const ext  = file.name.split(".").pop() || "bin";
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("message-attachments")
+        .upload(path, file, { contentType: file.type || undefined, upsert: false });
+      if (error) { setToast("Échec de l'envoi du fichier."); return; }
+      const { data: pub } = supabase.storage.from("message-attachments").getPublicUrl(path);
+      await chan.send("", { url: pub.publicUrl, type: file.type || "application/octet-stream", name: file.name });
+      setToast(`"${file.name}" partagé 📎`);
+    } finally {
+      setAttachBusy(false);
+    }
+  }
+
   function addReaction(msgId: string, emoji: string) {
     setShowEmojiPicker(null);
     if (isAI) return;              // pas de réactions sur l'assistant IA
@@ -2739,12 +2758,32 @@ const [showSalle, setShowSalle]       = useState(false);
                               {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
                               <div style={{flex:1,minWidth:0}}>
                                 {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
-                                {(!hasCard || m.text) && (
+                                {(!hasCard && m.text) || (hasCard && m.text) ? (
                                   <div className="em-bubble em-reading-zone em-reading-text">
                                     {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
                                     {renderMessageText(m.text)}
                                   </div>
-                                )}
+                                ) : null}
+                                {/* Pièce jointe réelle (image ou fichier téléchargeable) */}
+                                {(() => {
+                                  const att = (m as { attachmentUrl?: string | null }).attachmentUrl;
+                                  if (!att) return null;
+                                  const t = (m as { attachmentType?: string | null }).attachmentType || "";
+                                  const nm = (m as { attachmentName?: string | null }).attachmentName || "fichier";
+                                  if (t.startsWith("image/")) return (
+                                    <a href={att} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:6}}>
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={att} alt={nm} style={{maxWidth:220,maxHeight:200,borderRadius:12,border:"1px solid #e6e9f4",display:"block"}} />
+                                    </a>
+                                  );
+                                  return (
+                                    <a href={att} target="_blank" rel="noopener noreferrer" download style={{display:"inline-flex",alignItems:"center",gap:9,marginTop:6,padding:"9px 12px",background:"#fff",border:"1px solid #e6e9f4",borderRadius:12,textDecoration:"none",maxWidth:260}}>
+                                      <span style={{fontSize:20,flexShrink:0}}>📄</span>
+                                      <span style={{flex:1,minWidth:0,fontSize:12.5,color:"#1e2464",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nm}</span>
+                                      <span style={{fontSize:13,color:"#8b91b0",flexShrink:0}}>↓</span>
+                                    </a>
+                                  );
+                                })()}
                                 {/* ARC IA — carte de résultat + boutons d'action */}
                                 {aiMsg?.card && renderArcCard(aiMsg.id, aiMsg.card)}
                                 {!!aiMsg?.actions?.length && (
@@ -2818,15 +2857,12 @@ const [showSalle, setShowSalle]       = useState(false);
                         <button type="button" className="em-toolbar-btn" title="Citation" onClick={()=>prefixLine("> ")}>❝</button>
                       </div>
                       <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid #e6e9f4"}}>
-                        <label className="em-toolbar-btn" title="Fichier" style={{cursor:"pointer",marginBottom:2,flexShrink:0}}>
-                          📎
-                          <input type="file" style={{display:"none"}} onChange={e=>{
-                            if(e.target.files?.[0]){
-                              const f=e.target.files[0];
-                              if(!isAI) chan.send(`📎 Fichier partagé : ${f.name}`);
-                              setToast(`"${f.name}" envoyé 📎`);
-                              e.target.value="";
-                            }
+                        <label className="em-toolbar-btn" title={isAI?"Indisponible avec ARC IA":"Joindre un fichier"} style={{cursor:isAI||attachBusy?"default":"pointer",marginBottom:2,flexShrink:0,opacity:isAI?.4:1}}>
+                          {attachBusy?"⏳":"📎"}
+                          <input type="file" style={{display:"none"}} disabled={isAI||attachBusy} onChange={e=>{
+                            const f=e.target.files?.[0];
+                            if(f) uploadAndSendAttachment(f);
+                            e.target.value="";
                           }} />
                         </label>
                         <div style={{flex:1,position:"relative"}}>
@@ -2882,20 +2918,29 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Fichiers ── */}
                   {msgTab==="files" && (
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
-                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📎 Fichiers partagés dans #{msgChan}</div>
-                      {MSG_FILES.map((f,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #eceef7"}}>
-                          <div style={{width:42,height:42,background:"#f1f3fb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{f.icon}</div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                            <div style={{fontSize:11,color:"#8b91b0"}}>{f.size} · {f.from} · {f.time}</div>
-                          </div>
-                          <button className="em-btn em-btn-outline em-btn-sm">↓</button>
-                        </div>
-                      ))}
-                      <label style={{display:"block",marginTop:16,textAlign:"center",cursor:"pointer"}}>
-                        <span className="em-btn em-btn-outline" style={{display:"inline-flex",gap:6}}>📎 Partager un fichier</span>
-                        <input type="file" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0])setToast(`"${e.target.files[0].name}" partagé 📎`);}} />
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📎 Fichiers partagés</div>
+                      {(() => {
+                        const files = displayMessages.filter(m => (m as {attachmentUrl?:string|null}).attachmentUrl);
+                        if (files.length === 0) return <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"24px 0"}}>Aucun fichier partagé pour l&apos;instant.</div>;
+                        return files.map(m => {
+                          const att=(m as {attachmentUrl?:string|null}).attachmentUrl as string;
+                          const nm =(m as {attachmentName?:string|null}).attachmentName || "fichier";
+                          const t  =(m as {attachmentType?:string|null}).attachmentType || "";
+                          return (
+                            <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #eceef7"}}>
+                              <div style={{width:42,height:42,background:"#f1f3fb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{t.startsWith("image/")?"🖼":"📄"}</div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontWeight:600,fontSize:13,color:"#1e2464",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nm}</div>
+                                <div style={{fontSize:11,color:"#8b91b0"}}>{m.from} · {m.time}</div>
+                              </div>
+                              <a href={att} target="_blank" rel="noopener noreferrer" download className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>↓</a>
+                            </div>
+                          );
+                        });
+                      })()}
+                      <label style={{display:"block",marginTop:16,textAlign:"center",cursor:isAI||attachBusy?"default":"pointer"}}>
+                        <span className="em-btn em-btn-outline" style={{display:"inline-flex",gap:6}}>{attachBusy?"⏳ Envoi…":"📎 Partager un fichier"}</span>
+                        <input type="file" style={{display:"none"}} disabled={isAI||attachBusy} onChange={e=>{const f=e.target.files?.[0];if(f)uploadAndSendAttachment(f);e.target.value="";}} />
                       </label>
                     </div>
                   )}

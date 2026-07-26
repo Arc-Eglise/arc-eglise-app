@@ -21,6 +21,9 @@ export interface PanelMessage {
   createdAt: string;
   pinned: boolean;
   deleted: boolean;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
 }
 
 interface RawMsg {
@@ -30,6 +33,9 @@ interface RawMsg {
   created_at: string;
   deleted_at: string | null;
   is_pinned: boolean | null;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
+  attachment_type?: string | null;
 }
 
 function fmtTime(iso: string) {
@@ -76,6 +82,9 @@ export function useChannelMessages(opts: {
     createdAt: r.created_at,
     pinned: !!r.is_pinned && !r.deleted_at,
     deleted: !!r.deleted_at,
+    attachmentUrl: r.deleted_at ? null : (r.attachment_url ?? null),
+    attachmentName: r.attachment_name ?? null,
+    attachmentType: r.attachment_type ?? null,
   });
 
   // Charge et agrège les réactions d'un lot de messages.
@@ -119,7 +128,7 @@ export function useChannelMessages(opts: {
 
       const { data } = await supabase
         .from("messages")
-        .select("id, sender_id, content, created_at, deleted_at, is_pinned")
+        .select("id, sender_id, content, created_at, deleted_at, is_pinned, attachment_url, attachment_name, attachment_type")
         .eq("conversation_id", cid)
         .order("created_at")
         .limit(300);
@@ -166,18 +175,19 @@ export function useChannelMessages(opts: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelKey, conversationId, currentUserId, enabled]);
 
-  async function send(text: string) {
+  async function send(text: string, attachment?: { url: string; type: string; name: string } | null) {
     const cid = convIdRef.current;
     const body = text.trim();
-    if (!cid || !body) return;
+    if (!cid || (!body && !attachment)) return;
     // Optimiste
     const tempId = `tmp-${Date.now()}`;
     setMessages(prev => [...prev, {
       id: tempId, senderId: currentUserId, from: "Moi", text: body, mine: true,
       time: fmtTime(new Date().toISOString()), createdAt: new Date().toISOString(),
       pinned: false, deleted: false,
+      attachmentUrl: attachment?.url ?? null, attachmentName: attachment?.name ?? null, attachmentType: attachment?.type ?? null,
     }]);
-    const res = await sendMessage(cid, body);
+    const res = await sendMessage(cid, body, null, attachment ?? null);
     if ("error" in res && res.error) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
     }
