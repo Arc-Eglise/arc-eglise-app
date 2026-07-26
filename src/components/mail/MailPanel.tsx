@@ -62,6 +62,16 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
 
   const [toast,       setToast]       = useState<string | null>(null);
   const [mobileView, setMobileView]  = useState<"boxes"|"list"|"reader">("boxes");
+  // Responsive : sur mobile, on n'affiche qu'UNE colonne à la fois (selon mobileView),
+  // sinon les 3 colonnes à largeur fixe débordent et le volet « Lecture » sort de l'écran.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 820px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -235,7 +245,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       </div>
 
       {/* ── Onglets de navigation mobile ── */}
-      <div style={{display:"flex",gap:0,background:bg,borderRadius:10,padding:3,marginBottom:10,border:`1px solid ${border}`}} className="mail-mobile-nav">
+      <div style={{display:isMobile?"flex":"none",gap:0,background:bg,borderRadius:10,padding:3,marginBottom:10,border:`1px solid ${border}`}} className="mail-mobile-nav">
         {(["boxes","list","reader"] as const).map(v => (
           <button key={v} onClick={()=>setMobileView(v)} style={{flex:1,padding:"6px 8px",borderRadius:8,border:"none",background:mobileView===v?white:transparent,color:mobileView===v?navy:blue,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
             {v==="boxes"?"📂 Boîtes":v==="list"?"📋 Messages":"📖 Lecture"}
@@ -247,7 +257,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       <div style={{display:"flex",flex:1,gap:0,border:`1px solid ${border}`,borderRadius:14,overflow:"hidden",background:"white",minHeight:450}}>
 
         {/* ── COLONNE GAUCHE : Boîtes ── */}
-        <div style={{width:200,minWidth:160,borderRight:`1px solid ${border}`,background:bg,display:"flex",flexDirection:"column"}}>
+        <div style={{width:isMobile?"100%":200,minWidth:isMobile?0:160,borderRight:isMobile?"none":`1px solid ${border}`,background:bg,display:isMobile?(mobileView==="boxes"?"flex":"none"):"flex",flexDirection:"column"}}>
           <div style={{padding:"12px 14px",fontSize:11,fontWeight:800,color:blue,textTransform:"uppercase",letterSpacing:".06em",borderBottom:`1px solid ${border}`}}>
             Boîtes
           </div>
@@ -273,7 +283,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
         </div>
 
         {/* ── COLONNE CENTRE : Liste messages ── */}
-        <div style={{width:280,minWidth:220,borderRight:`1px solid ${border}`,display:"flex",flexDirection:"column",background:"white"}}>
+        <div style={{width:isMobile?"100%":280,minWidth:isMobile?0:220,borderRight:isMobile?"none":`1px solid ${border}`,display:isMobile?(mobileView==="list"?"flex":"none"):"flex",flexDirection:"column",background:"white"}}>
           <div style={{padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`1px solid ${border}`}}>
             <span style={{fontSize:12,fontWeight:700,color:navy}}>
               {selectedBox ? getMailboxLabel(selectedBox) : "—"}
@@ -328,7 +338,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
         </div>
 
         {/* ── COLONNE DROITE : Lecteur ── */}
-        <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+        <div style={{flex:1,width:isMobile?"100%":undefined,display:isMobile?(mobileView==="reader"?"flex":"none"):"flex",flexDirection:"column",minWidth:0}}>
           {!selected && (
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#aaa",flexDirection:"column",gap:10}}>
               <div style={{fontSize:40}}>✉️</div>
