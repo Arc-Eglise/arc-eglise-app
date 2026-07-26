@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { resolveSegment, hasSegmentFilter, type SegmentFilters } from "@/lib/crm/segment";
 import { ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 import SegmentComposer from "@/components/crm/SegmentComposer";
@@ -53,9 +54,7 @@ export default async function CommunicationPage({
 
   return (
     <div className="max-w-2xl">
-      <Link href={backToSegment} className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Retour au segment
-      </Link>
+      <BackButton href={backToSegment} label="Segment" className="mb-4" />
 
       <h1 className="text-xl font-bold text-arc-navy mb-1">✉️ Communication ciblée</h1>
       <p className="text-sm text-arc-text3 mb-5">Envoi depuis <strong>communication@arc-eglise.ch</strong>, individuellement à chaque membre du segment.</p>

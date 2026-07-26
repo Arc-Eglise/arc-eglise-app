@@ -1,6 +1,7 @@
 import { createClient }                                    from "@/lib/supabase/server";
 import { redirect }                                           from "next/navigation";
 import { createTeamMember, updateTeamMember, deleteTeamMember } from "@/lib/actions/cms";
+import BackButton from "@/components/ui/BackButton";
 import Link                                                   from "next/link";
 
 /* ─── Server Actions ─────────────────────────────────────────── */
@@ -108,9 +109,7 @@ export default async function EspaceMembresEquipe({
     <div className="min-h-screen bg-arc-bg">
       {/* Header */}
       <div className="bg-white border-b border-arc-border px-6 py-4 flex items-center gap-3">
-        <Link href="/espace-membres" className="text-arc-text3 hover:text-arc-navy text-sm transition-colors">
-          ← Espace membres
-        </Link>
+        <BackButton href="/espace-membres" label="Espace membres" />
         <span className="text-arc-border">/</span>
         <span className="text-sm font-semibold text-arc-navy">Équipe pastorale</span>
       </div>

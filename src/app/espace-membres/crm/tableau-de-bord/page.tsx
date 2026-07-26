@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 import { computeSla, isResolvedStatus } from "@/lib/crm/support";
 
@@ -105,9 +106,7 @@ export default async function CrmDashboardPage() {
 
   return (
     <div className="max-w-4xl">
-      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Retour CRM
-      </Link>
+      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
       <h1 className="text-xl font-bold text-arc-navy mb-1">📈 Tableau de bord pastoral</h1>
       <p className="text-sm text-arc-text3 mb-6">Vue d&apos;ensemble de la vie de la communauté.</p>
 

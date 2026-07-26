@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { updateTaskStatus, deletePastoralTask } from "@/lib/actions/membres";
 
 const PRIO_META: Record<string, { label: string; cls: string }> = {
@@ -91,9 +92,7 @@ export default async function MesTachesPage() {
 
   return (
     <div className="max-w-3xl">
-      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Retour CRM
-      </Link>
+      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
 
       <h1 className="text-xl font-bold text-arc-navy mb-1">🗓️ Mes tâches de suivi</h1>
       <p className="text-sm text-arc-text3 mb-6">Les tâches pastorales qui te sont assignées.</p>

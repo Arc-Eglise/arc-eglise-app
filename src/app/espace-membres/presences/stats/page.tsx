@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { GROUPS, getGroup } from "@/lib/groups";
 import Icon from "@/components/ui/Icon";
 
@@ -99,10 +100,7 @@ export default async function PresencesStatsPage() {
 
   return (
     <div className="max-w-4xl">
-      <Link href="/espace-membres/presences"
-        className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Calendrier des présences
-      </Link>
+      <BackButton href="/espace-membres/presences" label="Calendrier des présences" className="mb-4" />
 
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Statistiques Pastorales</h1>

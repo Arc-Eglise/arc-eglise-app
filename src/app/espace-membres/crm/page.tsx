@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import GroupBadge from "@/components/GroupBadge";
+import BackButton from "@/components/ui/BackButton";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 
 const TAG_COLORS = [
@@ -158,9 +159,7 @@ export default async function CrmPage({
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Espace Membres
-      </Link>
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
 
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">CRM Pastoral</h1>

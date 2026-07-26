@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import BackButton from "@/components/ui/BackButton";
 import { computeEngagement, ENGAGEMENT_META, AT_RISK_STATUSES, type EngagementStatus } from "@/lib/crm/engagement";
 
 export const dynamic = "force-dynamic";
@@ -80,9 +81,7 @@ export default async function DesengagementPage() {
 
   return (
     <div className="max-w-3xl">
-      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Retour CRM
-      </Link>
+      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
 
       <h1 className="text-xl font-bold text-arc-navy mb-1">📊 Alertes de désengagement</h1>
       <p className="text-sm text-arc-text3 mb-5">Membres à recontacter en priorité, du plus à risque au moins à risque.</p>

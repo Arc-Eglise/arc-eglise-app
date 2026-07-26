@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { createGrievance, updateGrievanceStatus, deleteGrievance, rateGrievance } from "@/lib/actions/membres";
 import { priorityMeta, isResolvedStatus, PRIORITIES } from "@/lib/crm/support";
 
@@ -79,9 +79,7 @@ export default async function DoleancesPage() {
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Espace Membres
-      </Link>
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Doléances</h1>
         <p className="text-sm text-arc-text2 mt-0.5">

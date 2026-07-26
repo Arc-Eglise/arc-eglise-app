@@ -1,7 +1,7 @@
 import { createClient }      from "@/lib/supabase/server";
 import { createAdminClient }  from "@/lib/supabase/admin";
 import { redirect }            from "next/navigation";
-import Link                    from "next/link";
+import BackButton              from "@/components/ui/BackButton";
 import {
   assignGroupManager,
   revokeGroupManager,
@@ -119,9 +119,7 @@ export default async function GestionGroupePage() {
 
       {/* En-tête */}
       <div className="bg-white border-b border-arc-border px-6 py-4 flex items-center gap-3">
-        <Link href="/espace-membres" className="text-arc-text3 hover:text-arc-navy text-sm transition-colors">
-          ← Espace membres
-        </Link>
+        <BackButton href="/espace-membres" label="Espace membres" />
         <span className="text-arc-border">/</span>
         <span className="text-sm font-semibold text-arc-navy">Gestion de mon groupe</span>
       </div>

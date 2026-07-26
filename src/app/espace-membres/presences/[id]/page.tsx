@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import AdminCheckInPanel from "./AdminCheckInPanel";
 import { getGroup, GROUPS } from "@/lib/groups";
 import Icon from "@/components/ui/Icon";
@@ -78,10 +78,7 @@ export default async function PresenceEventPage({ params }: { params: { id: stri
 
   return (
     <div className="max-w-5xl">
-      <Link href="/espace-membres/presences"
-        className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Calendrier des présences
-      </Link>
+      <BackButton href="/espace-membres/presences" label="Calendrier des présences" className="mb-4" />
 
       {/* En-tête événement */}
       <div className="bg-white border border-arc-border rounded-2xl p-5 mb-5">

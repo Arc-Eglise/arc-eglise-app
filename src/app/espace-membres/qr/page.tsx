@@ -1,4 +1,4 @@
-import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -20,7 +20,7 @@ export default async function QrStudioPage() {
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px", fontFamily: "system-ui,Arial,sans-serif" }}>
-      <Link href="/espace-membres?panel=admin" style={{ fontSize: 13, color: "#8890aa", textDecoration: "none" }}>← Administration</Link>
+      <BackButton href="/espace-membres?panel=admin" label="Administration" className="mb-3" />
       <h1 style={{ fontFamily: "Georgia,serif", fontSize: 28, fontWeight: 700, color: "#1e2464", margin: "6px 0 2px" }}>QR Studio 🎨</h1>
       <p style={{ color: "#8890aa", margin: "0 0 22px", fontSize: 14 }}>
         Génère et personnalise des QR codes ARC (site, espace membre, téléchargement des apps…) — couleurs, correction d&apos;erreur, taille, logo. Export PNG.

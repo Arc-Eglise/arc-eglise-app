@@ -1,4 +1,4 @@
-import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -34,7 +34,7 @@ export default async function EvenementsPage() {
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "24px 16px", fontFamily: "system-ui,Arial,sans-serif" }}>
-      <Link href="/espace-membres?panel=agenda" style={{ fontSize: 13, color: "#8890aa", textDecoration: "none" }}>← Agenda</Link>
+      <BackButton href="/espace-membres?panel=agenda" label="Agenda" className="mb-3" />
       <h1 style={{ fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700, color: "#1e2464", margin: "6px 0 2px" }}>Événements & réservations</h1>
       <p style={{ color: "#8890aa", margin: "0 0 20px", fontSize: 14 }}>Réserve ta place — tu recevras ton billet QR par email.</p>
 

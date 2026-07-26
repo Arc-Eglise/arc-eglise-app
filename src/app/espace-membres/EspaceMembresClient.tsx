@@ -17,6 +17,7 @@ import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
 import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, type DmSummary } from "@/lib/actions/messagerie";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import type { ArcAction } from "@/lib/arc-ia-actions";
+import BackButton from "@/components/ui/BackButton";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, Sparkles,
   Users, ClipboardCheck, Bell, BookMarked, Inbox, HandCoins,
@@ -2599,7 +2600,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Conv header */}
                   <div style={{padding:"10px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8b91b0",padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>← Retour</button>
+                    <BackButton onClick={()=>setPanel("accueil")} label="Accueil" />
                     <button className="mob-only" style={{border:"none",background:"#f1f3fb",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
                     {isAI
                       ? <span style={{fontSize:16}}>🤖</span>
@@ -3072,7 +3073,7 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="priere"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
-                <button onClick={()=>setPanel("accueil")} style={{border:"none",background:"none",fontSize:13,cursor:"pointer",color:"#8b91b0",padding:"0 0 6px",display:"block"}}>← Retour</button>
+                <BackButton onClick={()=>setPanel("accueil")} label="Accueil" className="mb-2" />
                 <div className="em-sect-title">Prière & Bible</div>
                 <div className="em-sect-sub">Lecture, étude, prières communautaires</div>
               </div>

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage, addMemberInteraction, deleteMemberInteraction, createPastoralTask, updateTaskStatus, deletePastoralTask } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
@@ -239,9 +240,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
   return (
     <div className="max-w-4xl">
       {/* Back */}
-      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1.5 text-sm text-arc-text3 hover:text-arc-navy mb-4 transition-colors">
-        ← Retour CRM
-      </Link>
+      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
 

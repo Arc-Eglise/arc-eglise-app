@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import PresencesTable from "./PresencesTable";
 
 export default async function PresencesPage({
@@ -86,9 +87,7 @@ export default async function PresencesPage({
 
   return (
     <div>
-      <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-blue hover:text-arc-navy mb-5 transition-colors">
-        ← Espace Membres
-      </Link>
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
       {/* En-tête */}
       <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>

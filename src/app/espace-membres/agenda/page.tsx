@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
 import { EventCard } from "./AgendaClient";
 import { EventsManagerClient } from "./EventsManagerClient";
 
@@ -93,9 +94,7 @@ export default async function AgendaPage() {
           ← ARC Église AI
         </Link>
         <span className="text-arc-border">|</span>
-        <Link href="/espace-membres" className="inline-flex items-center gap-1.5 text-sm text-arc-text2 hover:text-arc-navy transition-colors">
-          ← Espace Membres
-        </Link>
+        <BackButton href="/espace-membres" label="Espace membres" />
       </div>
       <div className="mb-6">
         <h1 className="font-serif text-3xl font-bold text-arc-navy">Agenda</h1>
