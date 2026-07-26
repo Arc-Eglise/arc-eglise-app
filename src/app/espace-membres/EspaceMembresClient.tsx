@@ -14,7 +14,7 @@ import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerCl
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
-import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, type DmSummary } from "@/lib/actions/messagerie";
+import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, messageFunction, type DmSummary } from "@/lib/actions/messagerie";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import type { ArcAction } from "@/lib/arc-ia-actions";
 import BackButton from "@/components/ui/BackButton";
@@ -128,6 +128,30 @@ function parseVerseRef(ref: string): { book: number; chapter: number; verse?: nu
   if (book === -1) return null;
   const chapter = Math.min(Math.max(1, parseInt(m[2], 10)), BOOKS[book].c);
   return { book, chapter, verse: m[3] ? parseInt(m[3], 10) : undefined };
+}
+
+/* ── Rendu markdown léger des messages : **gras**, *italique*, [lien](url),
+   lignes « > » (citation) et « - » (liste). Aucun HTML brut (sécurisé). ──── */
+function mdInline(text: string, kp: string): (string | JSX.Element)[] {
+  const out: (string | JSX.Element)[] = [];
+  const re = /(\*\*([^*]+)\*\*|\*([^*\n]+)\*|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
+  let last = 0, i = 0, m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[2] !== undefined) out.push(<strong key={kp + i}>{m[2]}</strong>);
+    else if (m[3] !== undefined) out.push(<em key={kp + i}>{m[3]}</em>);
+    else out.push(<a key={kp + i} href={m[5]} target="_blank" rel="noopener noreferrer" style={{ color: "#1e2464", textDecoration: "underline" }}>{m[4]}</a>);
+    last = m.index + m[0].length; i++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+function renderMessageText(text: string): (string | JSX.Element)[] {
+  return text.split("\n").map((line, idx) => {
+    if (line.startsWith("> ")) return <div key={idx} style={{ borderLeft: "3px solid #c8cee6", paddingLeft: 9, color: "#5c6280", margin: "3px 0" }}>{mdInline(line.slice(2), idx + "q")}</div>;
+    if (/^[-*]\s/.test(line)) return <div key={idx} style={{ paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 3 }}>•</span>{mdInline(line.replace(/^[-*]\s/, ""), idx + "l")}</div>;
+    return <span key={idx}>{mdInline(line, idx + "i")}{idx < text.split("\n").length - 1 ? <br /> : null}</span>;
+  });
 }
 
 /* ── ARC IA : types des cartes de résultat rendues dans le fil ─────────────── */
@@ -577,6 +601,13 @@ const [showSalle, setShowSalle]       = useState(false);
   });
   const [msgTab, setMsgTab]       = useState<MsgTab>("msgs");
   const [msgInput, setMsgInput]   = useState("");
+  const [threadSearch, setThreadSearch] = useState("");
+  const [showThreadSearch, setShowThreadSearch] = useState(false);
+  // Sélecteur de destinataire (👥) : écrire à un membre ou à une fonction.
+  const [showRecipient, setShowRecipient] = useState(false);
+  const [recipTab, setRecipTab] = useState<"membre"|"fonction">("membre");
+  const [recipSearch, setRecipSearch] = useState("");
+  const [recipBusy, setRecipBusy] = useState(false);
   const msgEndRef    = useRef<HTMLDivElement>(null);
   const msgInputRef  = useRef<HTMLTextAreaElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string|null>(null);
@@ -621,8 +652,28 @@ const [showSalle, setShowSalle]       = useState(false);
     setShowNewDm(false); setNewDmMode("dm"); setGroupName(""); setGroupMembers([]);
   }
 
+  // Écrire à toute une fonction (👥 → onglet Fonction) : ouvre le canal de fonction.
+  async function openFunctionConv(slug: string, label: string) {
+    if (recipBusy) return;
+    setRecipBusy(true);
+    const res = await messageFunction(slug, label);
+    setRecipBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      const list = await listMyConversations();
+      setDmList(list);
+      setMsgChan(`dm:${res.conversationId}`);
+      setMsgTab("msgs");
+      setOpenThread(null);
+      setShowRecipient(false);
+      setToast(`✉️ Conversation « ${label} » ouverte`);
+    } else {
+      setToast("error" in res && res.error ? res.error : "Erreur");
+    }
+  }
+
   async function startDm(otherUserId: string) {
     closeNewDm();
+    setShowRecipient(false);
     const res = await getOrCreateConversation(otherUserId);
     if ("conversationId" in res && res.conversationId) {
       const list = await listMyConversations();
@@ -916,7 +967,10 @@ const [showSalle, setShowSalle]       = useState(false);
   // Libellé courant : nom du DM, « ARC IA », ou nom du canal.
   const chanLabel = isAI ? "ARC IA" : activeDm ? activeDm.name : msgChan;
   const isChannelHeader = !dmId && !isAI;   // canaux communautaires → préfixe #
-  const displayMessages = isAI ? aiMessages : chan.messages;
+  const allMessages = isAI ? aiMessages : chan.messages;
+  const displayMessages = showThreadSearch && threadSearch.trim()
+    ? allMessages.filter(m => m.text.toLowerCase().includes(threadSearch.trim().toLowerCase()))
+    : allMessages;
   // Réactions / épingles dérivées du canal réel (l'assistant IA n'en a pas).
   const msgReactions: Record<string,Record<string,number>> = isAI ? {} : chan.reactions;
   const myReactions:  Record<string,string[]>              = isAI ? {} : chan.myReactions;
@@ -1990,6 +2044,29 @@ const [showSalle, setShowSalle]       = useState(false);
     }, 0);
   }
 
+  // Formatage markdown : entoure la sélection (ou insère un placeholder) au curseur.
+  function wrapSelection(before: string, after: string, placeholder: string) {
+    const ta = msgInputRef.current;
+    const start = ta?.selectionStart ?? msgInput.length;
+    const end   = ta?.selectionEnd   ?? msgInput.length;
+    const sel   = msgInput.slice(start, end) || placeholder;
+    const next  = msgInput.slice(0, start) + before + sel + after + msgInput.slice(end);
+    setMsgInput(next);
+    setTimeout(() => {
+      ta?.focus();
+      ta?.setSelectionRange(start + before.length, start + before.length + sel.length);
+    }, 0);
+  }
+  // Préfixe la ligne courante (listes, citations).
+  function prefixLine(prefix: string) {
+    const ta = msgInputRef.current;
+    const pos = ta?.selectionStart ?? msgInput.length;
+    const lineStart = msgInput.lastIndexOf("\n", pos - 1) + 1;
+    const next = msgInput.slice(0, lineStart) + prefix + msgInput.slice(lineStart);
+    setMsgInput(next);
+    setTimeout(() => { ta?.focus(); ta?.setSelectionRange(pos + prefix.length, pos + prefix.length); }, 0);
+  }
+
   function sendMsg() {
     if (!msgInput.trim()) return;
     if (isAI) sendAI(msgInput);   // ARC IA (streaming)
@@ -2608,11 +2685,24 @@ const [showSalle, setShowSalle]       = useState(false);
                       ? <span style={{fontWeight:700,fontSize:15,color:"#8b91b0"}}>#</span>
                       : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{chanLabel[0]}</div>}
                     <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{chanLabel}</span>
-                    <button className="em-toolbar-btn" title="Rechercher">🔍</button>
+                    <button type="button" className="em-toolbar-btn" title="Rechercher dans la conversation"
+                      onClick={()=>setShowThreadSearch(v=>{ const nv=!v; if(!nv) setThreadSearch(""); return nv; })}
+                      style={showThreadSearch?{background:"#1e2464",color:"#fff"}:undefined}>🔍</button>
                     <button className="em-toolbar-btn" title="Démarrer une réunion vidéo" onClick={()=>setShowVideoCall(true)}>📹</button>
-                    <button className="em-toolbar-btn" title="Membres">👥</button>
+                    <button type="button" className="em-toolbar-btn" title="Destinataires & membres"
+                      onClick={()=>{ if(members.length===0) loadMembers(); setShowRecipient(true); }}>👥</button>
                     {canAdmin && <button className="em-toolbar-btn" title="Paramètres" onClick={()=>setShowSettings(true)}>⚙️</button>}
                   </div>
+
+                  {/* Recherche dans la conversation (🔍) */}
+                  {showThreadSearch && (
+                    <div style={{padding:"8px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0,background:"#fafbfe"}}>
+                      <input autoFocus value={threadSearch} onChange={e=>setThreadSearch(e.target.value)} placeholder="Rechercher dans cette conversation…"
+                        style={{flex:1,padding:"7px 12px",border:"1px solid #e0e4f2",borderRadius:9,fontSize:13,outline:"none",background:"#fff"}} />
+                      {threadSearch.trim() && <span style={{fontSize:11,color:"#8b91b0",flexShrink:0,whiteSpace:"nowrap"}}>{displayMessages.length} résultat{displayMessages.length>1?"s":""}</span>}
+                      <button type="button" onClick={()=>{setShowThreadSearch(false);setThreadSearch("");}} style={{border:"none",background:"none",cursor:"pointer",color:"#8b91b0",fontSize:16,flexShrink:0,lineHeight:1}}>✕</button>
+                    </div>
+                  )}
 
                   {/* Pinned banner */}
                   {pinnedMsgs.length > 0 && msgTab==="msgs" && (
@@ -2652,7 +2742,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                 {(!hasCard || m.text) && (
                                   <div className="em-bubble em-reading-zone em-reading-text">
                                     {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
-                                    {m.text}
+                                    {renderMessageText(m.text)}
                                   </div>
                                 )}
                                 {/* ARC IA — carte de résultat + boutons d'action */}
@@ -2720,12 +2810,12 @@ const [showSalle, setShowSalle]       = useState(false);
                     {/* Input bar */}
                     <div className="em-msg-bar" style={{flexDirection:"column",gap:0,padding:"0 12px 12px"}}>
                       <div className="em-msg-toolbar">
-                        <button className="em-toolbar-btn" title="Gras">𝐁</button>
-                        <button className="em-toolbar-btn" title="Italique">𝐼</button>
-                        <button className="em-toolbar-btn" title="Lien">🔗</button>
+                        <button type="button" className="em-toolbar-btn" title="Gras (**texte**)" onClick={()=>wrapSelection("**","**","gras")}>𝐁</button>
+                        <button type="button" className="em-toolbar-btn" title="Italique (*texte*)" onClick={()=>wrapSelection("*","*","italique")}>𝐼</button>
+                        <button type="button" className="em-toolbar-btn" title="Lien" onClick={()=>wrapSelection("[","](https://)","texte")}>🔗</button>
                         <span style={{width:1,background:"#e6e9f4",margin:"2px 4px",display:"inline-block",height:16}} />
-                        <button className="em-toolbar-btn" title="Liste">≡</button>
-                        <button className="em-toolbar-btn" title="Citation">❝</button>
+                        <button type="button" className="em-toolbar-btn" title="Liste" onClick={()=>prefixLine("- ")}>≡</button>
+                        <button type="button" className="em-toolbar-btn" title="Citation" onClick={()=>prefixLine("> ")}>❝</button>
                       </div>
                       <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid #e6e9f4"}}>
                         <label className="em-toolbar-btn" title="Fichier" style={{cursor:"pointer",marginBottom:2,flexShrink:0}}>
@@ -6330,6 +6420,72 @@ const [showSalle, setShowSalle]       = useState(false);
       )}
 
       {/* ── Réserver une salle ── */}
+      {/* ── Sélecteur de destinataire (👥) : membre ou fonction ── */}
+      {showRecipient && (() => {
+        const myGroupsList = (profile?.groups ?? []) as string[];
+        const myRole = profile?.role ?? "";
+        const canAllFn = myRole === "admin" || myRole === "pasteur" || myGroupsList.includes("communication");
+        const allFns = Array.from(new Set(members.flatMap(m => (m.groups ?? [])))).filter(Boolean).sort();
+        const myFns = canAllFn ? allFns : allFns.filter(f => myGroupsList.includes(f));
+        const fnLabel = (slug: string) => GROUPES.find(g => g.slug === slug)?.name ?? slug;
+        const fnColor = (slug: string) => GROUPES.find(g => g.slug === slug)?.hex ?? "#1e2464";
+        const memberList = members.filter(m => m.validated && m.id !== userId &&
+          (!recipSearch.trim() || [m.first_name, m.last_name].filter(Boolean).join(" ").toLowerCase().includes(recipSearch.toLowerCase())));
+        return (
+          <div className="em-overlay" onClick={() => setShowRecipient(false)}>
+            <div className="em-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+              <div className="em-modal-hdr">
+                <span className="em-modal-title">✍️ Écrire à…</span>
+                <button className="em-modal-close" onClick={() => setShowRecipient(false)}>✕</button>
+              </div>
+              <div className="em-modal-body">
+                <div className="em-tabs" style={{ marginBottom: 14 }}>
+                  <button className={`em-tab${recipTab === "membre" ? " active" : ""}`} onClick={() => setRecipTab("membre")}>👤 Un membre</button>
+                  <button className={`em-tab${recipTab === "fonction" ? " active" : ""}`} onClick={() => setRecipTab("fonction")}>👥 Une fonction</button>
+                </div>
+                {recipTab === "membre" ? (
+                  <>
+                    <input value={recipSearch} onChange={e => setRecipSearch(e.target.value)} placeholder="Rechercher un membre…" className="em-input" style={{ marginBottom: 10 }} autoFocus />
+                    <div style={{ maxHeight: 340, overflowY: "auto" }}>
+                      {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Chargement…</div>
+                        : memberList.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Aucun membre.</div>
+                        : memberList.map(m => {
+                          const nm = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
+                          return (
+                            <button key={m.id} className="em-ch-item" style={{ width: "100%", padding: "9px 10px", borderRadius: 9 }} onClick={() => startDm(m.id)}>
+                              <div className="em-av" style={{ width: 30, height: 30, fontSize: 11, background: "#1e2464" }}>{(m.first_name?.[0] ?? "?").toUpperCase()}</div>
+                              <span style={{ flex: 1, textAlign: "left", fontSize: 13, color: "#1a1d3a" }}>{nm}</span>
+                              <span style={{ fontSize: 11, color: "#8b91b0" }}>{m.role}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ maxHeight: 380, overflowY: "auto" }}>
+                    {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Chargement…</div>
+                      : myFns.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Aucune fonction accessible.</div>
+                      : myFns.map(slug => {
+                        const count = members.filter(m => m.validated && (m.groups ?? []).includes(slug)).length;
+                        return (
+                          <button key={slug} className="em-ch-item" style={{ width: "100%", padding: 10, borderRadius: 9 }} disabled={recipBusy} onClick={() => openFunctionConv(slug, fnLabel(slug))}>
+                            <span style={{ width: 30, height: 30, borderRadius: 8, background: fnColor(slug), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{fnLabel(slug)[0]}</span>
+                            <span style={{ flex: 1, textAlign: "left", fontSize: 13, color: "#1a1d3a", fontWeight: 600 }}>{fnLabel(slug)}</span>
+                            <span style={{ fontSize: 11, color: "#8b91b0" }}>{count} membre{count > 1 ? "s" : ""}</span>
+                          </button>
+                        );
+                      })}
+                    <div style={{ fontSize: 11, color: "#8b91b0", marginTop: 10, lineHeight: 1.5 }}>
+                      Écrire à une fonction ouvre une conversation de groupe avec tous ses membres. {canAllFn ? "Tu peux écrire à toutes les fonctions." : "Tu peux écrire aux fonctions dont tu fais partie."}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showSalle && (
         <div className="em-overlay" onClick={()=>setShowSalle(false)}>
           <div className="em-modal" onClick={e=>e.stopPropagation()}>

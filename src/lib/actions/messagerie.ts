@@ -340,6 +340,59 @@ export async function searchMyMessages(query: string): Promise<MsgSearchHit[]> {
   });
 }
 
+/**
+ * Écrire à toute une FONCTION : ouvre (ou crée) une conversation de groupe
+ * persistante regroupant tous les membres validés de cette fonction.
+ *
+ * RBAC (matrice ARC) : peut écrire à une fonction si admin/pasteur, si
+ * communication (rôle transverse), OU si le membre appartient lui-même à cette
+ * fonction (il peut écrire à son équipe). Les membres viennent de Supabase.
+ */
+export async function messageFunction(slug: string, label: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const admin = createAdminClient();
+  const { data: me } = await admin.from("profiles").select("role, groups").eq("id", user.id).single();
+  const role = (me?.role as string | null) ?? "";
+  const myGroups = (me?.groups as string[] | null) ?? [];
+  const canAll = role === "admin" || role === "pasteur" || myGroups.includes("communication");
+  if (!canAll && !myGroups.includes(slug)) {
+    return { error: "Tu n'es pas autorisé à écrire à cette fonction." };
+  }
+
+  const { data: mbrs } = await admin
+    .from("profiles").select("id").eq("validated", true).contains("groups", [slug]);
+  const memberIds = (mbrs ?? []).map((m) => m.id as string);
+  if (memberIds.length === 0) return { error: "Aucun membre dans cette fonction pour l'instant." };
+
+  const key = `fn:${slug}`;
+  let convId: string;
+  const { data: existing } = await admin
+    .from("conversations").select("id").eq("channel_key", key).maybeSingle();
+  if (existing) {
+    convId = existing.id as string;
+  } else {
+    const { data: conv, error } = await admin
+      .from("conversations")
+      .insert({ name: label, is_group: true, channel_key: key, created_by: user.id })
+      .select("id").single();
+    if (error || !conv) return { error: "Erreur lors de la création du canal de fonction." };
+    convId = conv.id as string;
+  }
+
+  // S'assurer que tous les membres de la fonction (+ l'expéditeur) sont participants.
+  const allIds = Array.from(new Set([...memberIds, user.id]));
+  const { data: existingParts } = await admin
+    .from("conversation_participants").select("user_id").eq("conversation_id", convId);
+  const have = new Set((existingParts ?? []).map((p) => p.user_id as string));
+  const toAdd = allIds.filter((id) => !have.has(id)).map((id) => ({ conversation_id: convId, user_id: id }));
+  if (toAdd.length) await admin.from("conversation_participants").insert(toAdd);
+
+  return { conversationId: convId };
+}
+
 export async function markAsRead(conversationId: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
