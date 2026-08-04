@@ -15,6 +15,10 @@ import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
 import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, messageFunction, type DmSummary } from "@/lib/actions/messagerie";
+import { createNote, type NoteColor } from "@/lib/actions/notes";
+import { createTask } from "@/lib/actions/tasks";
+import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
+import StreamNotesWidget from "@/components/notes/StreamNotesWidget";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
 import type { ArcAction } from "@/lib/arc-ia-actions";
 import BackButton from "@/components/ui/BackButton";
@@ -485,6 +489,8 @@ const [showSalle, setShowSalle]       = useState(false);
   const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
   const [noteRef, setNoteRef]     = useState("Jean 3:16");
   const [noteContent, setNoteContent] = useState("");
+  const [noteColor, setNoteColor] = useState<NoteColor>("yellow");   // ADR-002 : note du lecteur biblique
+  const [noteSaving, setNoteSaving] = useState(false);
   const [doleanceType, setDoleanceType] = useState("bug");
   const [doleanceText, setDoleanceText] = useState("");
   const [doleanceAnon, setDoleanceAnon] = useState(false);
@@ -617,6 +623,7 @@ const [showSalle, setShowSalle]       = useState(false);
   const [threadInput, setThreadInput]       = useState("");
   const [huddleActive, setHuddleActive]     = useState(false);
   const [msgHover, setMsgHover]             = useState<string|null>(null);
+  const [msgNoteFor, setMsgNoteFor]         = useState<string|null>(null);   // message → note/tâche (ADR-002 Phase 2)
   const [showMention, setShowMention]       = useState(false);
   const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
   const [taskDone, setTaskDone]             = useState<string[]>([]);
@@ -2107,6 +2114,40 @@ const [showSalle, setShowSalle]       = useState(false);
     setToast(wasPin ? "Message désépinglé" : "Message épinglé 📌");
   }
 
+  /* ── ADR-002 Phase 2 : capturer un message → mes notes / mes tâches ── */
+  function msgSnapshot(m: { id: string; from: string; text: string; time: string; mine?: boolean }) {
+    return {
+      kind: "messagerie",
+      conversation: chanLabel,
+      sender: m.mine ? "Moi" : m.from,
+      text: m.text,
+      at: m.time,
+    } as Record<string, unknown>;
+  }
+  async function saveMsgAsNote(m: { id: string; from: string; text: string; time: string; mine?: boolean }) {
+    setMsgNoteFor(null);
+    const res = await createNote({
+      title: `💬 ${chanLabel}`,
+      body: `${m.mine ? "Moi" : m.from} : ${m.text}`,
+      color: "blue",
+      source_kind: "messagerie",
+      source_ref_id: m.id,
+      source_snapshot: msgSnapshot(m),
+    });
+    setToast("error" in res ? "Échec de l'enregistrement" : "Ajouté à mes notes 🗒️");
+  }
+  async function saveMsgAsTask(m: { id: string; from: string; text: string; time: string; mine?: boolean }) {
+    setMsgNoteFor(null);
+    const res = await createTask({
+      title: m.text.slice(0, 200) || `Message de ${m.from}`,
+      description: `Depuis « ${chanLabel} » — ${m.mine ? "Moi" : m.from}`,
+      source_kind: "messagerie",
+      source_ref_id: m.id,
+      source_snapshot: msgSnapshot(m),
+    });
+    setToast("error" in res ? "Échec de l'enregistrement" : "Ajouté à mes tâches ✅");
+  }
+
   function sendThreadReply() {
     if (!threadInput.trim() || !openThread) return;
     const r = { id: Date.now().toString(), from: "Moi", text: threadInput.trim(),
@@ -2168,6 +2209,7 @@ const [showSalle, setShowSalle]       = useState(false);
       { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
       { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
       { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
+      { id:"notes-taches", lbl:"Notes & Tâches", ico:"🗒️", Icon:BookMarked,   arcIcon:"notes-bibliques", href:"/espace-membres/notes-taches" },
     ]},
     { section:"Communauté", items:[
       { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
@@ -2179,7 +2221,6 @@ const [showSalle, setShowSalle]       = useState(false);
       { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell,           arcIcon:"activites" },
     ]},
     { section:"Personnel", items:[
-      { id:"notes",     lbl:"Notes bibliques", ico:"📝", Icon:BookMarked, arcIcon:"notes-bibliques", href:"/espace-membres/notes" },
       { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox,      arcIcon:"doleances", href:"/espace-membres/doleances" },
     ]},
     { section:"Gestion", items:[
@@ -2830,6 +2871,16 @@ const [showSalle, setShowSalle]       = useState(false);
                                 <button className="em-msg-action-btn" title="Plus" onClick={e=>{e.stopPropagation();setShowEmojiPicker(showEmojiPicker===m.id?null:m.id);}}>😊</button>
                                 <button className="em-msg-action-btn" title="Répondre" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>↩</button>
                                 <button className="em-msg-action-btn" title={isPinned?"Désépingler":"Épingler"} onClick={()=>togglePin(m.id)}>📌</button>
+                                {!isAI && (
+                                  <button className="em-msg-action-btn" title="Prendre une note / créer une tâche" onClick={e=>{e.stopPropagation();setMsgNoteFor(msgNoteFor===m.id?null:m.id);}}>📝</button>
+                                )}
+                              </div>
+                            )}
+                            {/* Capture note/tâche depuis le message (ADR-002 Phase 2) */}
+                            {msgNoteFor===m.id && (
+                              <div style={{position:"absolute",zIndex:55,bottom:"100%",right:m.mine?8:"auto",left:m.mine?"auto":40,background:"#fff",borderRadius:12,boxShadow:"0 4px 20px rgba(30,36,100,.18)",padding:6,border:"1px solid #e6e9f4",display:"flex",flexDirection:"column",gap:2,minWidth:190}} onClick={e=>e.stopPropagation()}>
+                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsNote(m)}>🗒️ Ajouter à mes notes</button>
+                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsTask(m)}>✅ Ajouter à mes tâches</button>
                               </div>
                             )}
                             {/* Quick emoji picker */}
@@ -3135,7 +3186,21 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:13.5,fontWeight:600,color:"#22263f"}}>{ev.title}</div>
                       <div style={{fontSize:11.5,color:"#767c9c",marginTop:3}}>{ev.time_start?.slice(0,5)}{ev.location?` · ${ev.location}`:""}</div>
-                      <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{marginTop:8,textDecoration:"none",display:"inline-block"}}>Participer →</a>
+                      <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
+                        <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",display:"inline-block"}}>Participer →</a>
+                        <CaptureNoteButton
+                          compact
+                          input={() => ({
+                            sourceKind: "agenda",
+                            title: `📅 ${ev.title}`,
+                            body: [ev.title, `${d.toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}${ev.time_start?` · ${ev.time_start.slice(0,5)}`:""}`, ev.location].filter(Boolean).join("\n"),
+                            color: "green",
+                            sourceRefId: ev.id,
+                            taskTitle: `Préparer : ${ev.title}`,
+                            snapshot: { kind: "agenda", event_id: ev.id, title: ev.title, date: ev.date, time_start: ev.time_start ?? null, location: ev.location ?? null },
+                          })}
+                        />
+                      </div>
                     </div>
                   </div>
                   );
@@ -3160,11 +3225,14 @@ const [showSalle, setShowSalle]       = useState(false);
               )}
             </div>
             {live ? (
-              <VideoPlayer
-                src={`https://www.youtube.com/embed/${live.videoId}?autoplay=0&rel=0`}
-                title={live.title || "ARC Live"}
-                style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9",marginBottom:14}}
-              />
+              <div style={{position:"relative",marginBottom:14}}>
+                <VideoPlayer
+                  src={`https://www.youtube.com/embed/${live.videoId}?autoplay=0&rel=0`}
+                  title={live.title || "ARC Live"}
+                  style={{background:"#000",borderRadius:14,overflow:"hidden",aspectRatio:"16/9"}}
+                />
+                <StreamNotesWidget streamTitle={live.title || "Direct ARC"} streamId={live.videoId} />
+              </div>
             ) : (
               <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8b91b0",gap:8,textAlign:"center",padding:16}}>
                 {!liveLoaded ? (
@@ -3244,6 +3312,18 @@ const [showSalle, setShowSalle]       = useState(false);
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={loadVersetMeditation} disabled={versetMedLoading}>
                       {versetMedLoading ? "…" : versetMeditation ? "✦ Méditation" : "✦ Méditer"}
                     </button>
+                    <CaptureNoteButton
+                      label="Prendre une note"
+                      input={() => ({
+                        sourceKind: "priere_bible",
+                        title: `Verset du jour — ${VERSET.ref}`,
+                        body: `« ${VERSET.text} »\n— ${VERSET.ref}`,
+                        reference: VERSET.ref,
+                        color: "yellow",
+                        sourceRefId: VERSET.ref,
+                        snapshot: { kind: "priere_bible", reference: VERSET.ref, text: VERSET.text, captured_at: new Date().toISOString() },
+                      })}
+                    />
                   </div>
                   {versetMeditation && (
                     <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}>
@@ -4586,6 +4666,12 @@ const [showSalle, setShowSalle]       = useState(false);
           {/* Quick actions */}
           <div className="em-rp-sec">
             <div className="em-rp-title">Accès rapide</div>
+            <a className="em-qa" href="/espace-membres/notes-taches" style={{textDecoration:"none"}}>
+              <span className="em-qa-ico">🗒️</span> Notes &amp; Tâches
+            </a>
+            <a className="em-qa" href="/espace-membres/notes-taches?tab=taches" style={{textDecoration:"none"}}>
+              <span className="em-qa-ico">✅</span> Mes tâches
+            </a>
             <button className="em-qa" onClick={()=>nav("priere")}>
               <span className="em-qa-ico">🙏</span> Mur de prière
             </button>
@@ -6592,13 +6678,24 @@ const [showSalle, setShowSalle]       = useState(false);
               <textarea className="em-input" style={{minHeight:140,resize:"vertical",width:"100%",marginBottom:12}} placeholder="Votre note, méditation, application pratique…" value={noteContent} onChange={e=>setNoteContent(e.target.value)} />
               <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:6}}>Couleur</label>
               <div style={{display:"flex",gap:8,marginBottom:14}}>
-                {[["#fffbeb","#fef3c7"],["#eff6ff","#bfdbfe"],["#f0fdf4","#bbf7d0"],["#fdf2f8","#fbcfe8"]].map(([bg,border])=>(
-                  <button key={bg} onClick={()=>setToast("🎨 Couleur sélectionnée")} style={{width:28,height:28,borderRadius:"50%",background:bg,border:`2px solid ${border}`,cursor:"pointer"}} />
+                {([["yellow","#f6d743"],["blue","#4d9df0"],["green","#5fce54"],["pink","#f56a9a"],["purple","#9268e8"]] as [NoteColor,string][]).map(([c,dot])=>(
+                  <button key={c} onClick={()=>setNoteColor(c)} title={c} style={{width:28,height:28,borderRadius:"50%",background:dot,border:noteColor===c?"3px solid #151a4a":"2px solid #fff",boxShadow:"0 0 0 1px #e6e9f4",cursor:"pointer"}} />
                 ))}
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button className="em-btn em-btn-outline" onClick={()=>setShowNote(false)}>Annuler</button>
-                <button className="em-btn em-btn-primary" style={{flex:1}} onClick={()=>{if(!noteContent.trim()){setToast("⚠️ Ajoutez du contenu à votre note");return;}setShowNote(false);setNoteContent("");setToast("✅ Note biblique sauvegardée !");}}>Sauvegarder</button>
+                <button className="em-btn em-btn-primary" style={{flex:1}} disabled={noteSaving} onClick={async()=>{
+                  if(!noteContent.trim()){setToast("⚠️ Ajoutez du contenu à votre note");return;}
+                  setNoteSaving(true);
+                  const res=await createNote({
+                    title: noteRef.trim() || "Note biblique",
+                    body: noteContent, reference: noteRef.trim() || null, color: noteColor,
+                    source_kind:"priere_bible", source_ref_id: noteRef.trim() || null,
+                    source_snapshot:{kind:"priere_bible",reference:noteRef.trim(),captured_at:new Date().toISOString()},
+                  });
+                  setNoteSaving(false); setShowNote(false); setNoteContent("");
+                  setToast("error" in res ? "Échec de l'enregistrement" : "✅ Note enregistrée dans Notes & Tâches");
+                }}>{noteSaving?"…":"Sauvegarder"}</button>
               </div>
             </div>
           </div>

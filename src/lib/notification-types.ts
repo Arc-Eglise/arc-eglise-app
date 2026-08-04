@@ -27,6 +27,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   { key: "mail", label: "Boîte mail", description: "Emails non lus (Microsoft 365)", icon: "📧", types: ["mail"] },
   { key: "sermon", label: "Prédications", description: "Nouveaux sermons publiés", icon: "🎙", types: ["sermon"] },
   { key: "lecture", label: "Plans de lecture", description: "Progression des plans bibliques", icon: "📖", types: ["lecture"] },
+  { key: "tasks", label: "Notes & Tâches", description: "Rappels de tâches et partages reçus", icon: "🗒️", types: ["task", "share"] },
   { key: "system", label: "Annonces & compte", description: "Validation de compte, rôles, annonces de l'église", icon: "🔔", types: ["system"], locked: true },
 ];
 

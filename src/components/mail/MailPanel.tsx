@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getMailboxLabel, FUNCTION_MAILBOXES, CONTACT_MAILBOX, isGrievanceEmail } from "@/lib/mail/mailbox-config";
 import Icon from "@/components/ui/Icon";
+import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
 
 type GMsg = {
   id: string;
@@ -385,6 +386,22 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                   {selected.hasAttachments && (
                     <span style={{fontSize:11,color:"#aaa",alignSelf:"center"}}>📎 Pièces jointes</span>
                   )}
+                  <CaptureNoteButton
+                    compact
+                    input={() => {
+                      const subj = detail?.subject || selected.subject || "(sans objet)";
+                      const fromName = (detail ?? selected).from.emailAddress.name || (detail ?? selected).from.emailAddress.address;
+                      return {
+                        sourceKind: "mail" as const,
+                        title: `✉️ ${subj}`,
+                        body: `De : ${fromName}\n${selected.bodyPreview ?? ""}`.trim(),
+                        color: "blue" as const,
+                        sourceRefId: selected.id,
+                        taskTitle: `Répondre : ${subj}`,
+                        snapshot: { kind: "mail", message_id: selected.id, mailbox: selectedBox ?? null, subject: subj, from: fromName, received: selected.receivedDateTime },
+                      };
+                    }}
+                  />
                 </div>
               </div>
 

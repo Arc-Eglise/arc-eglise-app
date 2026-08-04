@@ -20,5 +20,8 @@
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/tasks/reminders", "schedule": "*/15 * * * *" }
   ]
 }
