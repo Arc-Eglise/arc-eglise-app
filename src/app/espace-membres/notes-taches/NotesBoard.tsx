@@ -1,12 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  createNote, updateNote, deleteNote, NOTE_COLORS, type NoteRow, type NoteColor,
-} from "@/lib/actions/notes";
+import { createNote, updateNote, deleteNote } from "@/lib/actions/notes";
+import { NOTE_COLORS, type NoteRow, type NoteColor, type TagRow } from "@/lib/notes-taches/types";
 import ShareModal from "./ShareModal";
 import TagBar from "./TagBar";
-import type { TagRow } from "@/lib/actions/tags";
 
 /* ── Palette Sticky Notes ─────────────────────────────────────────────────── */
 const COLOR_STYLE: Record<string, { bg: string; border: string; dot: string }> = {

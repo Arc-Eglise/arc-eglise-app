@@ -4,34 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser, notifyMany } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
+import { FUNCTION_LABELS, type ResourceType, type ShareRow } from "@/lib/notes-taches/types";
 
 const PATH = "/espace-membres/notes-taches";
-
-/** Libellés des 13 fonctions (référentiel ADR-001). */
-export const FUNCTION_LABELS: Record<string, string> = {
-  pasteur: "Pasteur", chorale: "Chorale", media: "Équipe Média",
-  social: "Social & Hospitalité", hospitalite: "Hospitalité",
-  sanitaire: "Sanitaire & Propreté", finance: "Finance", support: "Support",
-  jeunesse: "La Jeunesse", femmes: "Groupe des Femmes", ecodim: "Écodim",
-  suivi: "Suivi", communication: "Communication",
-};
-
-export type ResourceType = "note" | "task";
-
-export type ShareRow = {
-  id: string;
-  resource_type: ResourceType;
-  resource_id: string;
-  shared_by: string;
-  target_kind: "user" | "function";
-  shared_with_id: string | null;
-  shared_with_function: string | null;
-  permission: string;
-  status: string;
-  message: string | null;
-  created_at: string;
-  responded_at: string | null;
-};
 
 /** Membres validés + fonctions, pour le sélecteur de destinataire. */
 export async function listShareTargets() {

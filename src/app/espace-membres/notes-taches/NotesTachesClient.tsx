@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { NoteRow } from "@/lib/actions/notes";
-import type { TaskRow } from "@/lib/actions/tasks";
-import type { TagRow } from "@/lib/actions/tags";
+import type { NoteRow, TaskRow, TagRow } from "@/lib/notes-taches/types";
 import NotesBoard from "./NotesBoard";
 import TasksBoard from "./TasksBoard";
 import SharesInbox from "./SharesInbox";

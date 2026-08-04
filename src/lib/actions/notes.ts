@@ -2,40 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { NOTE_COLORS, type NoteColor, type NoteRow, type CreateNoteInput } from "@/lib/notes-taches/types";
 
 const PATH = "/espace-membres/notes-taches";
-
-export const NOTE_COLORS = [
-  "yellow", "green", "pink", "blue", "purple", "orange", "gray", "white",
-] as const;
-export type NoteColor = (typeof NOTE_COLORS)[number];
-
-export type NoteRow = {
-  id: string;
-  owner_id: string;
-  title: string;
-  body: string;
-  color: string;
-  is_pinned: boolean;
-  position: number;
-  reference: string | null;
-  source_kind: string | null;
-  source_snapshot: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-  archived_at: string | null;
-};
-
-export type CreateNoteInput = {
-  title?: string;
-  body?: string;
-  color?: NoteColor;
-  reference?: string | null;
-  // Phase 2 — source contextuelle (facultatif dès maintenant)
-  source_kind?: string | null;
-  source_ref_id?: string | null;
-  source_snapshot?: Record<string, unknown> | null;
-};
 
 export async function listNotes() {
   const supabase = createClient();

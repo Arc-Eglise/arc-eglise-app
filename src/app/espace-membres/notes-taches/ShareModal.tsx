@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listShareTargets, shareResource, type ResourceType } from "@/lib/actions/shares";
+import { listShareTargets, shareResource } from "@/lib/actions/shares";
+import type { ResourceType } from "@/lib/notes-taches/types";
 
 interface Props {
   resourceType: ResourceType;

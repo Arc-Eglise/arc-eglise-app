@@ -2,13 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { TAG_COLORS, type TagColor, type TagRow } from "@/lib/notes-taches/types";
 
 const PATH = "/espace-membres/notes-taches";
-
-export const TAG_COLORS = ["gray", "blue", "green", "pink", "purple", "orange"] as const;
-export type TagColor = (typeof TAG_COLORS)[number];
-
-export type TagRow = { id: string; owner_id: string; label: string; color: string; created_at: string };
 
 export async function listTags() {
   const supabase = createClient();

@@ -1,14 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  createTask, updateTask, deleteTask,
-  type TaskRow, type TaskStatus, type TaskPriority,
-} from "@/lib/actions/tasks";
+import { createTask, updateTask, deleteTask } from "@/lib/actions/tasks";
+import { type TaskRow, type TaskStatus, type TaskPriority, type TagRow } from "@/lib/notes-taches/types";
 import { RECURRENCE_PRESETS, recurrenceLabel } from "@/lib/tasks/recurrence";
 import ShareModal from "./ShareModal";
 import TagBar from "./TagBar";
-import type { TagRow } from "@/lib/actions/tags";
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   a_faire:  { label: "À faire",  color: "#5c6280", bg: "#eef1f8" },

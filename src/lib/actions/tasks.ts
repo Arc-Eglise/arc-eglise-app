@@ -3,49 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { nextOccurrence } from "@/lib/tasks/recurrence";
+import {
+  TASK_STATUSES, TASK_PRIORITIES,
+  type TaskStatus, type TaskPriority, type TaskRow, type CreateTaskInput,
+} from "@/lib/notes-taches/types";
 
 const PATH = "/espace-membres/notes-taches";
-
-export const TASK_STATUSES   = ["a_faire", "en_cours", "bloque", "termine"] as const;
-export const TASK_PRIORITIES = ["haute", "moyenne", "basse"] as const;
-export type TaskStatus   = (typeof TASK_STATUSES)[number];
-export type TaskPriority = (typeof TASK_PRIORITIES)[number];
-
-export type TaskRow = {
-  id: string;
-  owner_id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  due_at: string | null;
-  remind_at: string | null;
-  reminded_at: string | null;
-  recurrence: string | null;
-  parent_task_id: string | null;
-  position: number;
-  source_kind: string | null;
-  source_snapshot: Record<string, unknown> | null;
-  assignee_id: string | null;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-};
-
-export type CreateTaskInput = {
-  title: string;
-  description?: string;
-  status?: TaskStatus;
-  priority?: TaskPriority;
-  due_at?: string | null;
-  remind_at?: string | null;
-  recurrence?: string | null;
-  parent_task_id?: string | null;
-  // Phase 2 — source contextuelle
-  source_kind?: string | null;
-  source_ref_id?: string | null;
-  source_snapshot?: Record<string, unknown> | null;
-};
 
 export async function listTasks() {
   const supabase = createClient();

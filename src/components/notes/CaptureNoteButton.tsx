@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createNote, type NoteColor } from "@/lib/actions/notes";
+import { createNote } from "@/lib/actions/notes";
 import { createTask } from "@/lib/actions/tasks";
+import type { NoteColor } from "@/lib/notes-taches/types";
 
 export type CaptureInput = {
   sourceKind: "priere_bible" | "agenda" | "streaming" | "mail" | "messagerie";

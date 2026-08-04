@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { attachTag, detachTag, createTag, type TagRow } from "@/lib/actions/tags";
+import { attachTag, detachTag, createTag } from "@/lib/actions/tags";
+import type { TagRow } from "@/lib/notes-taches/types";
 
 export const TAG_STYLE: Record<string, { bg: string; fg: string }> = {
   gray:   { bg: "#eef1f8", fg: "#5c6280" },

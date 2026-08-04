@@ -2,9 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import BackButton from "@/components/ui/BackButton";
 import NotesTachesClient from "./NotesTachesClient";
-import type { NoteRow } from "@/lib/actions/notes";
-import type { TaskRow } from "@/lib/actions/tasks";
-import type { TagRow } from "@/lib/actions/tags";
+import type { NoteRow, TaskRow, TagRow } from "@/lib/notes-taches/types";
 
 export const dynamic = "force-dynamic";
 
