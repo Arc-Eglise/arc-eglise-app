@@ -4,6 +4,7 @@ import BackButton from "@/components/ui/BackButton";
 import NotesTachesClient from "./NotesTachesClient";
 import type { NoteRow } from "@/lib/actions/notes";
 import type { TaskRow } from "@/lib/actions/tasks";
+import type { TagRow } from "@/lib/actions/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function NotesTachesPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const [notesRes, tasksRes, sharesRes] = await Promise.all([
+  const [notesRes, tasksRes, sharesRes, tagsRes, noteTagsRes, taskTagsRes] = await Promise.all([
     supabase
       .from("notes")
       .select("*")
@@ -35,7 +36,19 @@ export default async function NotesTachesPage({
       .select("id", { count: "exact", head: true })
       .eq("status", "en_attente")
       .neq("shared_by", user.id),
+    supabase.from("user_tags").select("*").eq("owner_id", user.id).order("label"),
+    supabase.from("note_tags").select("note_id, tag_id"),
+    supabase.from("task_tags").select("task_id, tag_id"),
   ]);
+
+  const noteTagMap: Record<string, string[]> = {};
+  for (const r of (noteTagsRes.data ?? []) as { note_id: string; tag_id: string }[]) {
+    (noteTagMap[r.note_id] ??= []).push(r.tag_id);
+  }
+  const taskTagMap: Record<string, string[]> = {};
+  for (const r of (taskTagsRes.data ?? []) as { task_id: string; tag_id: string }[]) {
+    (taskTagMap[r.task_id] ??= []).push(r.tag_id);
+  }
 
   const initialTab =
     searchParams?.tab === "taches"   ? "taches" :
@@ -55,6 +68,9 @@ export default async function NotesTachesPage({
         initialTasks={(tasksRes.data ?? []) as TaskRow[]}
         initialTab={initialTab}
         initialPendingShares={sharesRes.count ?? 0}
+        initialTags={(tagsRes.data ?? []) as TagRow[]}
+        noteTagMap={noteTagMap}
+        taskTagMap={taskTagMap}
       />
     </div>
   );

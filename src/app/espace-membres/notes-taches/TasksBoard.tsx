@@ -7,6 +7,8 @@ import {
 } from "@/lib/actions/tasks";
 import { RECURRENCE_PRESETS, recurrenceLabel } from "@/lib/tasks/recurrence";
 import ShareModal from "./ShareModal";
+import TagBar from "./TagBar";
+import type { TagRow } from "@/lib/actions/tags";
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   a_faire:  { label: "À faire",  color: "#5c6280", bg: "#eef1f8" },
@@ -26,8 +28,16 @@ const NEXT_STATUS: Record<string, TaskStatus> = {
 
 type Filter = "all" | "actives" | TaskStatus;
 
-export default function TasksBoard({ initialTasks }: { initialTasks: TaskRow[] }) {
+export default function TasksBoard({
+  initialTasks, allTags, initialTagMap, onTagCreated,
+}: {
+  initialTasks: TaskRow[];
+  allTags: TagRow[];
+  initialTagMap: Record<string, string[]>;
+  onTagCreated: (t: TagRow) => void;
+}) {
   const [tasks, setTasks] = useState<TaskRow[]>(initialTasks);
+  const [tagMap, setTagMap] = useState<Record<string, string[]>>(initialTagMap);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("actives");
 
@@ -88,6 +98,14 @@ export default function TasksBoard({ initialTasks }: { initialTasks: TaskRow[] }
   async function setDue(t: TaskRow, due: string) {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, due_at: due || null } : x));
     await updateTask(t.id, { due_at: due || null });
+  }
+  async function setRemind(t: TaskRow, remind: string) {
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, remind_at: remind || null, reminded_at: null } : x));
+    await updateTask(t.id, { remind_at: remind || null });
+  }
+  async function setRecur(t: TaskRow, rrule: string) {
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, recurrence: rrule || null } : x));
+    await updateTask(t.id, { recurrence: rrule || null });
   }
   async function remove(t: TaskRow) {
     if (!confirm("Supprimer cette tâche" + (childrenOf(t.id).length ? " et ses sous-tâches ?" : " ?"))) return;
@@ -169,9 +187,15 @@ export default function TasksBoard({ initialTasks }: { initialTasks: TaskRow[] }
                 onStatus={(s) => setStatus(t, s)}
                 onPrio={(p) => setPrio(t, p)}
                 onDue={(d) => setDue(t, d)}
+                onRemind={(d) => setRemind(t, d)}
+                onRecur={(r) => setRecur(t, r)}
                 onDelete={() => remove(t)}
                 onShare={() => setSharing(t)}
                 onAddSub={() => { setSubFor(subFor === t.id ? null : t.id); setSubTitle(""); }}
+                allTags={allTags}
+                tagIds={tagMap[t.id] ?? []}
+                onTagChange={(ids) => setTagMap(m => ({ ...m, [t.id]: ids }))}
+                onTagCreated={onTagCreated}
               />
               {/* Sous-tâches */}
               {childrenOf(t.id).length > 0 && (
@@ -218,73 +242,117 @@ export default function TasksBoard({ initialTasks }: { initialTasks: TaskRow[] }
 }
 
 function TaskItem({
-  t, compact = false, onCycle, onStatus, onPrio, onDue, onDelete, onShare, onAddSub,
+  t, compact = false, onCycle, onStatus, onPrio, onDue, onRemind, onRecur, onDelete, onShare, onAddSub,
+  allTags, tagIds, onTagChange, onTagCreated,
 }: {
   t: TaskRow; compact?: boolean;
   onCycle: () => void;
   onStatus: (s: TaskStatus) => void;
   onPrio: (p: TaskPriority) => void;
   onDue: (d: string) => void;
+  onRemind?: (d: string) => void;
+  onRecur?: (r: string) => void;
   onDelete: () => void;
   onShare?: () => void;
   onAddSub?: () => void;
+  allTags?: TagRow[];
+  tagIds?: string[];
+  onTagChange?: (ids: string[]) => void;
+  onTagCreated?: (t: TagRow) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const st = STATUS_META[t.status] ?? STATUS_META.a_faire;
   const pr = PRIORITY_META[t.priority] ?? PRIORITY_META.moyenne;
   const done = t.status === "termine";
   const overdue = t.due_at && !done && new Date(t.due_at) < new Date();
-  const dueLocal = t.due_at ? new Date(t.due_at).toISOString().slice(0, 16) : "";
+  const dueLocal    = t.due_at    ? new Date(t.due_at).toISOString().slice(0, 16) : "";
+  const remindLocal = t.remind_at ? new Date(t.remind_at).toISOString().slice(0, 16) : "";
+  const canDetails = !!(onRemind || onRecur);
 
   return (
-    <div className={`group flex items-center gap-3 rounded-xl border border-arc-border bg-white ${compact ? "px-3 py-2" : "px-4 py-3"}`}>
-      {/* Case à cocher (cycle de statut) */}
-      <button
-        onClick={onCycle}
-        title="Changer le statut"
-        className="flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors"
-        style={{ borderColor: st.color, background: done ? st.color : "transparent" }}
-      >
-        {done && <span className="text-white text-xs leading-none">✓</span>}
-      </button>
+    <div className={`rounded-xl border border-arc-border bg-white ${compact ? "px-3 py-2" : "px-4 py-3"}`}>
+      <div className="group flex items-center gap-3">
+        {/* Case à cocher (cycle de statut) */}
+        <button
+          onClick={onCycle}
+          title="Changer le statut"
+          className="flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors"
+          style={{ borderColor: st.color, background: done ? st.color : "transparent" }}
+        >
+          {done && <span className="text-white text-xs leading-none">✓</span>}
+        </button>
 
-      {/* Titre + méta */}
-      <div className="flex-1 min-w-0">
-        <div className={`text-sm text-arc-navy truncate ${done ? "line-through text-arc-text3" : ""}`}>
-          <span title={pr.label}>{pr.flag}</span> {t.title}
+        {/* Titre + méta */}
+        <div className="flex-1 min-w-0">
+          <div className={`text-sm text-arc-navy truncate ${done ? "line-through text-arc-text3" : ""}`}>
+            <span title={pr.label}>{pr.flag}</span> {t.title}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: st.color, background: st.bg }}>{st.label}</span>
+            {t.due_at && (
+              <span className={`text-[10px] ${overdue ? "text-red-600 font-bold" : "text-arc-text3"}`}>
+                ⏰ {new Date(t.due_at).toLocaleString("fr-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                {overdue && " · en retard"}
+              </span>
+            )}
+            {t.recurrence && (
+              <span className="text-[10px] text-arc-blue font-semibold">🔁 {recurrenceLabel(t.recurrence)}</span>
+            )}
+            {t.remind_at && !t.reminded_at && (
+              <span className="text-[10px] text-arc-text3" title="Rappel programmé">🔔</span>
+            )}
+            {allTags && onTagChange && (
+              <TagBar
+                kind="task" resourceId={t.id} allTags={allTags}
+                tagIds={tagIds ?? []} onChange={onTagChange}
+                onCreated={onTagCreated ?? (() => {})}
+              />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: st.color, background: st.bg }}>{st.label}</span>
-          {t.due_at && (
-            <span className={`text-[10px] ${overdue ? "text-red-600 font-bold" : "text-arc-text3"}`}>
-              ⏰ {new Date(t.due_at).toLocaleString("fr-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-              {overdue && " · en retard"}
-            </span>
+
+        {/* Contrôles (au survol) */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <select value={t.status} onChange={e => onStatus(e.target.value as TaskStatus)} title="Statut"
+            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
+            {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+          </select>
+          <select value={t.priority} onChange={e => onPrio(e.target.value as TaskPriority)} title="Priorité"
+            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
+            <option value="haute">🔴</option><option value="moyenne">🟠</option><option value="basse">🔵</option>
+          </select>
+          <input type="datetime-local" value={dueLocal} onChange={e => onDue(e.target.value)} title="Échéance"
+            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none w-[140px]" />
+          {canDetails && (
+            <button onClick={() => setExpanded(e => !e)} title="Rappel & récurrence" className="text-sm px-1">{expanded ? "🔽" : "🔔"}</button>
           )}
-          {t.recurrence && (
-            <span className="text-[10px] text-arc-blue font-semibold">🔁 {recurrenceLabel(t.recurrence)}</span>
-          )}
-          {t.remind_at && !t.reminded_at && (
-            <span className="text-[10px] text-arc-text3" title="Rappel programmé">🔔</span>
-          )}
+          {onShare && <button onClick={onShare} title="Partager" className="text-sm px-1">📤</button>}
+          {onAddSub && <button onClick={onAddSub} title="Ajouter une sous-tâche" className="text-sm px-1">➕</button>}
+          <button onClick={onDelete} title="Supprimer" className="text-sm px-1">🗑️</button>
         </div>
       </div>
 
-      {/* Contrôles (au survol) */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-        <select value={t.status} onChange={e => onStatus(e.target.value as TaskStatus)} title="Statut"
-          className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
-          {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-        </select>
-        <select value={t.priority} onChange={e => onPrio(e.target.value as TaskPriority)} title="Priorité"
-          className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
-          <option value="haute">🔴</option><option value="moyenne">🟠</option><option value="basse">🔵</option>
-        </select>
-        <input type="datetime-local" value={dueLocal} onChange={e => onDue(e.target.value)} title="Échéance"
-          className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none w-[140px]" />
-        {onShare && <button onClick={onShare} title="Partager" className="text-sm px-1">📤</button>}
-        {onAddSub && <button onClick={onAddSub} title="Ajouter une sous-tâche" className="text-sm px-1">➕</button>}
-        <button onClick={onDelete} title="Supprimer" className="text-sm px-1">🗑️</button>
-      </div>
+      {/* Détails : rappel + récurrence (édition après création) */}
+      {expanded && canDetails && (
+        <div className="mt-3 pt-3 border-t border-arc-border flex flex-wrap items-center gap-4">
+          {onRemind && (
+            <label className="flex items-center gap-2 text-[11px] text-arc-text2">
+              🔔 Rappel
+              <input type="datetime-local" value={remindLocal} onChange={e => onRemind(e.target.value)}
+                className="text-[11px] rounded-md border border-arc-border px-2 py-1 outline-none" />
+            </label>
+          )}
+          {onRecur && (
+            <label className="flex items-center gap-2 text-[11px] text-arc-text2">
+              🔁 Répéter
+              <select value={t.recurrence ?? ""} onChange={e => onRecur(e.target.value)}
+                className="text-[11px] rounded-md border border-arc-border px-2 py-1 outline-none">
+                {RECURRENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
     </div>
   );
 }

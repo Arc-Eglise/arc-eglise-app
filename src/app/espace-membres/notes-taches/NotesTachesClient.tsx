@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { NoteRow } from "@/lib/actions/notes";
 import type { TaskRow } from "@/lib/actions/tasks";
+import type { TagRow } from "@/lib/actions/tags";
 import NotesBoard from "./NotesBoard";
 import TasksBoard from "./TasksBoard";
 import SharesInbox from "./SharesInbox";
@@ -14,11 +15,21 @@ interface Props {
   initialTasks: TaskRow[];
   initialTab: Tab;
   initialPendingShares?: number;
+  initialTags: TagRow[];
+  noteTagMap: Record<string, string[]>;
+  taskTagMap: Record<string, string[]>;
 }
 
-export default function NotesTachesClient({ initialNotes, initialTasks, initialTab, initialPendingShares = 0 }: Props) {
+export default function NotesTachesClient({
+  initialNotes, initialTasks, initialTab, initialPendingShares = 0,
+  initialTags, noteTagMap, taskTagMap,
+}: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [pending, setPending] = useState(initialPendingShares);
+  // Étiquettes partagées entre les deux tableaux (une création côté Notes
+  // devient dispo côté Tâches sans reload).
+  const [allTags, setAllTags] = useState<TagRow[]>(initialTags);
+  const addTag = (t: TagRow) => setAllTags(prev => prev.some(x => x.id === t.id) ? prev : [...prev, t]);
   const openTasks = initialTasks.filter(t => t.status !== "termine").length;
 
   return (
@@ -65,8 +76,8 @@ export default function NotesTachesClient({ initialNotes, initialTasks, initialT
         </button>
       </div>
 
-      {tab === "notes"  && <NotesBoard initialNotes={initialNotes} />}
-      {tab === "taches" && <TasksBoard initialTasks={initialTasks} />}
+      {tab === "notes"  && <NotesBoard initialNotes={initialNotes} allTags={allTags} initialTagMap={noteTagMap} onTagCreated={addTag} />}
+      {tab === "taches" && <TasksBoard initialTasks={initialTasks} allTags={allTags} initialTagMap={taskTagMap} onTagCreated={addTag} />}
       {tab === "partages" && <SharesInbox onChanged={() => setPending(0)} />}
     </div>
   );

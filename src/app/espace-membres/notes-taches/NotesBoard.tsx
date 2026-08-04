@@ -5,6 +5,8 @@ import {
   createNote, updateNote, deleteNote, NOTE_COLORS, type NoteRow, type NoteColor,
 } from "@/lib/actions/notes";
 import ShareModal from "./ShareModal";
+import TagBar from "./TagBar";
+import type { TagRow } from "@/lib/actions/tags";
 
 /* ── Palette Sticky Notes ─────────────────────────────────────────────────── */
 const COLOR_STYLE: Record<string, { bg: string; border: string; dot: string }> = {
@@ -35,8 +37,16 @@ function renderRich(text: string): string {
 
 type Draft = { title: string; body: string; color: NoteColor; reference: string };
 
-export default function NotesBoard({ initialNotes }: { initialNotes: NoteRow[] }) {
+export default function NotesBoard({
+  initialNotes, allTags, initialTagMap, onTagCreated,
+}: {
+  initialNotes: NoteRow[];
+  allTags: TagRow[];
+  initialTagMap: Record<string, string[]>;
+  onTagCreated: (t: TagRow) => void;
+}) {
   const [notes, setNotes]   = useState<NoteRow[]>(initialNotes);
+  const [tagMap, setTagMap] = useState<Record<string, string[]>>(initialTagMap);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<string | null>(null);   // note id en édition
   const [creating, setCreating] = useState(false);
@@ -223,6 +233,15 @@ export default function NotesBoard({ initialNotes }: { initialNotes: NoteRow[] }
                   className="text-[13px] text-arc-navy/90 leading-snug flex-1 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ul]:pl-4"
                   dangerouslySetInnerHTML={{ __html: renderRich(n.body) }}
                 />
+                {/* Étiquettes */}
+                <div className="mt-2">
+                  <TagBar
+                    kind="note" resourceId={n.id} allTags={allTags}
+                    tagIds={tagMap[n.id] ?? []}
+                    onChange={(ids) => setTagMap(m => ({ ...m, [n.id]: ids }))}
+                    onCreated={onTagCreated}
+                  />
+                </div>
                 {/* Sélecteur couleur rapide */}
                 <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                   {NOTE_COLORS.map(c => (
