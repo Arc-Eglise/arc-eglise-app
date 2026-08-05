@@ -366,6 +366,9 @@ const MP_GRADIENTS = [
 /* ─── Component ──────────────────────────────────────────────────── */
 const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin","mail"];
 
+// Nom de langue pour les prompts IA bibliques (méditation/explication/théologie/dictionnaire)
+const AI_LANG_NAMES: Record<string, string> = { fr: "français", en: "English", de: "Deutsch", es: "español", pt: "português", kg: "lingala" };
+
 export default function EspaceMembresClient(props: EMClientProps) {
   return (
     <I18nProvider>
@@ -375,7 +378,7 @@ export default function EspaceMembresClient(props: EMClientProps) {
 }
 
 function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId }: EMClientProps) {
-  const { t, setLocale } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -760,7 +763,7 @@ const [showSalle, setShowSalle]       = useState(false);
     setAiMessages(prev => [...prev, { id: "u-" + Date.now(), from: "Moi", text: message, mine: true, time: now }, { id: aiId, from: "ARC IA", text: "", mine: false, time: now }]);
     setAiStreaming(true);
     try {
-      const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history }) });
+      const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history, locale }) });
       if (!res.body) throw new Error("no body");
       const reader = res.body.getReader(); const dec = new TextDecoder();
       let buf = ""; let acc = ""; let ended = false;
@@ -832,7 +835,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/dictionary", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "person", name, identifier, lang: "fr" }),
+        body: JSON.stringify({ type: "person", name, identifier, lang: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data.person) { patchAiCard(cardId, { loading: false, error: undefined, candidates: undefined, data: data.person }); return; }
@@ -1651,7 +1654,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/meditate", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ verse_ref: VERSET.ref, duration:"5min", stream:false }),
+        body: JSON.stringify({ verse_ref: VERSET.ref, duration:"5min", stream:false, language: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data?.guide) setVersetMeditation(stripAI(data.guide));
@@ -1664,7 +1667,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/explain", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ verse_ref: ref, stream:false }),
+        body: JSON.stringify({ verse_ref: ref, stream:false, language: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data?.explanation) setBHlExplain(stripAI(data.explanation));
@@ -1678,7 +1681,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/explain", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ verse_ref: r, stream:false }),
+        body: JSON.stringify({ verse_ref: r, stream:false, language: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data?.explanation) { setEtudeAI({ ref: r, content: stripAI(data.explanation) }); setEtudeRef(r); }
@@ -1709,7 +1712,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/theology", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ question:`Explique le sujet théologique : "${itemTitle}"`, stream:false }),
+        body: JSON.stringify({ question:`Explique le sujet théologique : "${itemTitle}"`, stream:false, language: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data?.answer) {
@@ -1730,7 +1733,7 @@ const [showSalle, setShowSalle]       = useState(false);
     try {
       const res = await fetch("/api/bible-ai/theology", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ question: q, stream:false }),
+        body: JSON.stringify({ question: q, stream:false, language: AI_LANG_NAMES[locale] }),
       });
       const data = await res.json();
       if (data?.answer) {
@@ -1755,6 +1758,7 @@ const [showSalle, setShowSalle]       = useState(false);
         body: JSON.stringify({
           question: `Qui est ${nom} dans la Bible ? Présente sa vie, son rôle, les thèmes théologiques liés à ce personnage, et cite les passages bibliques clés (avec leurs références exactes).`,
           stream: false,
+          language: AI_LANG_NAMES[locale],
         }),
       });
       const dataIA = await resIA.json();

@@ -33,11 +33,13 @@ export async function POST(req: NextRequest) {
   try { userId = await requireAuth(); } catch { return unauthorizedResponse(); }
   if (!(await checkAiRateLimit(userId))) return rateLimitedResponse();
 
-  let body: { message?: string; history?: { role: string; content: string }[] };
+  let body: { message?: string; history?: { role: string; content: string }[]; locale?: string };
   try { body = await req.json(); } catch { return badRequestResponse("JSON invalide"); }
 
   const message = body.message?.trim();
   const history = body.history ?? [];
+  const LANG_NAMES: Record<string, string> = { fr: "français", en: "English", de: "Deutsch", es: "español", pt: "português", kg: "lingala" };
+  const langName = LANG_NAMES[body.locale ?? "fr"] ?? "français";
   if (!message) return badRequestResponse("Message requis");
 
   // Profil : prénom (personnalisation) + rôle/groupes (droits → actions autorisées).
@@ -82,6 +84,7 @@ export async function POST(req: NextRequest) {
   void droits; // droits disponibles pour d'éventuelles restrictions futures
 
   const systemPrompt = [
+    `LANGUE : réponds IMPÉRATIVEMENT et intégralement en ${langName}, quelle que soit la langue du message reçu. Toute ta réponse (y compris les titres et boutons d'action) doit être en ${langName}.`,
     "Tu es ARC IA, l'assistant pastoral bienveillant de l'ARC Église (Ambassade du Royaume de Christ, La Chaux-de-Fonds, Suisse).",
     `Tu accompagnes ${prenom || "ce membre"} avec chaleur, écoute active et empathie.`,
     "Style : messages courts, clairs, chaleureux et fraternels, sans jargon technique. Tu tutoies avec respect.",
