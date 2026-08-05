@@ -3329,17 +3329,17 @@ const [showSalle, setShowSalle]       = useState(false);
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
                 <BackButton onClick={()=>setPanel("accueil")} label="Accueil" className="mb-2" />
-                <div className="em-sect-title">Prière & Bible</div>
+                <div className="em-sect-title">{t("priere.title")}</div>
                 <div className="em-sect-sub">Lecture, étude, prières communautaires</div>
               </div>
             </div>
             <div className="em-tabs">
               {([
-                ["verset","✦ Verset du jour"],["lecteur","📖 Lecteur biblique"],
-                ["etude","🔍 Étude"],["theo","📜 Théologie"],["dico","📚 Dictionnaire"],
-                ["mur","🙏 Mur de prière"],["plans","📋 Plans de lecture"],["notes","📓 Journal"],
-              ] as [BTab,string][]).map(([t,l]) => (
-                <button key={t} className={`em-tab${bTab===t?" active":""}`} onClick={() => setBTab(t)}>{l}</button>
+                ["verset",t("priere.tab.verset")],["lecteur",t("priere.tab.lecteur")],
+                ["etude",t("priere.tab.etude")],["theo",t("priere.tab.theo")],["dico",t("priere.tab.dico")],
+                ["mur",t("priere.tab.mur")],["plans",t("priere.tab.plans")],["notes",t("priere.tab.notes")],
+              ] as [BTab,string][]).map(([tab,l]) => (
+                <button key={tab} className={`em-tab${bTab===tab?" active":""}`} onClick={() => setBTab(tab)}>{l}</button>
               ))}
             </div>
 
@@ -3359,13 +3359,13 @@ const [showSalle, setShowSalle]       = useState(false);
                   <div className="em-verset-card">&ldquo;{VERSET.text}&rdquo;</div>
                   <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:10,fontFamily:"Outfit,sans-serif"}}>— {VERSET.ref}</div>
                   <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
-                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {navigator.clipboard.writeText(VERSET.text);setToast("Verset copié !");}}> Copier</button>
-                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {setBTab("lecteur");setBBook(42);setBCh(3);}}>📖 Lire le contexte</button>
+                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {navigator.clipboard.writeText(VERSET.text);setToast("Verset copié !");}}> {t("priere.copy")}</button>
+                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {setBTab("lecteur");setBBook(42);setBCh(3);}}>{t("priere.readContext")}</button>
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={loadVersetMeditation} disabled={versetMedLoading}>
-                      {versetMedLoading ? "…" : versetMeditation ? "✦ Méditation" : "✦ Méditer"}
+                      {versetMedLoading ? "…" : versetMeditation ? t("priere.meditation") : t("priere.meditate")}
                     </button>
                     <CaptureNoteButton
-                      label="Prendre une note"
+                      label={t("priere.takeNote")}
                       input={() => ({
                         sourceKind: "priere_bible",
                         title: `Verset du jour — ${VERSET.ref}`,
