@@ -82,6 +82,12 @@ const fr: Dict = {
   "priere.meditate": "✦ Méditer",
   "priere.meditation": "✦ Méditation",
   "priere.takeNote": "Prendre une note",
+  "priere.subtitle": "Lecture, étude, prières communautaires",
+  "priere.activePlans": "Plans de lecture actifs",
+  "priere.recentPrayers": "Prières récentes",
+  "priere.noPrayer": "Aucune prière pour l'instant",
+  "priere.seeAllPrayers": "Voir toutes les prières →",
+  "priere.note": "Note",
 };
 
 const en: Dict = {
@@ -145,6 +151,12 @@ const en: Dict = {
   "priere.meditate": "✦ Meditate",
   "priere.meditation": "✦ Meditation",
   "priere.takeNote": "Take a note",
+  "priere.subtitle": "Reading, study, community prayers",
+  "priere.activePlans": "Active reading plans",
+  "priere.recentPrayers": "Recent prayers",
+  "priere.noPrayer": "No prayer yet",
+  "priere.seeAllPrayers": "See all prayers →",
+  "priere.note": "Note",
 };
 
 const kg: Dict = {
@@ -208,6 +220,12 @@ const kg: Dict = {
   "priere.meditate": "✦ Kokanisa",
   "priere.meditation": "✦ Kokanisa",
   "priere.takeNote": "Kozwa noti",
+  "priere.subtitle": "Kotánga, boyekoli, mabondeli ya lisanga",
+  "priere.activePlans": "Ba plan ya kotánga ya sika",
+  "priere.recentPrayers": "Mabondeli ya sika",
+  "priere.noPrayer": "Libondeli ezali te sikoyo",
+  "priere.seeAllPrayers": "Tala mabondeli nyonso →",
+  "priere.note": "Noti",
 };
 
 const de: Dict = {
@@ -271,6 +289,12 @@ const de: Dict = {
   "priere.meditate": "✦ Meditieren",
   "priere.meditation": "✦ Meditation",
   "priere.takeNote": "Notiz machen",
+  "priere.subtitle": "Lesen, Studium, Gemeinschaftsgebete",
+  "priere.activePlans": "Aktive Lesepläne",
+  "priere.recentPrayers": "Aktuelle Gebete",
+  "priere.noPrayer": "Noch kein Gebet",
+  "priere.seeAllPrayers": "Alle Gebete ansehen →",
+  "priere.note": "Notiz",
 };
 
 const es: Dict = {
@@ -334,6 +358,12 @@ const es: Dict = {
   "priere.meditate": "✦ Meditar",
   "priere.meditation": "✦ Meditación",
   "priere.takeNote": "Tomar una nota",
+  "priere.subtitle": "Lectura, estudio, oraciones comunitarias",
+  "priere.activePlans": "Planes de lectura activos",
+  "priere.recentPrayers": "Oraciones recientes",
+  "priere.noPrayer": "Ninguna oración por ahora",
+  "priere.seeAllPrayers": "Ver todas las oraciones →",
+  "priere.note": "Nota",
 };
 
 const pt: Dict = {
@@ -397,6 +427,12 @@ const pt: Dict = {
   "priere.meditate": "✦ Meditar",
   "priere.meditation": "✦ Meditação",
   "priere.takeNote": "Tomar uma nota",
+  "priere.subtitle": "Leitura, estudo, orações comunitárias",
+  "priere.activePlans": "Planos de leitura ativos",
+  "priere.recentPrayers": "Orações recentes",
+  "priere.noPrayer": "Nenhuma oração por agora",
+  "priere.seeAllPrayers": "Ver todas as orações →",
+  "priere.note": "Nota",
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { fr, en, kg, de, es, pt };

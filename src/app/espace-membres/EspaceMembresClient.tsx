@@ -3330,7 +3330,7 @@ const [showSalle, setShowSalle]       = useState(false);
               <div>
                 <BackButton onClick={()=>setPanel("accueil")} label="Accueil" className="mb-2" />
                 <div className="em-sect-title">{t("priere.title")}</div>
-                <div className="em-sect-sub">Lecture, étude, prières communautaires</div>
+                <div className="em-sect-sub">{t("priere.subtitle")}</div>
               </div>
             </div>
             <div className="em-tabs">
@@ -3386,7 +3386,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 </div>
                 <div className="em-g2">
                   <div className="em-card">
-                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 Plans de lecture actifs</div>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 {t("priere.activePlans")}</div>
                     {Object.keys(rpProgress).length === 0 && (
                       <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"8px 0"}}>
                         Aucun plan actif.
@@ -3415,16 +3415,16 @@ const [showSalle, setShowSalle]       = useState(false);
                     })}
                   </div>
                   <div className="em-card">
-                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Prières récentes</div>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>{t("priere.recentPrayers")}</div>
                     {prayers.slice(0,3).length > 0 ? prayers.slice(0,3).map(p => (
                       <div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid #eceef7"}}>
                         <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{p.title}</div>
                         <div style={{fontSize:11,color:"#8b91b0"}}>{p.prayer_count} prières · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
                       </div>
                     )) : (
-                      <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"12px 0"}}>Aucune prière pour l&apos;instant</div>
+                      <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"12px 0"}}>{t("priere.noPrayer")}</div>
                     )}
-                    <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%",marginTop:10}} onClick={() => setBTab("mur")}>Voir toutes les prières →</button>
+                    <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%",marginTop:10}} onClick={() => setBTab("mur")}>{t("priere.seeAllPrayers")}</button>
                   </div>
                 </div>
               </div>
@@ -3457,7 +3457,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <span style={{fontSize:13,color:"#8b91b0",alignSelf:"center",fontStyle:"italic"}}>
                     {BOOKS[bBook].n} {bCh}
                   </span>
-                  <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setNoteRef(`${BOOKS[bBook].n} ${bCh}`);setNoteContent("");setShowNote(true);}}>📝 Note</button>
+                  <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setNoteRef(`${BOOKS[bBook].n} ${bCh}`);setNoteContent("");setShowNote(true);}}>📝 {t("priere.note")}</button>
                 </div>
                 <div className="em-card" style={{minHeight:300}}>
                   {bLoading ? (
