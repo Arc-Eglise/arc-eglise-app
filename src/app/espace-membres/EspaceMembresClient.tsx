@@ -6519,11 +6519,12 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>📖 Préférences Bible</div>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Traduction par défaut</label>
                       <select className="em-select" style={{marginBottom:12}} value={settingsBible.translation} onChange={e=>setSettingsBible({translation:e.target.value})}>
-                        <option value="NBS">NBS — Nouvelle Bible Segond</option>
-                        <option value="BDS">BDS — Bible du Semeur</option>
-                        <option value="LSG">LSG — Louis Segond</option>
-                        <option value="NFC">NFC — Nouvelle Français Courant</option>
-                        <option value="KJV">KJV — King James Version</option>
+                        <option value="NBS">NBS — Nouvelle Bible Segond (français)</option>
+                        <option value="BDS">BDS — Bible du Semeur (français)</option>
+                        <option value="LSG">LSG — Louis Segond (français)</option>
+                        <option value="NFC">NFC — Nouvelle Français Courant (français)</option>
+                        <option value="LIN">LIN — Lingala (Mokanda na Bomoi)</option>
+                        <option value="KJV">KJV — King James Version (English)</option>
                       </select>
                       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
                         <input type="checkbox" defaultChecked />
