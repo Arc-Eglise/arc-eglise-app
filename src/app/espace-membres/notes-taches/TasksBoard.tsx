@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createTask, updateTask, deleteTask } from "@/lib/actions/tasks";
+import { createTask, updateTask, deleteTask, listTasks } from "@/lib/actions/tasks";
 import { type TaskRow, type TaskStatus, type TaskPriority, type TagRow } from "@/lib/notes-taches/types";
 import { RECURRENCE_PRESETS, recurrenceLabel } from "@/lib/tasks/recurrence";
 import ShareModal from "./ShareModal";
@@ -65,10 +65,15 @@ export default function TasksBoard({
   async function addTask() {
     const t = title.trim();
     if (!t) return;
-    // Un rappel par défaut = à l'échéance si une échéance est posée
-    const res = await createTask({ title: t, priority, due_at: dueAt || null, remind_at: dueAt || null, recurrence: recurrence || null });
-    if ("data" in res && res.data) setTasks(prev => [res.data!, ...prev]);
+    const payload = { title: t, priority, due_at: dueAt || null, remind_at: dueAt || null, recurrence: recurrence || null };
     setTitle(""); setDueAt(""); setPriority("moyenne"); setRecurrence("");
+    try {
+      const res = await createTask(payload);
+      if ("data" in res && res.data) { setTasks(prev => [res.data!, ...prev]); return; }
+    } catch { /* cold-start 503 : l'insert a souvent réussi malgré l'erreur réseau */ }
+    // Filet de sécurité : resynchronise depuis la base (l'appel a réchauffé la fonction)
+    const fresh = await listTasks().catch(() => null);
+    if (fresh && "data" in fresh && fresh.data) setTasks(fresh.data);
   }
   async function addSubtask(parentId: string) {
     const t = subTitle.trim();

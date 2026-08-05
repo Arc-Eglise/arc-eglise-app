@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createNote, updateNote, deleteNote } from "@/lib/actions/notes";
+import { createNote, updateNote, deleteNote, listNotes } from "@/lib/actions/notes";
 import { NOTE_COLORS, type NoteRow, type NoteColor, type TagRow } from "@/lib/notes-taches/types";
 import ShareModal from "./ShareModal";
 import TagBar from "./TagBar";
@@ -73,9 +73,14 @@ export default function NotesBoard({
 
   async function saveCreate() {
     if (!draft.title.trim() && !draft.body.trim()) { closeForm(); return; }
-    const res = await createNote(draft);
-    if ("data" in res && res.data) setNotes(prev => [res.data!, ...prev]);
+    const payload = draft;
     closeForm();
+    try {
+      const res = await createNote(payload);
+      if ("data" in res && res.data) { setNotes(prev => [res.data!, ...prev]); return; }
+    } catch { /* cold-start 503 : l'insert a souvent réussi malgré l'erreur réseau */ }
+    const fresh = await listNotes().catch(() => null);
+    if (fresh && "data" in fresh && fresh.data) setNotes(fresh.data);
   }
   async function saveEdit() {
     if (!editing) return;
