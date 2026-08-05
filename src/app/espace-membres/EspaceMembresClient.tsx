@@ -3143,15 +3143,15 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="agenda"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:8}}>
               <div>
-                <div className="em-sect-title">Agenda</div>
-                <div className="em-sect-sub">Événements &amp; calendrier de l&apos;église</div>
+                <div className="em-sect-title">{t("nav.agenda")}</div>
+                <div className="em-sect-sub">{t("agenda.subtitle")}</div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <a href="/espace-membres/evenements" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>🎟️ Réserver un événement</a>
-                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>🏢 Réserver une salle</button>
-                {canAdmin && <a href="/espace-membres/scan" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>📷 Scanner billets</a>}
+                <a href="/espace-membres/evenements" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>{t("agenda.reserveEvent")}</a>
+                <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowSalle(true)}>{t("agenda.reserveRoom")}</button>
+                {canAdmin && <a href="/espace-membres/scan" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>{t("agenda.scanTickets")}</a>}
                 {canAdmin && <a href="/espace-membres/qr" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>🎨 QR Studio</a>}
-                {canAdmin && <a href="/espace-membres/agenda" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>📅 Gérer les événements</a>}
+                {canAdmin && <a href="/espace-membres/agenda" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>{t("agenda.manageEvents")}</a>}
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:20}}>
@@ -3225,7 +3225,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 )}
               </div>
               <div>
-                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:16,fontWeight:600,color:"#151a4a",marginBottom:12}}>Événements à venir</div>
+                <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:16,fontWeight:600,color:"#151a4a",marginBottom:12}}>{t("agenda.upcoming")}</div>
                 {events.length > 0 ? events.map(ev => {
                   const d = new Date(ev.date + "T00:00:00");
                   return (
@@ -3239,7 +3239,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div style={{fontSize:13.5,fontWeight:600,color:"#22263f"}}>{ev.title}</div>
                       <div style={{fontSize:11.5,color:"#767c9c",marginTop:3}}>{ev.time_start?.slice(0,5)}{ev.location?` · ${ev.location}`:""}</div>
                       <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap",alignItems:"center"}}>
-                        <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",display:"inline-block"}}>Participer →</a>
+                        <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",display:"inline-block"}}>{t("agenda.participate")}</a>
                         <CaptureNoteButton
                           compact
                           input={() => ({
@@ -3258,11 +3258,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   );
                 }) : (
                   <div style={{background:"#fff",border:"1px solid #e6e9f4",borderRadius:14,color:"#8b91b0",fontSize:13,textAlign:"center",padding:"28px 0"}}>
-                    Aucun événement à venir
+                    {t("agenda.noEvent")}
                   </div>
                 )}
                 {canAdmin && (
-                  <a href="/espace-membres/agenda" className="em-btn em-btn-primary" style={{width:"100%",marginTop:8,display:"block",textAlign:"center",textDecoration:"none"}}>📅 Gérer les événements</a>
+                  <a href="/espace-membres/agenda" className="em-btn em-btn-primary" style={{width:"100%",marginTop:8,display:"block",textAlign:"center",textDecoration:"none"}}>{t("agenda.manageEvents")}</a>
                 )}
               </div>
             </div>

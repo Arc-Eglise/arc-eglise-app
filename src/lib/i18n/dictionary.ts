@@ -87,6 +87,14 @@ const fr: Dict = {
   "priere.recentPrayers": "Prières récentes",
   "priere.noPrayer": "Aucune prière pour l'instant",
   "priere.seeAllPrayers": "Voir toutes les prières →",
+  "agenda.subtitle": "Événements & calendrier de l'église",
+  "agenda.reserveEvent": "🎟️ Réserver un événement",
+  "agenda.reserveRoom": "🏢 Réserver une salle",
+  "agenda.scanTickets": "📷 Scanner billets",
+  "agenda.manageEvents": "📅 Gérer les événements",
+  "agenda.upcoming": "Événements à venir",
+  "agenda.participate": "Participer →",
+  "agenda.noEvent": "Aucun événement à venir",
   "priere.note": "Note",
 };
 
@@ -156,6 +164,14 @@ const en: Dict = {
   "priere.recentPrayers": "Recent prayers",
   "priere.noPrayer": "No prayer yet",
   "priere.seeAllPrayers": "See all prayers →",
+  "agenda.subtitle": "Church events & calendar",
+  "agenda.reserveEvent": "🎟️ Book an event",
+  "agenda.reserveRoom": "🏢 Book a room",
+  "agenda.scanTickets": "📷 Scan tickets",
+  "agenda.manageEvents": "📅 Manage events",
+  "agenda.upcoming": "Upcoming events",
+  "agenda.participate": "Attend →",
+  "agenda.noEvent": "No upcoming events",
   "priere.note": "Note",
 };
 
@@ -225,6 +241,14 @@ const kg: Dict = {
   "priere.recentPrayers": "Mabondeli ya sika",
   "priere.noPrayer": "Libondeli ezali te sikoyo",
   "priere.seeAllPrayers": "Tala mabondeli nyonso →",
+  "agenda.subtitle": "Makambo & manaka ya lingomba",
+  "agenda.reserveEvent": "🎟️ Kobɔkɔlɔ likambo",
+  "agenda.reserveRoom": "🏢 Kobɔkɔlɔ ndako",
+  "agenda.scanTickets": "📷 Skani ba tike",
+  "agenda.manageEvents": "📅 Kambá makambo",
+  "agenda.upcoming": "Makambo oyo ezali koya",
+  "agenda.participate": "Kosangana →",
+  "agenda.noEvent": "Likambo ya koya ezali te",
   "priere.note": "Noti",
 };
 
@@ -294,6 +318,14 @@ const de: Dict = {
   "priere.recentPrayers": "Aktuelle Gebete",
   "priere.noPrayer": "Noch kein Gebet",
   "priere.seeAllPrayers": "Alle Gebete ansehen →",
+  "agenda.subtitle": "Veranstaltungen & Kalender der Kirche",
+  "agenda.reserveEvent": "🎟️ Veranstaltung buchen",
+  "agenda.reserveRoom": "🏢 Raum buchen",
+  "agenda.scanTickets": "📷 Tickets scannen",
+  "agenda.manageEvents": "📅 Veranstaltungen verwalten",
+  "agenda.upcoming": "Kommende Veranstaltungen",
+  "agenda.participate": "Teilnehmen →",
+  "agenda.noEvent": "Keine kommenden Veranstaltungen",
   "priere.note": "Notiz",
 };
 
@@ -363,6 +395,14 @@ const es: Dict = {
   "priere.recentPrayers": "Oraciones recientes",
   "priere.noPrayer": "Ninguna oración por ahora",
   "priere.seeAllPrayers": "Ver todas las oraciones →",
+  "agenda.subtitle": "Eventos y calendario de la iglesia",
+  "agenda.reserveEvent": "🎟️ Reservar un evento",
+  "agenda.reserveRoom": "🏢 Reservar una sala",
+  "agenda.scanTickets": "📷 Escanear entradas",
+  "agenda.manageEvents": "📅 Gestionar eventos",
+  "agenda.upcoming": "Próximos eventos",
+  "agenda.participate": "Participar →",
+  "agenda.noEvent": "Sin próximos eventos",
   "priere.note": "Nota",
 };
 
@@ -432,6 +472,14 @@ const pt: Dict = {
   "priere.recentPrayers": "Orações recentes",
   "priere.noPrayer": "Nenhuma oração por agora",
   "priere.seeAllPrayers": "Ver todas as orações →",
+  "agenda.subtitle": "Eventos e calendário da igreja",
+  "agenda.reserveEvent": "🎟️ Reservar um evento",
+  "agenda.reserveRoom": "🏢 Reservar uma sala",
+  "agenda.scanTickets": "📷 Digitalizar bilhetes",
+  "agenda.manageEvents": "📅 Gerir eventos",
+  "agenda.upcoming": "Próximos eventos",
+  "agenda.participate": "Participar →",
+  "agenda.noEvent": "Sem próximos eventos",
   "priere.note": "Nota",
 };
 
