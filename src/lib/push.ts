@@ -1,11 +1,16 @@
-import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type WebPush from "web-push";
 
+// `web-push` (bindings natifs) est chargé PARESSEUSEMENT (import dynamique) pour
+// ne PAS alourdir le démarrage à froid de toutes les routes qui importent
+// transitivement notify/push (ex. notes-taches → shares → notify). Un cold start
+// trop lourd provoquait des 503 intermittents sur Vercel Hobby.
+let webpush: typeof WebPush | null = null;
 let configured = false;
 
 /** Configure web-push. Retourne false (sans lever) si les clés VAPID manquent. */
-function ensureConfigured(): boolean {
-  if (configured) return true;
+async function ensureConfigured(): Promise<boolean> {
+  if (configured && webpush) return true;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:contact@arc-eglise.ch";
@@ -13,6 +18,7 @@ function ensureConfigured(): boolean {
     console.warn("[push] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes — push désactivé");
     return false;
   }
+  webpush = (await import("web-push")).default;
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
   return true;
@@ -32,7 +38,8 @@ export type PushPayload = {
  * Purge automatiquement les endpoints morts (404/410).
  */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
-  if (!ensureConfigured()) return { sent: 0, pruned: 0 };
+  if (!(await ensureConfigured()) || !webpush) return { sent: 0, pruned: 0 };
+  const wp = webpush;
   const admin = createAdminClient();
 
   const { data: subs } = await admin
@@ -57,7 +64,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
   await Promise.all(
     subs.map(async (s: { id: string; endpoint: string; p256dh: string; auth: string }) => {
       try {
-        await webpush.sendNotification(
+        await wp.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           json
         );
