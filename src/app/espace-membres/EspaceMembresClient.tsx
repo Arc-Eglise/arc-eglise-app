@@ -625,6 +625,7 @@ const [showSalle, setShowSalle]       = useState(false);
   const [huddleActive, setHuddleActive]     = useState(false);
   const [msgHover, setMsgHover]             = useState<string|null>(null);
   const [msgNoteFor, setMsgNoteFor]         = useState<string|null>(null);   // message → note/tâche (ADR-002 Phase 2)
+  const [msgTaskInput, setMsgTaskInput]     = useState("");                  // création de tâche depuis un canal
   const [showMention, setShowMention]       = useState(false);
   const [showMsgEmoji, setShowMsgEmoji]     = useState(false);
   const [taskDone, setTaskDone]             = useState<string[]>([]);
@@ -2148,6 +2149,18 @@ const [showSalle, setShowSalle]       = useState(false);
     });
     setToast("error" in res ? "Échec de l'enregistrement" : "Ajouté à mes tâches ✅");
   }
+  async function addChannelTask() {
+    const t = msgTaskInput.trim();
+    if (!t) return;
+    const res = await createTask({
+      title: t,
+      description: `Depuis « ${chanLabel} »`,
+      source_kind: "messagerie",
+      source_snapshot: { kind: "messagerie", conversation: chanLabel },
+    });
+    setMsgTaskInput("");
+    setToast("error" in res ? "Échec de la création" : "Tâche créée ✅ — voir Notes & Tâches");
+  }
 
   function sendThreadReply() {
     if (!threadInput.trim() || !openThread) return;
@@ -3018,29 +3031,24 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   )}
 
-                  {/* ── Tab: Tâches ── */}
+                  {/* ── Tab: Tâches (crée une vraie tâche perso depuis le canal) ── */}
                   {msgTab==="tasks" && (
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                        <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>✅ Tâches du canal</div>
-                        <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>setToast("Fonctionnalité bientôt disponible")}>+ Nouvelle tâche</button>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:6}}>✅ Créer une tâche depuis ce canal</div>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>La tâche est ajoutée à ta liste personnelle dans « Notes &amp; Tâches ».</div>
+                      <div style={{display:"flex",gap:8,marginBottom:16}}>
+                        <input
+                          value={msgTaskInput}
+                          onChange={e=>setMsgTaskInput(e.target.value)}
+                          onKeyDown={e=>{ if(e.key==="Enter") addChannelTask(); }}
+                          placeholder="Nouvelle tâche…"
+                          style={{flex:1,padding:"9px 12px",borderRadius:10,border:"1px solid #e6e9f4",fontSize:13,outline:"none"}}
+                        />
+                        <button className="em-btn em-btn-primary em-btn-sm" onClick={addChannelTask} disabled={!msgTaskInput.trim()}>+ Ajouter</button>
                       </div>
-                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>{taskDone.length}/{MSG_TASKS.length} tâches terminées</div>
-                      <div style={{background:"#f1f3fb",borderRadius:6,height:5,marginBottom:16}}>
-                        <div style={{background:"#276749",borderRadius:6,height:"100%",width:`${Math.round(taskDone.length/MSG_TASKS.length*100)}%`,transition:"width .3s"}} />
-                      </div>
-                      {MSG_TASKS.map(t=>(
-                        <div key={t.id} className="em-msg-task" style={{opacity:taskDone.includes(t.id)?.7:1}}>
-                          <div style={{width:20,height:20,border:"2px solid",borderColor:taskDone.includes(t.id)?"#276749":"#cbd5e0",borderRadius:5,background:taskDone.includes(t.id)?"#276749":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}
-                            onClick={()=>setTaskDone(d=>d.includes(t.id)?d.filter(x=>x!==t.id):[...d,t.id])}>
-                            {taskDone.includes(t.id) && <span style={{color:"#fff",fontSize:11}}>✓</span>}
-                          </div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:13,fontWeight:500,color:taskDone.includes(t.id)?"#8b91b0":"#1a1d3a",textDecoration:taskDone.includes(t.id)?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div>
-                            <div style={{fontSize:11,color:"#8b91b0",marginTop:1}}>👤 {t.assignee} · 📅 {t.due}</div>
-                          </div>
-                        </div>
-                      ))}
+                      <a href="/espace-membres/notes-taches?tab=taches" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"#1e6bff",textDecoration:"none"}}>
+                        Voir toutes mes tâches →
+                      </a>
                     </div>
                   )}
                 </div>
