@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import jsQR from "jsqr";
 import { scanTicket } from "@/lib/actions/tickets";
 
 type Res = { kind: "ok" | "already" | "cancelled" | "invalid" | "error"; text: string; sub?: string };
@@ -27,11 +28,16 @@ export default function TicketScanner() {
   const [camOn, setCamOn] = useState(false);
   const [camSupported, setCamSupported] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastRef = useRef<string>("");
 
   useEffect(() => {
-    // BarcodeDetector natif (Chrome desktop/Android). Absent sur iOS Safari.
-    setCamSupported(typeof (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector !== "undefined");
+    // La caméra est disponible dès que getUserMedia existe (y compris iOS Safari).
+    // La détection QR utilise BarcodeDetector si présent, sinon jsQR (fallback iOS).
+    const hasCam = typeof navigator !== "undefined"
+      && !!navigator.mediaDevices
+      && typeof navigator.mediaDevices.getUserMedia === "function";
+    setCamSupported(hasCam);
   }, []);
 
   function validate(raw: string) {
@@ -50,29 +56,67 @@ export default function TicketScanner() {
     });
   }
 
+  function onDecoded(value: string) {
+    if (value && value !== lastRef.current) {
+      lastRef.current = value;
+      validate(value);
+      setTimeout(() => { lastRef.current = ""; }, 2500);
+    }
+  }
+
   async function startCam() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        // iOS exige un play() déclenché par le geste utilisateur (ce clic).
+        await videoRef.current.play().catch(() => {});
+      }
       setCamOn(true);
-      const Detector = (window as unknown as { BarcodeDetector: new (o: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
-      const det = new Detector({ formats: ["qr_code"] });
+
+      // Décodeur natif si dispo (Chrome/Android), sinon jsQR (iOS Safari & autres).
+      const BD = (window as unknown as { BarcodeDetector?: new (o: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+      const nativeDet = BD ? new BD({ formats: ["qr_code"] }) : null;
+
       const loop = async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) { requestAnimationFrame(loop); return; }
+        const v = videoRef.current;
+        if (!v || !v.srcObject) return;                 // caméra arrêtée
+        if (v.readyState < 2) { requestAnimationFrame(loop); return; }
         try {
-          const codes = await det.detect(videoRef.current);
-          if (codes[0]?.rawValue && codes[0].rawValue !== lastRef.current) {
-            lastRef.current = codes[0].rawValue;
-            validate(codes[0].rawValue);
-            setTimeout(() => { lastRef.current = ""; }, 2500);
+          if (nativeDet) {
+            const codes = await nativeDet.detect(v);
+            if (codes[0]?.rawValue) onDecoded(codes[0].rawValue);
+          } else {
+            const cv = canvasRef.current;
+            if (cv) {
+              const w = v.videoWidth, h = v.videoHeight;
+              if (w && h) {
+                cv.width = w; cv.height = h;
+                const ctx = cv.getContext("2d", { willReadFrequently: true });
+                if (ctx) {
+                  ctx.drawImage(v, 0, 0, w, h);
+                  const img = ctx.getImageData(0, 0, w, h);
+                  const code = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+                  if (code?.data) onDecoded(code.data);
+                }
+              }
+            }
           }
         } catch { /* ignore frame errors */ }
         if (videoRef.current?.srcObject) requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
-    } catch {
-      setRes({ kind: "error", text: "Accès caméra refusé ou indisponible." });
-      setCamSupported(false);
+    } catch (e) {
+      const name = (e as { name?: string })?.name ?? "";
+      setRes({
+        kind: "error",
+        text: name === "NotAllowedError"
+          ? "Accès caméra refusé. Autorise la caméra dans les réglages du navigateur."
+          : "Caméra indisponible (essaie un autre navigateur ou la saisie manuelle).",
+      });
     }
   }
 
@@ -97,7 +141,8 @@ export default function TicketScanner() {
 
       {/* Caméra */}
       <div style={{ background: "#0b0e24", borderRadius: 14, overflow: "hidden", position: "relative", aspectRatio: "4/3" }}>
-        <video ref={videoRef} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", display: camOn ? "block" : "none" }} />
+        <video ref={videoRef} muted playsInline autoPlay style={{ width: "100%", height: "100%", objectFit: "cover", display: camOn ? "block" : "none" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
         {!camOn && (
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "#8890aa", textAlign: "center", padding: 20 }}>
             <div>
