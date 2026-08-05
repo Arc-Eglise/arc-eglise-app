@@ -20,6 +20,8 @@ import { createTask } from "@/lib/actions/tasks";
 import type { NoteColor } from "@/lib/notes-taches/types";
 import { getMemberSettings, saveMemberSettings } from "@/lib/actions/member-settings";
 import { requestRoomReservation } from "@/lib/actions/reservations";
+import { I18nProvider, useI18n, persistLocale } from "@/lib/i18n/I18nProvider";
+import { LOCALES, type Locale } from "@/lib/i18n/dictionary";
 import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
 import StreamNotesWidget from "@/components/notes/StreamNotesWidget";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
@@ -364,7 +366,16 @@ const MP_GRADIENTS = [
 /* ─── Component ──────────────────────────────────────────────────── */
 const VALID_PANELS: Panel[] = ["accueil","messagerie","agenda","streaming","priere","contacts","presences","activites","dons","admin","mail"];
 
-export default function EspaceMembresClient({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId }: EMClientProps) {
+export default function EspaceMembresClient(props: EMClientProps) {
+  return (
+    <I18nProvider>
+      <EspaceMembresClientInner {...props} />
+    </I18nProvider>
+  );
+}
+
+function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId }: EMClientProps) {
+  const { t, setLocale } = useI18n();
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -504,7 +515,7 @@ const [showSalle, setShowSalle]       = useState(false);
       const s = res.data; if (!s) return;
       if (s.notifs)  setSettingsNotifs(n => ({ ...n, ...s.notifs }));
       if (s.privacy) setSettingsPrivacy(p => ({ ...p, ...s.privacy }));
-      if (s.langue)  setSettingsLang(l => ({ ...l, ...s.langue }));
+      if (s.langue)  { setSettingsLang(l => ({ ...l, ...s.langue })); if (s.langue.ui) { setLocale(s.langue.ui as Locale); persistLocale(s.langue.ui as Locale); } }
       if (s.bible)   setSettingsBible(b => ({ ...b, ...s.bible }));
     });
   }, [showSettings, settingsLoaded]);
@@ -2237,33 +2248,33 @@ const [showSalle, setShowSalle]       = useState(false);
   type NavItem = { id:string; lbl:string; ico:string; Icon:LucideIcon; arcIcon?:IconName; badge?:number; live?:boolean; count?:number; href?:string; };
   type NavGroup = { section:string; items:NavItem[] };
   const NAV_ITEMS: NavGroup[] = [
-    { section:"Principal", items:[
-      { id:"accueil",     lbl:"Accueil",        ico:"⌂",  Icon:Home,          arcIcon:"accueil" },
-      { id:"messagerie",  lbl:"Messagerie",     ico:"✉",  Icon:MessageSquare, arcIcon:"messagerie" },
-      { id:"agenda",      lbl:"Agenda",         ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
-      { id:"streaming",   lbl:"Streaming",      ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
-      { id:"priere",      lbl:"Prière & Bible", ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
-      { id:"notes-taches", lbl:"Notes & Tâches", ico:"🗒️", Icon:BookMarked,   arcIcon:"notes-bibliques", href:"/espace-membres/notes-taches" },
+    { section:t("nav.section.principal"), items:[
+      { id:"accueil",     lbl:t("nav.accueil"),     ico:"⌂",  Icon:Home,          arcIcon:"accueil" },
+      { id:"messagerie",  lbl:t("nav.messagerie"),  ico:"✉",  Icon:MessageSquare, arcIcon:"messagerie" },
+      { id:"agenda",      lbl:t("nav.agenda"),      ico:"◉",  Icon:Calendar,      arcIcon:"agenda" },
+      { id:"streaming",   lbl:t("nav.streaming"),   ico:"▶",  Icon:PlayCircle,    arcIcon:"streaming", live:true },
+      { id:"priere",      lbl:t("nav.priere"),      ico:"✦",  Icon:BookOpen,      arcIcon:"priere-bible" },
+      { id:"notes-taches", lbl:t("nav.notesTaches"), ico:"🗒️", Icon:BookMarked,   arcIcon:"notes-bibliques", href:"/espace-membres/notes-taches" },
     ]},
-    { section:"Communauté", items:[
-      { id:"contacts",  lbl:"Contacts",     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
+    { section:t("nav.section.communaute"), items:[
+      { id:"contacts",  lbl:t("nav.contacts"),     ico:"👥", Icon:Users,          arcIcon:"contacts", count:membresValides },
       ...(canAdmin ? [
-        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName, href:"/espace-membres/presences" },
+        { id:"presences", lbl:t("nav.presences"), ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName, href:"/espace-membres/presences" },
       ] : [
-        { id:"presences", lbl:"Présences", ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName },
+        { id:"presences", lbl:t("nav.presences"), ico:"✓", Icon:ClipboardCheck, arcIcon:"presences" as IconName },
       ]),
-      { id:"activites", lbl:"Activités",   ico:"◈", Icon:Bell,           arcIcon:"activites" },
+      { id:"activites", lbl:t("nav.activites"),   ico:"◈", Icon:Bell,           arcIcon:"activites" },
     ]},
-    { section:"Personnel", items:[
-      { id:"doleances", lbl:"Doléances",       ico:"📨", Icon:Inbox,      arcIcon:"doleances", href:"/espace-membres/doleances" },
+    { section:t("nav.section.personnel"), items:[
+      { id:"doleances", lbl:t("nav.doleances"),       ico:"📨", Icon:Inbox,      arcIcon:"doleances", href:"/espace-membres/doleances" },
     ]},
-    { section:"Gestion", items:[
-      ...(DONS_ENABLED ? [{ id:"dons", lbl:"Dons & Paiements", ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" as IconName }] : []),
+    { section:t("nav.section.gestion"), items:[
+      ...(DONS_ENABLED ? [{ id:"dons", lbl:t("nav.dons"), ico:"♡", Icon:HandCoins, arcIcon:"dons-paiements" as IconName }] : []),
       ...(isManager ? [
-        { id:"gestion-groupe", lbl:"Mon Groupe", ico:"👥", Icon:UserCheck, arcIcon:"contacts" as IconName, href:"/espace-membres/gestion-groupe" },
+        { id:"gestion-groupe", lbl:t("nav.monGroupe"), ico:"👥", Icon:UserCheck, arcIcon:"contacts" as IconName, href:"/espace-membres/gestion-groupe" },
       ] : []),
       ...(peutVoirCRM ? [
-        { id:"crm",   lbl:"CRM Pastoral",   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
+        { id:"crm",   lbl:t("nav.crm"),   ico:"👤", Icon:BarChart3, arcIcon:"gestion-utilisateurs" as IconName, href:"/espace-membres/crm" },
       ] : []),
       ...(canAdmin ? [
         { id:"admin", lbl:"Administration", ico:"⚙",  Icon:Settings,  arcIcon:"parametres" as IconName },
@@ -6456,10 +6467,12 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🌐 Langue &amp; Région</div>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
-                      <select className="em-select" style={{marginBottom:12}} value={settingsLang.ui} onChange={e=>setSettingsLang(l=>({...l,ui:e.target.value}))}>
-                        <option value="fr">🇫🇷 Français</option>
-                        <option value="en">🇬🇧 English</option>
-                        <option value="kg">🇨🇩 Lingala</option>
+                      <select className="em-select" style={{marginBottom:12}} value={settingsLang.ui} onChange={e=>{
+                        const l=e.target.value as Locale;
+                        setSettingsLang(s=>({...s,ui:l}));
+                        setLocale(l); persistLocale(l);   // application immédiate
+                      }}>
+                        {LOCALES.map(l=><option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
                       </select>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Format de date</label>
                       <select className="em-select" value={settingsLang.dateFmt} onChange={e=>setSettingsLang(l=>({...l,dateFmt:e.target.value}))}>
@@ -6467,7 +6480,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <option value="fr-FR">DD/MM/YYYY (France)</option>
                         <option value="en-US">MM/DD/YYYY (USA)</option>
                       </select>
-                      <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>Ta préférence est enregistrée. La traduction complète de l&apos;interface arrive prochainement.</div>
+                      <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>La navigation et les repères principaux changent immédiatement. La traduction du contenu détaillé s&apos;étend progressivement.</div>
                     </div>
                   )}
                   {settingsSection==="affichage" && (
