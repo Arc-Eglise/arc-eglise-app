@@ -2497,7 +2497,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* ── ACCUEIL ─────────────────────────────────────── */}
           <div className={`em-panel${panel==="accueil"?" active":""}`}>
-            <div className="em-sect-title">Bonjour, {profile?.first_name ?? "ami(e)"} 👋</div>
+            <div className="em-sect-title">{t("home.greeting")}, {profile?.first_name ?? "ami(e)"} 👋</div>
             <div className="em-sect-sub">
               {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
             </div>
@@ -2521,10 +2521,10 @@ const [showSalle, setShowSalle]       = useState(false);
             {/* Stats */}
             <div className="em-g4" style={{marginBottom:18}}>
               {[
-                {num:totalUsers,    lbl:"Utilisateurs total"},
-                {num:membresValides,lbl:"Membres validés"},
-                {num:visiteurs,     lbl:"Visiteurs inscrits"},
-                {num:prayerCount,   lbl:"Prières actives"},
+                {num:totalUsers,    lbl:t("home.stat.users")},
+                {num:membresValides,lbl:t("home.stat.members")},
+                {num:visiteurs,     lbl:t("home.stat.visitors")},
+                {num:prayerCount,   lbl:t("home.stat.prayers")},
               ].map(s => (
                 <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
                   <div className="em-stat-num">{s.num}</div>
@@ -2556,10 +2556,10 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:8,fontFamily:"Outfit,sans-serif"}}>— {VERSET.ref}</div>
               </div>
               <div className="em-card" style={{background:"#fff0f0",border:"1px solid #fde8e8"}}>
-                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#e53e3e",marginBottom:10}}>⏱ Prochain culte</div>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#e53e3e",marginBottom:10}}>⏱ {t("home.nextService")}</div>
                 <div style={{fontSize:11,color:"#8b91b0",marginBottom:4}}>Dimanche à 9h30 · La Chaux-de-Fonds</div>
                 <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:28,fontWeight:700,color:"#1e2464",lineHeight:1.1,marginTop:8}}>{countdown || "Chargement…"}</div>
-                <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:12}} onClick={() => nav("streaming")}>Voir le streaming ▶</button>
+                <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:12}} onClick={() => nav("streaming")}>{t("home.seeStreaming")}</button>
               </div>
             </div>
 
@@ -4708,7 +4708,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* Prochain culte */}
           <div className="em-rp-sec">
-            <div className="em-rp-title">Prochain culte</div>
+            <div className="em-rp-title">{t("home.nextService")}</div>
             <div style={{fontSize:12,color:"#5c6280",marginBottom:6}}>Dimanche {new Date(new Date().getTime()+((7-new Date().getDay())%7||7)*86400000).toLocaleDateString("fr-CH",{day:"numeric",month:"short"})} · 9h30</div>
             <div style={{fontFamily:"Source Serif 4,Georgia,serif",fontSize:18,fontWeight:700,color:"#1e2464",lineHeight:1.2}}>{countdown}</div>
             <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>📍 La Chaux-de-Fonds</div>
@@ -4716,29 +4716,29 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* Quick actions */}
           <div className="em-rp-sec">
-            <div className="em-rp-title">Accès rapide</div>
+            <div className="em-rp-title">{t("home.quickAccess")}</div>
             <a className="em-qa" href="/espace-membres/notes-taches" style={{textDecoration:"none"}}>
-              <span className="em-qa-ico">🗒️</span> Notes &amp; Tâches
+              <span className="em-qa-ico">🗒️</span> {t("nav.notesTaches")}
             </a>
             <a className="em-qa" href="/espace-membres/notes-taches?tab=taches" style={{textDecoration:"none"}}>
-              <span className="em-qa-ico">✅</span> Mes tâches
+              <span className="em-qa-ico">✅</span> {t("home.myTasks")}
             </a>
             <button className="em-qa" onClick={()=>nav("priere")}>
-              <span className="em-qa-ico">🙏</span> Mur de prière
+              <span className="em-qa-ico">🙏</span> {t("home.prayerWall")}
             </button>
             <button className="em-qa" onClick={()=>{nav("messagerie");}}>
-              <span className="em-qa-ico">✉</span> Nouveau message
+              <span className="em-qa-ico">✉</span> {t("home.newMessage")}
             </button>
             <button className="em-qa" onClick={()=>nav("streaming")}>
-              <span className="em-qa-ico">▶</span> Streaming en direct
+              <span className="em-qa-ico">▶</span> {t("home.liveStream")}
             </button>
             {DONS_ENABLED && (
               <button className="em-qa" onClick={()=>nav("dons")}>
-                <span className="em-qa-ico">♡</span> Faire un don
+                <span className="em-qa-ico">♡</span> {t("home.giveDonation")}
               </button>
             )}
             <button className="em-qa" onClick={()=>nav("agenda")}>
-              <span className="em-qa-ico">📅</span> Voir l&apos;agenda
+              <span className="em-qa-ico">📅</span> {t("home.seeAgenda")}
             </button>
             {canAdmin && (
               <button className="em-qa" onClick={()=>setShowGS(true)}>
@@ -4749,7 +4749,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* Activités récentes */}
           <div className="em-rp-sec">
-            <div className="em-rp-title">Activités récentes</div>
+            <div className="em-rp-title">{t("home.recentActivity")}</div>
             {activities.length === 0 ? (
               <div style={{fontSize:11,color:"#8b91b0",padding:"4px 0"}}>Aucune activité récente.</div>
             ) : activities.slice(0,4).map((a)=>(
