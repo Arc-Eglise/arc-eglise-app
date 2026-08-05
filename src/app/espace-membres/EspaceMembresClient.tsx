@@ -19,6 +19,7 @@ import { createNote } from "@/lib/actions/notes";
 import { createTask } from "@/lib/actions/tasks";
 import type { NoteColor } from "@/lib/notes-taches/types";
 import { getMemberSettings, saveMemberSettings } from "@/lib/actions/member-settings";
+import { requestRoomReservation } from "@/lib/actions/reservations";
 import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
 import StreamNotesWidget from "@/components/notes/StreamNotesWidget";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
@@ -402,6 +403,7 @@ const [showSalle, setShowSalle]       = useState(false);
     heureDebut: "17:00", heureFin: "19:00",
     groupe: "", motif: "",
   });
+  const [salleSaving, setSalleSaving] = useState(false);
   const [showMP, setShowMP]           = useState(false);
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
   const [testimonialContent, setTestimonialContent]   = useState("");
@@ -6718,7 +6720,18 @@ const [showSalle, setShowSalle]       = useState(false);
               </div>
               <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Motif</label>
               <input className="em-input" style={{marginBottom:14}} placeholder="Ex : Répétition chorale, Réunion pastorale…" value={salleDraft.motif} onChange={e=>setSalleDraft(d=>({...d,motif:e.target.value}))} />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={!salleDraft.motif.trim()} onClick={()=>{setShowSalle(false);setToast(`✅ Demande envoyée : ${salleDraft.salle.replace(/\s*\(.*\)/,"")} le ${new Date(salleDraft.date).toLocaleDateString("fr-CH")} ${salleDraft.heureDebut}–${salleDraft.heureFin}${salleDraft.motif?` · ${salleDraft.motif}`:""}`);}}>Confirmer la réservation</button>
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} disabled={salleSaving||!salleDraft.motif.trim()} onClick={async()=>{
+                setSalleSaving(true);
+                const res=await requestRoomReservation({
+                  room: salleDraft.salle, date: salleDraft.date,
+                  start_time: salleDraft.heureDebut, end_time: salleDraft.heureFin,
+                  group_name: salleDraft.groupe || null, purpose: salleDraft.motif,
+                });
+                setSalleSaving(false);
+                if("error" in res){setToast(`❌ ${res.error}`);return;}
+                setShowSalle(false);
+                setToast(`✅ Demande envoyée : ${salleDraft.salle.replace(/\s*\(.*\)/,"")} le ${new Date(salleDraft.date).toLocaleDateString("fr-CH")} ${salleDraft.heureDebut}–${salleDraft.heureFin} — un responsable la validera.`);
+              }}>{salleSaving?"Envoi…":"Confirmer la réservation"}</button>
             </div>
           </div>
         </div>
