@@ -18,6 +18,7 @@ import { listMyConversations, getOrCreateConversation, createGroupConversation, 
 import { createNote } from "@/lib/actions/notes";
 import { createTask } from "@/lib/actions/tasks";
 import type { NoteColor } from "@/lib/notes-taches/types";
+import { getMemberSettings, saveMemberSettings } from "@/lib/actions/member-settings";
 import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
 import StreamNotesWidget from "@/components/notes/StreamNotesWidget";
 import DictionaryPanel from "@/components/bible-ai/DictionaryPanel";
@@ -488,6 +489,23 @@ const [showSalle, setShowSalle]       = useState(false);
   const [pwdShowCurrent, setPwdShowCurrent] = useState(false);
   const [pwdShowNew, setPwdShowNew]         = useState(false);
   const [settingsNotifs, setSettingsNotifs] = useState({dm:true,culte:true,priere:true,verset:true,events:false});
+  const [settingsPrivacy, setSettingsPrivacy] = useState({profile:true,presence:true,dm:true});
+  const [settingsLang, setSettingsLang]       = useState({ui:"fr",dateFmt:"fr-CH"});
+  const [settingsBible, setSettingsBible]     = useState({translation:"NBS"});
+  const [settingsSaving, setSettingsSaving]   = useState(false);
+  const [settingsLoaded, setSettingsLoaded]   = useState(false);
+  // Hydrate les réglages persistés à la première ouverture de la modale
+  useEffect(() => {
+    if (!showSettings || settingsLoaded) return;
+    setSettingsLoaded(true);
+    getMemberSettings().then(res => {
+      const s = res.data; if (!s) return;
+      if (s.notifs)  setSettingsNotifs(n => ({ ...n, ...s.notifs }));
+      if (s.privacy) setSettingsPrivacy(p => ({ ...p, ...s.privacy }));
+      if (s.langue)  setSettingsLang(l => ({ ...l, ...s.langue }));
+      if (s.bible)   setSettingsBible(b => ({ ...b, ...s.bible }));
+    });
+  }, [showSettings, settingsLoaded]);
   const [noteRef, setNoteRef]     = useState("Jean 3:16");
   const [noteContent, setNoteContent] = useState("");
   const [noteColor, setNoteColor] = useState<NoteColor>("yellow");   // ADR-002 : note du lecteur biblique
@@ -2762,7 +2780,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <button type="button" className="em-toolbar-btn" title="Rechercher dans la conversation"
                       onClick={()=>setShowThreadSearch(v=>{ const nv=!v; if(!nv) setThreadSearch(""); return nv; })}
                       style={showThreadSearch?{background:"#1e2464",color:"#fff"}:undefined}>🔍</button>
-                    <button className="em-toolbar-btn" title="Démarrer une réunion vidéo" onClick={()=>setShowVideoCall(true)}>📹</button>
+                    {/* 📹 Réunion vidéo masquée — intégration Zoom en attente d'identifiants (ADR/Zoom) */}
                     <button type="button" className="em-toolbar-btn" title="Destinataires & membres"
                       onClick={()=>{ if(members.length===0) loadMembers(); setShowRecipient(true); }}>👥</button>
                     {canAdmin && <button className="em-toolbar-btn" title="Paramètres" onClick={()=>setShowSettings(true)}>⚙️</button>}
@@ -3171,10 +3189,18 @@ const [showSalle, setShowSalle]       = useState(false);
                       style={{marginTop:8,fontSize:12,resize:"vertical",width:"100%"}}
                     />
                     <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:6,width:"100%"}}
-                      onClick={()=>{
+                      onClick={async()=>{
+                        const body=calNoteInput.trim();
+                        if(!body){setToast("⚠️ Écris quelque chose");return;}
                         const k=`${calYear}-${calMonth+1}-${calSelectedDate}`;
                         setCalNotes(n=>({...n,[k]:calNoteInput}));
-                        setToast("Note enregistrée ✅");
+                        const dateStr=new Date(calYear,calMonth,calSelectedDate).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"});
+                        const res=await createNote({
+                          title:`📅 ${dateStr}`, body, color:"green",
+                          source_kind:"agenda", source_ref_id:k,
+                          source_snapshot:{kind:"agenda",date:k,captured_at:new Date().toISOString()},
+                        });
+                        setToast("error" in res ? "Échec de l'enregistrement" : "Note enregistrée dans Notes & Tâches ✅");
                       }}>
                       Enregistrer la note
                     </button>
@@ -4211,7 +4237,6 @@ const [showSalle, setShowSalle]       = useState(false);
                         )}
                         <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:10}}>
                           <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}} title="Message">💬</button>
-                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowVideoCall(true)} title="Appel vidéo">📹</button>
                           <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>nav("agenda")} title="RDV">📅</button>
                         </div>
                       </div>
@@ -5167,9 +5192,26 @@ const [showSalle, setShowSalle]       = useState(false);
                             <div style={{fontSize:14,fontWeight:700,color:"#1e2464"}}>{name}</div>
                             <div style={{fontSize:11,color:"#8b91b0",marginTop:2}}>Pasteur · {m.email}</div>
                           </div>
-                          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-                            <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setToast(`✏️ Modifier ${name}`)}>✏️ Modifier</button>
-                            <button className="em-btn em-btn-sm" style={{background:"rgba(229,62,62,.1)",color:"#c53030",border:"1px solid rgba(229,62,62,.2)"}} onClick={()=>{if(confirm(`⚠️ Révoquer le statut pastoral de ${name} ?`))setToast(`❌ Statut révoqué : ${name}`);}}>❌ Révoquer</button>
+                          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+                            <select className="em-select" style={{fontSize:11,padding:"4px 8px",width:110}} defaultValue="pasteur" onChange={async e=>{
+                              const newRole=e.target.value;
+                              if(newRole==="pasteur")return;
+                              if(!confirm(`Changer le rôle de ${name} en « ${newRole} » ?`))return;
+                              const res=await setMemberRoleAction(m.id,newRole);
+                              if(res?.error){setToast(`❌ ${res.error}`);}
+                              else{setToast(`✅ Rôle de ${name} → ${newRole}`);await loadMembers();}
+                            }}>
+                              <option value="pasteur">Pasteur</option>
+                              <option value="membre">Membre</option>
+                              <option value="visiteur">Visiteur</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button className="em-btn em-btn-sm" style={{background:"rgba(229,62,62,.1)",color:"#c53030",border:"1px solid rgba(229,62,62,.2)"}} onClick={async()=>{
+                              if(!confirm(`⚠️ Révoquer le statut pastoral de ${name} ? Il redeviendra « membre ».`))return;
+                              const res=await setMemberRoleAction(m.id,"membre");
+                              if(res?.error){setToast(`❌ ${res.error}`);}
+                              else{setToast(`❌ Statut pastoral révoqué : ${name}`);await loadMembers();}
+                            }}>❌ Révoquer</button>
                           </div>
                         </div>
                       );
@@ -6400,10 +6442,10 @@ const [showSalle, setShowSalle]       = useState(false);
                   {settingsSection==="privacy" && (
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔒 Confidentialité</div>
-                      {[["Afficher mon profil dans les contacts","true"],["Partager mes présences avec le groupe","true"],["Recevoir des messages directs","true"]].map(([l,v])=>(
-                        <label key={l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
+                      {([["profile","Afficher mon profil dans les contacts"],["presence","Partager mes présences avec le groupe"],["dm","Recevoir des messages directs"]] as [keyof typeof settingsPrivacy,string][]).map(([k,l])=>(
+                        <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                           <span>{l}</span>
-                          <input type="checkbox" defaultChecked={v==="true"} />
+                          <input type="checkbox" checked={settingsPrivacy[k]} onChange={e=>setSettingsPrivacy(p=>({...p,[k]:e.target.checked}))} />
                         </label>
                       ))}
                     </div>
@@ -6412,17 +6454,18 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🌐 Langue &amp; Région</div>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
-                      <select className="em-select" style={{marginBottom:12}} defaultValue="fr">
+                      <select className="em-select" style={{marginBottom:12}} value={settingsLang.ui} onChange={e=>setSettingsLang(l=>({...l,ui:e.target.value}))}>
                         <option value="fr">🇫🇷 Français</option>
                         <option value="en">🇬🇧 English</option>
                         <option value="kg">🇨🇩 Lingala</option>
                       </select>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Format de date</label>
-                      <select className="em-select" defaultValue="fr-CH">
+                      <select className="em-select" value={settingsLang.dateFmt} onChange={e=>setSettingsLang(l=>({...l,dateFmt:e.target.value}))}>
                         <option value="fr-CH">DD/MM/YYYY (Suisse)</option>
                         <option value="fr-FR">DD/MM/YYYY (France)</option>
                         <option value="en-US">MM/DD/YYYY (USA)</option>
                       </select>
+                      <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>Ta préférence est enregistrée. La traduction complète de l&apos;interface arrive prochainement.</div>
                     </div>
                   )}
                   {settingsSection==="affichage" && (
@@ -6456,7 +6499,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>📖 Préférences Bible</div>
                       <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Traduction par défaut</label>
-                      <select className="em-select" style={{marginBottom:12}} defaultValue="NBS">
+                      <select className="em-select" style={{marginBottom:12}} value={settingsBible.translation} onChange={e=>setSettingsBible({translation:e.target.value})}>
                         <option value="NBS">NBS — Nouvelle Bible Segond</option>
                         <option value="BDS">BDS — Bible du Semeur</option>
                         <option value="LSG">LSG — Louis Segond</option>
@@ -6517,7 +6560,16 @@ const [showSalle, setShowSalle]       = useState(false);
                       )}
                     </div>
                   )}
-                  {settingsSection!=="securite" && <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} onClick={()=>{setShowSettings(false);setToast("✅ Paramètres sauvegardés !");}}>Sauvegarder</button>}
+                  {settingsSection!=="securite" && settingsSection!=="affichage" && (
+                    <button className="em-btn em-btn-primary em-btn-sm" style={{marginTop:16}} disabled={settingsSaving} onClick={async()=>{
+                      setSettingsSaving(true);
+                      const res=await saveMemberSettings({notifs:settingsNotifs,privacy:settingsPrivacy,langue:settingsLang,bible:settingsBible});
+                      setSettingsSaving(false);
+                      if(res.error){setToast(`❌ ${res.error}`);}
+                      else{setShowSettings(false);setToast("✅ Paramètres enregistrés");}
+                    }}>{settingsSaving?"Enregistrement…":"Sauvegarder"}</button>
+                  )}
+                  {settingsSection==="affichage" && <div style={{fontSize:11,color:"#8b91b0",marginTop:16,fontStyle:"italic"}}>La taille du texte est appliquée et enregistrée automatiquement.</div>}
                 </div>
               </div>
             </div>
