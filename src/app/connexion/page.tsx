@@ -15,19 +15,18 @@ export default async function ConnexionPage() {
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
 
       {/* LEFT — panneau de marque avec citation depuis la DB */}
-      <div
-        className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#0a0d2e 0%,#1e2464 50%,#0f123a 100%)" }}
-      >
+      <div className="hidden lg:flex flex-col justify-between p-16 relative overflow-hidden bg-arc-navy">
+        {/* Shader overlay — halos diffus pour la profondeur (charte Sacred Modernity) */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: "radial-gradient(circle,rgba(136,153,204,.07) 1px,transparent 1px)",
-            backgroundSize: "40px 40px",
+            backgroundImage:
+              "radial-gradient(circle at top right,rgba(255,255,255,.06) 0%,transparent 40%)," +
+              "radial-gradient(circle at bottom left,rgba(255,255,255,.03) 0%,transparent 50%)",
           }}
         />
         <Link href="/" className="relative z-10">
-          <div style={{ background: "rgba(255,255,255,.95)", borderRadius: 12, padding: "8px 14px", display: "inline-flex" }}>
+          <div className="bg-white/95 rounded-xl p-4 inline-flex shadow-md">
             <Image
               src="/images/logo-arc.jpeg"
               alt="ARC — Ambassade du Royaume de Christ"
@@ -39,11 +38,11 @@ export default async function ConnexionPage() {
         </Link>
 
         {citation && (
-          <div className="relative z-10">
-            <blockquote className="font-serif text-[32px] italic text-white/85 leading-[1.4] mb-6">
+          <div className="relative z-10 max-w-xl">
+            <blockquote className="font-serif text-[32px] italic text-arc-bluePale leading-snug mb-6">
               &ldquo;{citation.texte}&rdquo;
             </blockquote>
-            <div className="text-sm text-white/50">
+            <div className="text-sm text-white/60">
               — {citation.auteur}{citation.role_mention ? ` · ${citation.role_mention}` : ""}
             </div>
           </div>
