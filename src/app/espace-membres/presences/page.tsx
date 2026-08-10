@@ -5,6 +5,7 @@ import BackButton from "@/components/ui/BackButton";
 import PresencesTable from "./PresencesTable";
 import HrBoard from "./HrBoard";
 import DeclareAbsence from "./DeclareAbsence";
+import ExportCsvButton from "./ExportCsvButton";
 import type { HrRecord, HrDeclaration } from "@/lib/actions/hr";
 
 export default async function PresencesPage({
@@ -117,6 +118,18 @@ export default async function PresencesPage({
     ? members.filter(m => last3.every(e => attendMap[e.id]?.has(m.id))).length : 0;
   const fidelityRate = totalMembers > 0 ? Math.round(fidelityMembers / totalMembers * 100) : 0;
 
+  // Export CSV réel (présences par membre × événement) — alimente le bouton Exporter
+  const csvEscape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const csvHeader = ["Membre", "Fonction(s)", ...evList.map(e => `${e.title} (${e.date})`), "Total présences"].map(csvEscape).join(",");
+  const csvRows = members.map(m => {
+    const name   = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
+    const groups = (m.groups ?? []).join(" / ");
+    const cells  = evList.map(e => attendMap[e.id]?.has(m.id) ? "présent" : "");
+    const total  = evList.filter(e => attendMap[e.id]?.has(m.id)).length;
+    return [name, groups, ...cells, String(total)].map(csvEscape).join(",");
+  });
+  const presencesCsv = [csvHeader, ...csvRows].join("\r\n");
+
   return (
     <div>
       <BackButton href="/espace-membres" label="Espace membres" className="mb-6" />
@@ -129,12 +142,7 @@ export default async function PresencesPage({
           <p className="text-[#454652] mt-2">Vue d&apos;ensemble et pointage — cultes et personnel de l&apos;ARC.</p>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <button
-            onClick={undefined}
-            className="px-4 py-2.5 rounded-lg border border-[#c6c5d4] text-sm font-semibold text-[#1a237e] hover:bg-[#edeeef] transition-all inline-flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[18px]">download</span> Exporter
-          </button>
+          <ExportCsvButton csv={presencesCsv} filename={`presences-arc-${today}.csv`} />
           {isAdmin && (
             <Link href="/espace-membres/presences/stats"
               className="px-4 py-2.5 rounded-lg bg-[#1a237e] text-white text-sm font-semibold hover:bg-[#000666] transition-all inline-flex items-center gap-2">
