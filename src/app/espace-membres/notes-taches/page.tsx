@@ -48,19 +48,38 @@ export default async function NotesTachesPage({
     (taskTagMap[r.task_id] ??= []).push(r.tag_id);
   }
 
+  // Verset d'en-tête — vraie donnée (table citations), comme la page de connexion
+  const { data: citation } = await supabase
+    .from("citations")
+    .select("texte, auteur")
+    .eq("is_active", true)
+    .maybeSingle();
+
   const initialTab =
     searchParams?.tab === "taches"   ? "taches" :
     searchParams?.tab === "partages" ? "partages" : "notes";
 
   return (
     <div>
-      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
-      <div className="mb-4">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">Notes &amp; Tâches</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">
-          Tes pense-bêtes et ta liste de tâches, au même endroit.
-        </p>
-      </div>
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-6" />
+      {/* En-tête éditorial (charte Sacred Modernity) */}
+      <header className="mb-10">
+        <h1 className="font-serif text-[40px] md:text-[48px] leading-tight font-bold text-arc-navy tracking-tight">
+          Notes et Tâches
+        </h1>
+        {citation ? (
+          <div className="border-l-4 border-arc-gold pl-6 py-1 mt-5 max-w-2xl">
+            <p className="font-serif text-xl md:text-2xl italic text-arc-ink/90 leading-snug">
+              &ldquo;{citation.texte}&rdquo;
+            </p>
+            {citation.auteur && (
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-arc-text3 mt-2">{citation.auteur}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-arc-text2 mt-2">Tes pense-bêtes et ta liste de tâches, au même endroit.</p>
+        )}
+      </header>
       <NotesTachesClient
         initialNotes={(notesRes.data ?? []) as NoteRow[]}
         initialTasks={(tasksRes.data ?? []) as TaskRow[]}

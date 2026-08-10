@@ -160,27 +160,30 @@ export default async function CrmPage({
 
   return (
     <div>
-      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-6" />
 
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">CRM Pastoral</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">{all.length} membres enregistrés</p>
+      {/* En-tête éditorial (maquette Sacred Modernity CRM) */}
+      <div className="mb-8">
+        <h1 className="text-[40px] md:text-[48px] leading-tight font-bold text-[#1a237e] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+          CRM Pastoral
+        </h1>
+        <p className="text-[#454652] mt-2">{all.length} membres · vue d&apos;ensemble de la communauté</p>
       </div>
 
-      {/* Stats — charte Sacred Modernity (label + grand nombre + icône) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      {/* Stats — cartes maquette (label + grand nombre serif + icône) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total membres", val: all.length,         color: "text-arc-navy",  icon: "👥" },
-          { label: "Validés",       val: validated.length,   color: "text-green-600", icon: "✓"  },
-          { label: "En attente",    val: pending.length,     color: "text-amber-600", icon: "⏳" },
-          { label: "Rôle membre",   val: byRole.membre ?? 0, color: "text-arc-blue",  icon: "🎫" },
+          { label: "Total membres", val: all.length,         color: "text-[#1a237e]", icon: "group" },
+          { label: "Validés",       val: validated.length,   color: "text-green-700", icon: "verified" },
+          { label: "En attente",    val: pending.length,     color: "text-amber-600", icon: "hourglass_empty" },
+          { label: "Rôle membre",   val: byRole.membre ?? 0, color: "text-[#4c56af]", icon: "badge" },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-arc-border rounded-xl p-5 shadow-sm">
+          <div key={s.label} className="bg-white border border-[#e6e9f4] rounded-xl p-5 shadow-[0_4px_20px_rgba(26,35,126,0.05)]">
             <div className="flex items-start justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-arc-text3">{s.label}</span>
-              <span className="text-base leading-none opacity-80" aria-hidden="true">{s.icon}</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#767683]">{s.label}</span>
+              <span className="material-symbols-outlined text-[20px] text-[#8690ee]" aria-hidden="true">{s.icon}</span>
             </div>
-            <div className={`text-3xl font-bold font-serif mt-2 ${s.color}`}>{s.val}</div>
+            <div className={`text-[32px] font-bold mt-2 ${s.color}`} style={{ fontFamily: '"Playfair Display", serif' }}>{s.val}</div>
           </div>
         ))}
       </div>

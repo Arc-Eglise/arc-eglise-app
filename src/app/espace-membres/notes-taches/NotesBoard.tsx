@@ -227,76 +227,74 @@ export default function NotesBoard({
         </>
       )}
 
-      {/* Grille de notes */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-arc-text3">
-          <div className="text-5xl mb-3">🗒️</div>
-          <div className="font-semibold text-arc-navy mb-1">Aucune note</div>
-          <div className="text-sm">{search ? "Aucun résultat pour cette recherche." : "Crée ton premier pense-bête ci-dessus."}</div>
-        </div>
-      ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
+      {/* Grille de notes — reproduction maquette Stitch */}
+      {(
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filtered.map(n => {
-            const col = colorOf(n.color);
             const dateLabel = new Date(n.updated_at).toLocaleDateString("fr-CH", { day: "2-digit", month: "short" });
             return (
-              <div
+              <article
                 key={n.id}
-                className="group relative rounded-xl bg-white border border-arc-border p-4 flex flex-col min-h-[150px] shadow-sm transition-shadow hover:shadow-md overflow-hidden"
+                onClick={() => openEdit(n)}
+                className="bg-white rounded-xl p-6 shadow-[0_4px_20px_rgba(26,35,126,0.05)] border border-transparent hover:border-[#c6c5d4] transition-all cursor-pointer group flex flex-col min-h-[190px]"
               >
-                {/* Accent couleur (identité sticky-note conservée) */}
-                <span className="absolute top-0 left-0 h-full w-1" style={{ background: col.dot }} aria-hidden="true" />
-
-                {/* Ligne méta : badge référence/date + actions */}
-                <div className="flex items-center justify-between gap-2 mb-1.5 pl-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {n.is_pinned && <span title="Épinglée" className="text-[11px]">📌</span>}
-                    {n.reference
-                      ? <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-arc-blueBg text-arc-blue truncate">📖 {n.reference}</span>
-                      : <span className="text-[10px] font-semibold uppercase tracking-wide text-arc-text3">Note</span>}
-                  </div>
-                  <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => togglePin(n)} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-sm px-0.5">{n.is_pinned ? "📌" : "📍"}</button>
-                    <button onClick={() => setSharing(n)} title="Partager" className="text-sm px-0.5">📤</button>
-                    <button onClick={() => openEdit(n)} title="Modifier" className="text-sm px-0.5">✏️</button>
-                    <button onClick={() => remove(n)} title="Supprimer" className="text-sm px-0.5">🗑️</button>
+                {/* Ligne méta : catégorie + date + actions (Material Symbols) */}
+                <div className="flex justify-between items-start mb-4 gap-2">
+                  <span className="bg-[#edeeef] text-[#191c1d] px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 min-w-0">
+                    {n.is_pinned && <span className="material-symbols-outlined text-[14px] text-[#775a19]">push_pin</span>}
+                    <span className="truncate">{n.reference ? n.reference : "Note"}</span>
+                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[#454652] text-sm">{dateLabel}</span>
+                    <button onClick={(e) => { e.stopPropagation(); togglePin(n); }} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">push_pin</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); setSharing(n); }} title="Partager" className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">share</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(n); }} title="Éditer" className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); remove(n); }} title="Supprimer" className="text-[#454652] hover:text-[#ba1a1a] transition-colors flex"><span className="material-symbols-outlined text-[18px]">delete</span></button>
                   </div>
                 </div>
 
-                {n.title && <div className="font-bold text-arc-navy text-sm mb-1 pl-2">{n.title}</div>}
+                {n.title && (
+                  <h3 className="text-[20px] leading-[28px] text-[#1a237e] mb-3 group-hover:text-[#775a19] transition-colors" style={{ fontFamily: '"Playfair Display", serif', fontWeight: 600 }}>
+                    {n.title}
+                  </h3>
+                )}
                 <div
-                  className="text-[13px] text-arc-text leading-snug flex-1 whitespace-pre-wrap break-words pl-2 [&_ul]:list-disc [&_ul]:pl-4"
+                  className="text-[#454652] text-[15px] leading-[24px] flex-1 line-clamp-4 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ul]:pl-4"
                   dangerouslySetInnerHTML={{ __html: renderRich(n.body) }}
                 />
 
-                {/* Étiquettes */}
-                <div className="mt-2 pl-2">
+                {/* Étiquettes + couleur rapide */}
+                <div className="mt-4 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                   <TagBar
                     kind="note" resourceId={n.id} allTags={allTags}
                     tagIds={tagMap[n.id] ?? []}
                     onChange={(ids) => setTagMap(m => ({ ...m, [n.id]: ids }))}
                     onCreated={onTagCreated}
                   />
-                </div>
-
-                {/* Pied : date + sélecteur couleur rapide */}
-                <div className="flex items-center justify-between gap-2 mt-3 pl-2">
-                  <span className="text-[10px] text-arc-text3">{dateLabel}</span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     {NOTE_COLORS.map(c => (
                       <button
                         key={c}
                         onClick={() => changeColor(n, c)}
                         title={c}
-                        className={`w-3.5 h-3.5 rounded-full border ${n.color === c ? "border-arc-navy" : "border-arc-border"}`}
+                        className={`w-3.5 h-3.5 rounded-full border ${n.color === c ? "border-[#1a237e]" : "border-[#c6c5d4]"}`}
                         style={{ background: colorOf(c).dot }}
                       />
                     ))}
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
+
+          {/* Tuile « Créer une note » (bento, style maquette) */}
+          <button
+            onClick={openCreate}
+            className="bg-[#f3f4f5] rounded-xl p-6 border-2 border-dashed border-[#c6c5d4] hover:border-[#1a237e] hover:bg-[#edeeef] transition-all flex flex-col items-center justify-center text-[#454652] hover:text-[#1a237e] min-h-[190px]"
+          >
+            <span className="material-symbols-outlined text-[32px] mb-2">add_circle</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Créer une note</span>
+          </button>
         </div>
       )}
 

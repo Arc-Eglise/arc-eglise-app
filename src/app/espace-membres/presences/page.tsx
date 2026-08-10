@@ -119,43 +119,45 @@ export default async function PresencesPage({
 
   return (
     <div>
-      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
-      {/* En-tête */}
-      <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
+      <BackButton href="/espace-membres" label="Espace membres" className="mb-6" />
+      {/* En-tête éditorial (maquette Sacred Modernity) */}
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-arc-navy">Présences</h1>
-          <p className="text-sm text-arc-text2 mt-0.5">Suivi des présences aux cultes et événements</p>
+          <h1 className="text-[40px] md:text-[48px] leading-tight font-bold text-[#1a237e] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>
+            Présences
+          </h1>
+          <p className="text-[#454652] mt-2">Vue d&apos;ensemble et pointage — cultes et personnel de l&apos;ARC.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-3 flex-wrap">
           <button
             onClick={undefined}
-            className="px-4 py-2 rounded-xl border border-arc-border text-sm text-arc-navy hover:border-arc-navy transition-all"
+            className="px-4 py-2.5 rounded-lg border border-[#c6c5d4] text-sm font-semibold text-[#1a237e] hover:bg-[#edeeef] transition-all inline-flex items-center gap-2"
           >
-            📤 Exporter CSV
+            <span className="material-symbols-outlined text-[18px]">download</span> Exporter
           </button>
           {isAdmin && (
             <Link href="/espace-membres/presences/stats"
-              className="px-4 py-2 rounded-xl border border-arc-border text-sm text-arc-navy hover:border-arc-navy transition-all">
-              📊 Statistiques
+              className="px-4 py-2.5 rounded-lg bg-[#1a237e] text-white text-sm font-semibold hover:bg-[#000666] transition-all inline-flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">bar_chart</span> Statistiques
             </Link>
           )}
         </div>
       </div>
 
       {/* Onglets : présence aux événements (défaut) | RH (encadrement) */}
-      <div className="inline-flex rounded-xl border border-arc-border bg-white p-1 mb-6">
+      <div className="inline-flex rounded-full border border-[#c6c5d4] bg-white p-1 mb-8 shadow-sm">
         <Link
           href="/espace-membres/presences"
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "evenements" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}
+          className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${tab === "evenements" ? "bg-[#1a237e] text-white" : "text-[#454652] hover:text-[#1a237e]"}`}
         >
-          📅 Présence aux événements
+          Présence aux événements
         </Link>
         {isEncadrement && (
           <Link
             href="/espace-membres/presences?tab=rh"
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "rh" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"}`}
+            className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${tab === "rh" ? "bg-[#1a237e] text-white" : "text-[#454652] hover:text-[#1a237e]"}`}
           >
-            🧑‍💼 RH
+            RH
           </Link>
         )}
       </div>

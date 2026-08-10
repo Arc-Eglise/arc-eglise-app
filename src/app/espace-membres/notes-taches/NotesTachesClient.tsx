@@ -6,12 +6,12 @@ import NotesBoard from "./NotesBoard";
 import TasksBoard from "./TasksBoard";
 import SharesInbox from "./SharesInbox";
 
-type Tab = "notes" | "taches" | "partages";
+type View = "board" | "partages";
 
 interface Props {
   initialNotes: NoteRow[];
   initialTasks: TaskRow[];
-  initialTab: Tab;
+  initialTab: "notes" | "taches" | "partages";
   initialPendingShares?: number;
   initialTags: TagRow[];
   noteTagMap: Record<string, string[]>;
@@ -22,61 +22,57 @@ export default function NotesTachesClient({
   initialNotes, initialTasks, initialTab, initialPendingShares = 0,
   initialTags, noteTagMap, taskTagMap,
 }: Props) {
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [view, setView] = useState<View>(initialTab === "partages" ? "partages" : "board");
   const [pending, setPending] = useState(initialPendingShares);
-  // Étiquettes partagées entre les deux tableaux (une création côté Notes
-  // devient dispo côté Tâches sans reload).
   const [allTags, setAllTags] = useState<TagRow[]>(initialTags);
   const addTag = (t: TagRow) => setAllTags(prev => prev.some(x => x.id === t.id) ? prev : [...prev, t]);
-  const openTasks = initialTasks.filter(t => t.status !== "termine").length;
+
+  const pill = (active: boolean) =>
+    `px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 ${
+      active ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"
+    }`;
 
   return (
     <div>
-      {/* Bascule Notes / Tâches */}
-      <div className="inline-flex rounded-xl border border-arc-border bg-white p-1 mb-5">
-        <button
-          onClick={() => setTab("notes")}
-          className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${
-            tab === "notes" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"
-          }`}
-        >
-          🗒️ Notes
+      {/* Segment de vue */}
+      <div className="inline-flex rounded-full border border-arc-border bg-white p-1 mb-8 shadow-sm">
+        <button onClick={() => setView("board")} className={pill(view === "board")}>
+          Notes &amp; Tâches
         </button>
-        <button
-          onClick={() => setTab("taches")}
-          className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
-            tab === "taches" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"
-          }`}
-        >
-          ✅ Tâches
-          {openTasks > 0 && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              tab === "taches" ? "bg-white/20 text-white" : "bg-arc-blueBg text-arc-blue"
-            }`}>
-              {openTasks}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("partages")}
-          className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${
-            tab === "partages" ? "bg-arc-navy text-white" : "text-arc-text2 hover:text-arc-navy"
-          }`}
-        >
-          📤 Partagés
+        <button onClick={() => setView("partages")} className={pill(view === "partages")}>
+          Partagés
           {pending > 0 && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              tab === "partages" ? "bg-white/20 text-white" : "bg-arc-blueBg text-arc-blue"
-            }`}>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${view === "partages" ? "bg-white/20 text-white" : "bg-arc-blueBg text-arc-blue"}`}>
               {pending}
             </span>
           )}
         </button>
       </div>
 
-      {tab === "notes"  && <NotesBoard initialNotes={initialNotes} allTags={allTags} initialTagMap={noteTagMap} onTagCreated={addTag} />}
-      {tab === "taches" && <TasksBoard initialTasks={initialTasks} allTags={allTags} initialTagMap={taskTagMap} onTagCreated={addTag} />}
-      {tab === "partages" && <SharesInbox onChanged={() => setPending(0)} />}
+      {view === "partages" ? (
+        <SharesInbox onChanged={() => setPending(0)} />
+      ) : (
+        // Layout éditorial : Notes (2/3) + Tâches (1/3) côte à côte
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 items-start">
+          <section className="lg:col-span-2">
+            <div className="flex items-center justify-between border-b border-arc-border pb-2 mb-5">
+              <h2 className="font-serif text-2xl text-arc-navy">Notes récentes</h2>
+            </div>
+            <NotesBoard initialNotes={initialNotes} allTags={allTags} initialTagMap={noteTagMap} onTagCreated={addTag} />
+          </section>
+          <section>
+            <div className="flex items-center justify-between border-b border-arc-border pb-2 mb-5">
+              <h2 className="font-serif text-2xl text-arc-navy">Tâches</h2>
+              {initialTasks.filter(t => t.status !== "termine").length > 0 && (
+                <span className="bg-arc-navy text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                  {initialTasks.filter(t => t.status !== "termine").length}
+                </span>
+              )}
+            </div>
+            <TasksBoard initialTasks={initialTasks} allTags={allTags} initialTagMap={taskTagMap} onTagCreated={addTag} />
+          </section>
+        </div>
+      )}
     </div>
   );
 }

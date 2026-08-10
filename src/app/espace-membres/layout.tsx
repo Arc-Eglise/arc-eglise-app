@@ -27,6 +27,11 @@ export default async function EspaceMembresLayout({ children }: { children: Reac
 
   return (
     <ReadingPrefsProvider userId={user.id}>
+      {/* Polices des maquettes Stitch (refonte visuelle) : Playfair Display + Material Symbols */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+        rel="stylesheet"
+      />
       {children}
       <ReadingPrefsButton />
     </ReadingPrefsProvider>
