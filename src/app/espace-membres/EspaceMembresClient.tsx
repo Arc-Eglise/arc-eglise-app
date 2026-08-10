@@ -2220,6 +2220,9 @@ const [showSalle, setShowSalle]       = useState(false);
       { id:"médias",   icon:"📺" },
     ]},
   ];
+  const MSG_SECTION_KEY: Record<string,string> = {
+    "Assistant":"msg.section.assistant", "Canaux":"msg.section.canaux", "Groupes":"msg.section.groupes",
+  };
 
   /* ── Navigation helper ───────────────────────────────────────── */
   function nav(p: Panel) {
@@ -2681,14 +2684,14 @@ const [showSalle, setShowSalle]       = useState(false);
                   <span className="em-dot-green" style={{display:"inline-block"}} />
                 </div>
                 <div style={{padding:"0 8px 6px"}}>
-                  <input className="em-ch-search-input" placeholder="🔍 Rechercher…" />
+                  <input className="em-ch-search-input" placeholder={t("msg.searchPlaceholder")} />
                 </div>
                 <div style={{display:"flex",justifyContent:"flex-end",padding:"0 8px 4px"}}>
                   <button className="mob-only" style={{border:"none",background:"none",fontSize:18,cursor:"pointer",color:"rgba(255,255,255,.5)",lineHeight:1}} onClick={()=>setMobChanOpen(false)}>✕</button>
                 </div>
                 {MSG_CHANNELS.map(sect => (
                   <div key={sect.section}>
-                    <div className="em-ch-sec">{sect.section}</div>
+                    <div className="em-ch-sec">{MSG_SECTION_KEY[sect.section]?t(MSG_SECTION_KEY[sect.section]):sect.section}</div>
                     {sect.items.map(ch => (
                       <button key={ch.id} className={`em-ch-item${msgChan===ch.id?" active":""}`}
                         onClick={()=>{setMsgChan(ch.id);setMsgTab("msgs");setOpenThread(null);setMobChanOpen(false);}}>
@@ -2701,8 +2704,8 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                 ))}
                 <div className="em-ch-sec" style={{marginTop:4,display:"flex",alignItems:"center",justifyContent:"space-between",paddingRight:8}}>
-                  <span>Messages directs</span>
-                  <button title="Nouveau message"
+                  <span>{t("msg.directMessages")}</span>
+                  <button title={t("msg.newMessageTitle")}
                     style={{border:"none",background:"none",color:"rgba(255,255,255,.55)",fontSize:15,cursor:"pointer",lineHeight:1,padding:"0 2px"}}
                     onClick={()=>{ if(members.length===0) loadMembers(); setShowNewDm(v=>!v); }}>＋</button>
                 </div>
@@ -2716,22 +2719,22 @@ const [showSalle, setShowSalle]       = useState(false);
                           style={{flex:1,fontSize:11,fontWeight:600,padding:"5px 0",borderRadius:6,cursor:"pointer",border:"none",
                             background:newDmMode===mode?"rgba(255,255,255,.16)":"transparent",
                             color:newDmMode===mode?"#fff":"rgba(255,255,255,.55)"}}>
-                          {mode==="dm"?"💬 Message":"👥 Groupe"}
+                          {mode==="dm"?t("msg.tabDm"):t("msg.tabGroup")}
                         </button>
                       ))}
                     </div>
                     {/* Champ nom (groupe uniquement) */}
                     {newDmMode==="group" && (
                       <input value={groupName} onChange={e=>setGroupName(e.target.value)}
-                        placeholder="Nom du groupe…"
+                        placeholder={t("msg.groupNamePlaceholder")}
                         style={{width:"100%",boxSizing:"border-box",margin:"0 0 4px",padding:"6px 8px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(0,0,0,.2)",color:"#fff",fontSize:12,outline:"none"}} />
                     )}
                     {/* Liste des membres */}
                     <div style={{maxHeight:170,overflowY:"auto"}}>
                       {members.filter(m=>m.validated && m.id!==userId).length===0
-                        ? <div style={{fontSize:11,color:"rgba(255,255,255,.5)",padding:"8px 6px",textAlign:"center"}}>Chargement…</div>
+                        ? <div style={{fontSize:11,color:"rgba(255,255,255,.5)",padding:"8px 6px",textAlign:"center"}}>{t("msg.loading")}</div>
                         : members.filter(m=>m.validated && m.id!==userId).map(m=>{
-                            const nm=[m.first_name,m.last_name].filter(Boolean).join(" ")||"Membre";
+                            const nm=[m.first_name,m.last_name].filter(Boolean).join(" ")||t("msg.member");
                             const checked = groupMembers.includes(m.id);
                             return (
                               <button key={m.id} className="em-ch-item" style={{width:"100%"}}
@@ -2754,13 +2757,13 @@ const [showSalle, setShowSalle]       = useState(false);
                         style={{width:"100%",marginTop:6,padding:"7px 0",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
                           background:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.12)":"#C9A227",
                           color:(groupBusy||!groupName.trim()||groupMembers.length<2)?"rgba(255,255,255,.4)":"#1a1d3a"}}>
-                        {groupBusy?"Création…":`Créer le groupe${groupMembers.length?` (${groupMembers.length})`:""}`}
+                        {groupBusy?t("msg.creating"):`${t("msg.createGroup")}${groupMembers.length?` (${groupMembers.length})`:""}`}
                       </button>
                     )}
                   </div>
                 )}
                 {dmList.length===0 && !showNewDm && (
-                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",padding:"4px 12px 8px"}}>Aucune conversation. Clique ＋ pour en démarrer une.</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,.4)",padding:"4px 12px 8px"}}>{t("msg.noConversation")}</div>
                 )}
                 {dmList.map(d => (
                   <button key={d.id} className={`em-ch-item${msgChan===`dm:${d.id}`?" active":""}`}
@@ -2772,9 +2775,9 @@ const [showSalle, setShowSalle]       = useState(false);
                 ))}
                 <div style={{padding:"8px 8px 10px"}}>
                   <button className={`em-huddle${huddleActive?" active":""}`}
-                    onClick={()=>{setHuddleActive(h=>!h);setToast(huddleActive?"Huddle terminé":"🎙 Huddle démarré !");}}>
-                    🎙 {huddleActive ? "Huddle actif" : "Démarrer un huddle"}
-                    {huddleActive && <span style={{marginLeft:"auto",fontSize:9,background:"rgba(39,103,73,.5)",color:"#9ae6b4",padding:"1px 5px",borderRadius:8}}>EN COURS</span>}
+                    onClick={()=>{setHuddleActive(h=>!h);setToast(huddleActive?t("msg.huddleEnded"):t("msg.huddleStarted"));}}>
+                    🎙 {huddleActive ? t("msg.huddleActive") : t("msg.huddleStart")}
+                    {huddleActive && <span style={{marginLeft:"auto",fontSize:9,background:"rgba(39,103,73,.5)",color:"#9ae6b4",padding:"1px 5px",borderRadius:8}}>{t("msg.huddleInProgress")}</span>}
                   </button>
                 </div>
               </div>
@@ -2786,7 +2789,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Conv header */}
                   <div style={{padding:"10px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <BackButton onClick={()=>setPanel("accueil")} label="Accueil" />
+                    <BackButton onClick={()=>setPanel("accueil")} label={t("nav.accueil")} />
                     <button className="mob-only" style={{border:"none",background:"#f1f3fb",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
                     {isAI
                       ? <span style={{fontSize:16}}>🤖</span>
@@ -2794,21 +2797,21 @@ const [showSalle, setShowSalle]       = useState(false);
                       ? <span style={{fontWeight:700,fontSize:15,color:"#8b91b0"}}>#</span>
                       : <div className="em-av" style={{width:22,height:22,fontSize:9,background:"#1e2464"}}>{chanLabel[0]}</div>}
                     <span style={{fontWeight:600,fontSize:13,color:"#1e2464",flex:1}}>{chanLabel}</span>
-                    <button type="button" className="em-toolbar-btn" title="Rechercher dans la conversation"
+                    <button type="button" className="em-toolbar-btn" title={t("msg.searchInConv")}
                       onClick={()=>setShowThreadSearch(v=>{ const nv=!v; if(!nv) setThreadSearch(""); return nv; })}
                       style={showThreadSearch?{background:"#1e2464",color:"#fff"}:undefined}>🔍</button>
                     {/* 📹 Réunion vidéo masquée — intégration Zoom en attente d'identifiants (ADR/Zoom) */}
-                    <button type="button" className="em-toolbar-btn" title="Destinataires & membres"
+                    <button type="button" className="em-toolbar-btn" title={t("msg.recipients")}
                       onClick={()=>{ if(members.length===0) loadMembers(); setShowRecipient(true); }}>👥</button>
-                    {canAdmin && <button className="em-toolbar-btn" title="Paramètres" onClick={()=>setShowSettings(true)}>⚙️</button>}
+                    {canAdmin && <button className="em-toolbar-btn" title={t("settings.title")} onClick={()=>setShowSettings(true)}>⚙️</button>}
                   </div>
 
                   {/* Recherche dans la conversation (🔍) */}
                   {showThreadSearch && (
                     <div style={{padding:"8px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0,background:"#fafbfe"}}>
-                      <input autoFocus value={threadSearch} onChange={e=>setThreadSearch(e.target.value)} placeholder="Rechercher dans cette conversation…"
+                      <input autoFocus value={threadSearch} onChange={e=>setThreadSearch(e.target.value)} placeholder={t("msg.searchConvPlaceholder")}
                         style={{flex:1,padding:"7px 12px",border:"1px solid #e0e4f2",borderRadius:9,fontSize:13,outline:"none",background:"#fff"}} />
-                      {threadSearch.trim() && <span style={{fontSize:11,color:"#8b91b0",flexShrink:0,whiteSpace:"nowrap"}}>{displayMessages.length} résultat{displayMessages.length>1?"s":""}</span>}
+                      {threadSearch.trim() && <span style={{fontSize:11,color:"#8b91b0",flexShrink:0,whiteSpace:"nowrap"}}>{displayMessages.length} {displayMessages.length>1?t("msg.results"):t("msg.result")}</span>}
                       <button type="button" onClick={()=>{setShowThreadSearch(false);setThreadSearch("");}} style={{border:"none",background:"none",cursor:"pointer",color:"#8b91b0",fontSize:16,flexShrink:0,lineHeight:1}}>✕</button>
                     </div>
                   )}
@@ -2816,23 +2819,23 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* Pinned banner */}
                   {pinnedMsgs.length > 0 && msgTab==="msgs" && (
                     <button className="em-pinned-banner" onClick={()=>setMsgTab("pins")}>
-                      📌 {pinnedMsgs.length} message{pinnedMsgs.length>1?"s":""} épinglé{pinnedMsgs.length>1?"s":""} · Voir →
+                      📌 {pinnedMsgs.length} {pinnedMsgs.length>1?t("msg.messagesWord"):t("msg.messageWord")} {pinnedMsgs.length>1?t("msg.pinnedAdjMany"):t("msg.pinnedAdjOne")} · {t("msg.see")} →
                     </button>
                   )}
 
                   {/* Tab bar */}
                   <div className="em-conv-tabs">
-                    {([["msgs","💬 Messages"],["files","📎 Fichiers"],["pins","📌 Épinglés"],["tasks","✅ Tâches"]] as [MsgTab,string][]).map(([t,l])=>(
-                      <button key={t} className={`em-conv-tab${msgTab===t?" active":""}`} onClick={()=>setMsgTab(t)}>{l}</button>
+                    {([["msgs",t("msg.tab.msgs")],["files",t("msg.tab.files")],["pins",t("msg.tab.pins")],["tasks",t("msg.tab.tasks")]] as [MsgTab,string][]).map(([tab,l])=>(
+                      <button key={tab} className={`em-conv-tab${msgTab===tab?" active":""}`} onClick={()=>setMsgTab(tab)}>{l}</button>
                     ))}
                   </div>
 
                   {/* ── Tab: Messages ── */}
                   {msgTab==="msgs" && (<>
                     <div className="em-msgs" onClick={()=>setShowEmojiPicker(null)}>
-                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"12px 0"}}>Chargement…</div>}
+                      {!isAI && chan.loading && <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"12px 0"}}>{t("msg.loading")}</div>}
                       {!isAI && !chan.loading && chan.messages.length === 0 && (
-                        <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"20px 0"}}>Aucun message {isChannelHeader?`dans #${chanLabel}`:`avec ${chanLabel}`}. Écris le premier 👋</div>
+                        <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"20px 0"}}>{t("msg.noMessage")} {isChannelHeader?`${t("msg.inChannel")} #${chanLabel}`:`${t("msg.withPerson")} ${chanLabel}`}. {t("msg.writeFirst")}</div>
                       )}
                       {displayMessages.map(m => {
                         const rxns  = msgReactions[m.id];
@@ -2904,7 +2907,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                 {/* Thread link */}
                                 {replies.length > 0 && (
                                   <button className="em-thread-link" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>
-                                    ↩ <strong style={{color:"#1e2464"}}>{replies.length} réponse{replies.length>1?"s":""}</strong>
+                                    ↩ <strong style={{color:"#1e2464"}}>{replies.length} {replies.length>1?t("msg.repliesWord"):t("msg.replyWord")}</strong>
                                     <span style={{color:"#8b91b0"}}> · {replies[replies.length-1].time}</span>
                                     <span>{openThread===m.id?" ▲":" ›"}</span>
                                   </button>
@@ -2917,19 +2920,19 @@ const [showSalle, setShowSalle]       = useState(false);
                                 {QUICK_EMOJIS.slice(0,3).map(e=>(
                                   <button key={e} className="em-msg-action-btn" onClick={()=>addReaction(m.id,e)}>{e}</button>
                                 ))}
-                                <button className="em-msg-action-btn" title="Plus" onClick={e=>{e.stopPropagation();setShowEmojiPicker(showEmojiPicker===m.id?null:m.id);}}>😊</button>
-                                <button className="em-msg-action-btn" title="Répondre" onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>↩</button>
-                                <button className="em-msg-action-btn" title={isPinned?"Désépingler":"Épingler"} onClick={()=>togglePin(m.id)}>📌</button>
+                                <button className="em-msg-action-btn" title={t("msg.more")} onClick={e=>{e.stopPropagation();setShowEmojiPicker(showEmojiPicker===m.id?null:m.id);}}>😊</button>
+                                <button className="em-msg-action-btn" title={t("msg.reply")} onClick={()=>setOpenThread(openThread===m.id?null:m.id)}>↩</button>
+                                <button className="em-msg-action-btn" title={isPinned?t("msg.unpin"):t("msg.pin")} onClick={()=>togglePin(m.id)}>📌</button>
                                 {!isAI && (
-                                  <button className="em-msg-action-btn" title="Prendre une note / créer une tâche" onClick={e=>{e.stopPropagation();setMsgNoteFor(msgNoteFor===m.id?null:m.id);}}>📝</button>
+                                  <button className="em-msg-action-btn" title={t("msg.noteOrTask")} onClick={e=>{e.stopPropagation();setMsgNoteFor(msgNoteFor===m.id?null:m.id);}}>📝</button>
                                 )}
                               </div>
                             )}
                             {/* Capture note/tâche depuis le message (ADR-002 Phase 2) */}
                             {msgNoteFor===m.id && (
                               <div style={{position:"absolute",zIndex:55,bottom:"100%",right:m.mine?8:"auto",left:m.mine?"auto":40,background:"#fff",borderRadius:12,boxShadow:"0 4px 20px rgba(30,36,100,.18)",padding:6,border:"1px solid #e6e9f4",display:"flex",flexDirection:"column",gap:2,minWidth:190}} onClick={e=>e.stopPropagation()}>
-                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsNote(m)}>🗒️ Ajouter à mes notes</button>
-                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsTask(m)}>✅ Ajouter à mes tâches</button>
+                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsNote(m)}>{t("msg.addToNotes")}</button>
+                                <button className="em-msg-action-btn" style={{justifyContent:"flex-start",width:"100%",padding:"8px 10px",fontSize:13,gap:8,display:"flex",alignItems:"center"}} onClick={()=>saveMsgAsTask(m)}>{t("msg.addToTasks")}</button>
                               </div>
                             )}
                             {/* Quick emoji picker */}
@@ -2949,15 +2952,15 @@ const [showSalle, setShowSalle]       = useState(false);
                     {/* Input bar */}
                     <div className="em-msg-bar" style={{flexDirection:"column",gap:0,padding:"0 12px 12px"}}>
                       <div className="em-msg-toolbar">
-                        <button type="button" className="em-toolbar-btn" title="Gras (**texte**)" onClick={()=>wrapSelection("**","**","gras")}>𝐁</button>
-                        <button type="button" className="em-toolbar-btn" title="Italique (*texte*)" onClick={()=>wrapSelection("*","*","italique")}>𝐼</button>
-                        <button type="button" className="em-toolbar-btn" title="Lien" onClick={()=>wrapSelection("[","](https://)","texte")}>🔗</button>
+                        <button type="button" className="em-toolbar-btn" title={t("msg.fmt.bold")} onClick={()=>wrapSelection("**","**","gras")}>𝐁</button>
+                        <button type="button" className="em-toolbar-btn" title={t("msg.fmt.italic")} onClick={()=>wrapSelection("*","*","italique")}>𝐼</button>
+                        <button type="button" className="em-toolbar-btn" title={t("msg.fmt.link")} onClick={()=>wrapSelection("[","](https://)","texte")}>🔗</button>
                         <span style={{width:1,background:"#e6e9f4",margin:"2px 4px",display:"inline-block",height:16}} />
-                        <button type="button" className="em-toolbar-btn" title="Liste" onClick={()=>prefixLine("- ")}>≡</button>
-                        <button type="button" className="em-toolbar-btn" title="Citation" onClick={()=>prefixLine("> ")}>❝</button>
+                        <button type="button" className="em-toolbar-btn" title={t("msg.fmt.list")} onClick={()=>prefixLine("- ")}>≡</button>
+                        <button type="button" className="em-toolbar-btn" title={t("msg.fmt.quote")} onClick={()=>prefixLine("> ")}>❝</button>
                       </div>
                       <div style={{position:"relative",display:"flex",alignItems:"flex-end",gap:8,background:"#f7f8fc",borderRadius:12,padding:"8px 10px",border:"1.5px solid #e6e9f4"}}>
-                        <label className="em-toolbar-btn" title={isAI?"Indisponible avec ARC IA":"Joindre un fichier"} style={{cursor:isAI||attachBusy?"default":"pointer",marginBottom:2,flexShrink:0,opacity:isAI?.4:1}}>
+                        <label className="em-toolbar-btn" title={isAI?t("msg.attachDisabledAI"):t("msg.attachFile")} style={{cursor:isAI||attachBusy?"default":"pointer",marginBottom:2,flexShrink:0,opacity:isAI?.4:1}}>
                           {attachBusy?"⏳":"📎"}
                           <input type="file" style={{display:"none"}} disabled={isAI||attachBusy} onChange={e=>{
                             const f=e.target.files?.[0];
@@ -2967,7 +2970,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         </label>
                         <div style={{flex:1,position:"relative"}}>
                           <textarea className="em-msg-input" ref={msgInputRef} rows={1}
-                            placeholder={`Message ${isChannelHeader?"#"+chanLabel:chanLabel}… (@mention, Entrée pour envoyer)`}
+                            placeholder={`${t("msg.messageTo")} ${isChannelHeader?"#"+chanLabel:chanLabel}… (${t("msg.inputHint")})`}
                             value={msgInput}
                             onChange={e=>{
                               setMsgInput(e.target.value);
@@ -3018,10 +3021,10 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Fichiers ── */}
                   {msgTab==="files" && (
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
-                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📎 Fichiers partagés</div>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>{t("msg.files.title")}</div>
                       {(() => {
                         const files = displayMessages.filter(m => (m as {attachmentUrl?:string|null}).attachmentUrl);
-                        if (files.length === 0) return <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"24px 0"}}>Aucun fichier partagé pour l&apos;instant.</div>;
+                        if (files.length === 0) return <div style={{textAlign:"center",color:"#8b91b0",fontSize:13,padding:"24px 0"}}>{t("msg.files.empty")}</div>;
                         return files.map(m => {
                           const att=(m as {attachmentUrl?:string|null}).attachmentUrl as string;
                           const nm =(m as {attachmentName?:string|null}).attachmentName || "fichier";
@@ -3039,7 +3042,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         });
                       })()}
                       <label style={{display:"block",marginTop:16,textAlign:"center",cursor:isAI||attachBusy?"default":"pointer"}}>
-                        <span className="em-btn em-btn-outline" style={{display:"inline-flex",gap:6}}>{attachBusy?"⏳ Envoi…":"📎 Partager un fichier"}</span>
+                        <span className="em-btn em-btn-outline" style={{display:"inline-flex",gap:6}}>{attachBusy?t("msg.files.sending"):t("msg.files.share")}</span>
                         <input type="file" style={{display:"none"}} disabled={isAI||attachBusy} onChange={e=>{const f=e.target.files?.[0];if(f)uploadAndSendAttachment(f);e.target.value="";}} />
                       </label>
                     </div>
@@ -3048,19 +3051,19 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Épinglés ── */}
                   {msgTab==="pins" && (
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
-                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>📌 Messages épinglés</div>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>{t("msg.pins.title")}</div>
                       {pinnedMsgs.length > 0
                         ? displayMessages.filter(m=>pinnedMsgs.includes(m.id)).map(m=>(
                           <div key={m.id} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
-                            <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5}}>{m.mine?"Moi":m.from} · {m.time}</div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:5}}>{m.mine?t("msg.me"):m.from} · {m.time}</div>
                             <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{m.text}</div>
-                            <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:8,color:"#92400e"}} onClick={()=>togglePin(m.id)}>Désépingler</button>
+                            <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:8,color:"#92400e"}} onClick={()=>togglePin(m.id)}>{t("msg.unpin")}</button>
                           </div>
                         ))
                         : <div style={{textAlign:"center",padding:"48px 0",color:"#8b91b0"}}>
                             <div style={{fontSize:40,marginBottom:10}}>📌</div>
-                            <div style={{fontWeight:600}}>Aucun message épinglé</div>
-                            <div style={{fontSize:12,marginTop:4}}>Survole un message et clique 📌 pour l&apos;épingler</div>
+                            <div style={{fontWeight:600}}>{t("msg.pins.empty")}</div>
+                            <div style={{fontSize:12,marginTop:4}}>{t("msg.pins.hint")}</div>
                           </div>
                       }
                     </div>
@@ -3069,20 +3072,20 @@ const [showSalle, setShowSalle]       = useState(false);
                   {/* ── Tab: Tâches (crée une vraie tâche perso depuis le canal) ── */}
                   {msgTab==="tasks" && (
                     <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
-                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:6}}>✅ Créer une tâche depuis ce canal</div>
-                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>La tâche est ajoutée à ta liste personnelle dans « Notes &amp; Tâches ».</div>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:6}}>{t("msg.tasks.title")}</div>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>{t("msg.tasks.sub")}</div>
                       <div style={{display:"flex",gap:8,marginBottom:16}}>
                         <input
                           value={msgTaskInput}
                           onChange={e=>setMsgTaskInput(e.target.value)}
                           onKeyDown={e=>{ if(e.key==="Enter") addChannelTask(); }}
-                          placeholder="Nouvelle tâche…"
+                          placeholder={t("msg.tasks.placeholder")}
                           style={{flex:1,padding:"9px 12px",borderRadius:10,border:"1px solid #e6e9f4",fontSize:13,outline:"none"}}
                         />
-                        <button className="em-btn em-btn-primary em-btn-sm" onClick={addChannelTask} disabled={!msgTaskInput.trim()}>+ Ajouter</button>
+                        <button className="em-btn em-btn-primary em-btn-sm" onClick={addChannelTask} disabled={!msgTaskInput.trim()}>{t("msg.tasks.add")}</button>
                       </div>
                       <a href="/espace-membres/notes-taches?tab=taches" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:700,color:"#1e6bff",textDecoration:"none"}}>
-                        Voir toutes mes tâches →
+                        {t("msg.tasks.seeAll")}
                       </a>
                     </div>
                   )}
@@ -3095,21 +3098,21 @@ const [showSalle, setShowSalle]       = useState(false);
                 {openThread && (
                   <div className="em-thread-panel">
                     <div className="em-thread-hdr">
-                      <span>↩ Fil de discussion</span>
+                      <span>{t("msg.thread.title")}</span>
                       <button style={{border:"none",background:"none",fontSize:16,cursor:"pointer",color:"#8b91b0",lineHeight:1}} onClick={()=>setOpenThread(null)}>✕</button>
                     </div>
                     {(() => {
                       const orig = displayMessages.find(m=>m.id===openThread);
                       return orig ? (
                         <div style={{padding:"12px 14px",borderBottom:"1px solid #eceef7",background:"#fafbff"}}>
-                          <div style={{fontSize:10,fontWeight:700,color:"#8b91b0",marginBottom:4}}>{orig.mine?"Moi":orig.from} · {orig.time}</div>
+                          <div style={{fontSize:10,fontWeight:700,color:"#8b91b0",marginBottom:4}}>{orig.mine?t("msg.me"):orig.from} · {orig.time}</div>
                           <div style={{fontSize:13,color:"#1a1d3a",lineHeight:1.5}}>{orig.text}</div>
                         </div>
                       ) : null;
                     })()}
                     <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
                       {(threadReplies[openThread]??[]).length===0 && (
-                        <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:12}}>Première réponse dans ce fil</div>
+                        <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:12}}>{t("msg.thread.first")}</div>
                       )}
                       {(threadReplies[openThread]??[]).map(r=>(
                         <div key={r.id} className={`em-msg${r.mine?" mine":""}`} style={{padding:"4px 14px"}}>
@@ -3126,7 +3129,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <div style={{display:"flex",gap:6,background:"#f7f8fc",borderRadius:10,padding:"6px 8px",border:"1.5px solid #e6e9f4"}}>
                         <textarea className="em-msg-input" rows={1}
                           style={{background:"transparent",border:"none",padding:0,resize:"none",flex:1,fontSize:12,minHeight:20}}
-                          placeholder="Répondre dans le fil…"
+                          placeholder={t("msg.thread.replyPlaceholder")}
                           value={threadInput}
                           onChange={e=>setThreadInput(e.target.value)}
                           onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendThreadReply();}}} />
@@ -3271,9 +3274,9 @@ const [showSalle, setShowSalle]       = useState(false);
           {/* ── STREAMING ───────────────────────────────────── */}
           <div className={`em-panel${panel==="streaming"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div><div className="em-sect-title">Streaming</div><div className="em-sect-sub">Cultes · Sermons · Diffusion en direct</div></div>
+              <div><div className="em-sect-title">{t("nav.streaming")}</div><div className="em-sect-sub">{t("stream.subtitle")}</div></div>
               {canAdmin && (
-                <button className="em-btn em-btn-primary em-btn-sm" onClick={() => setShowGS(true)}>⚙ Gérer le stream</button>
+                <button className="em-btn em-btn-primary em-btn-sm" onClick={() => setShowGS(true)}>{t("stream.manage")}</button>
               )}
             </div>
             {live ? (
@@ -3288,27 +3291,27 @@ const [showSalle, setShowSalle]       = useState(false);
             ) : (
               <div style={{background:"#000",borderRadius:14,aspectRatio:"16/9",marginBottom:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"#8b91b0",gap:8,textAlign:"center",padding:16}}>
                 {!liveLoaded ? (
-                  <div style={{fontSize:13}}>Chargement du direct…</div>
+                  <div style={{fontSize:13}}>{t("stream.loading")}</div>
                 ) : !liveConfigured ? (
                   <>
                     <span style={{fontSize:28}}>📡</span>
-                    <div style={{fontSize:13}}>Streaming non configuré.</div>
-                    {canAdmin && <div style={{fontSize:12,color:"#aab"}}>Renseigne l&apos;ID de la chaîne dans « ⚙ Gérer le stream » (et vérifie la clé API YouTube).</div>}
+                    <div style={{fontSize:13}}>{t("stream.notConfigured")}</div>
+                    {canAdmin && <div style={{fontSize:12,color:"#aab"}}>{t("stream.notConfiguredAdmin")}</div>}
                   </>
                 ) : (
                   <>
                     <span style={{fontSize:28}}>🔴</span>
-                    <div style={{fontSize:14,color:"#c9d0ea",fontWeight:600}}>Pas de diffusion en direct pour le moment</div>
-                    <div style={{fontSize:12}}>Rendez-vous à l&apos;heure du culte — dimanche 9h30.</div>
+                    <div style={{fontSize:14,color:"#c9d0ea",fontWeight:600}}>{t("stream.noLive")}</div>
+                    <div style={{fontSize:12}}>{t("stream.noLiveHint")}</div>
                   </>
                 )}
               </div>
             )}
             <div className="em-g3" style={{marginBottom:18}}>
               {[
-                {ico:"📅",title:"Culte dominical",desc:"Dimanche à 9h30"},
-                {ico:"🎤",title:"Groupe de louange",desc:"Mercredi à 19h00"},
-                {ico:"📖",title:"Étude biblique",desc:"Vendredi à 18h30"},
+                {ico:"📅",title:t("stream.schedCulte"),desc:t("stream.schedCulteTime")},
+                {ico:"🎤",title:t("stream.schedLouange"),desc:t("stream.schedLouangeTime")},
+                {ico:"📖",title:t("stream.schedEtude"),desc:t("stream.schedEtudeTime")},
               ].map(s => (
                 <div key={s.title} className="em-card-sm" style={{display:"flex",gap:12,alignItems:"flex-start"}}>
                   <span style={{fontSize:20}}>{s.ico}</span>
@@ -3318,9 +3321,9 @@ const [showSalle, setShowSalle]       = useState(false);
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
               <a href="/espace-membres/streaming" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:"#8899cc",textDecoration:"none"}}>
-                Voir la page streaming complète →
+                {t("stream.seeFull")}
               </a>
-              <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowDoleance(true)}>📬 Déposer une doléance</button>
+              <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setShowDoleance(true)}>{t("doleance.file")}</button>
             </div>
           </div>
 
@@ -3328,7 +3331,7 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="priere"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
-                <BackButton onClick={()=>setPanel("accueil")} label="Accueil" className="mb-2" />
+                <BackButton onClick={()=>setPanel("accueil")} label={t("nav.accueil")} className="mb-2" />
                 <div className="em-sect-title">{t("priere.title")}</div>
                 <div className="em-sect-sub">{t("priere.subtitle")}</div>
               </div>
@@ -3355,11 +3358,11 @@ const [showSalle, setShowSalle]       = useState(false);
                   </select>
                 </div>
                 <div className="em-card-dark" style={{marginBottom:16}}>
-                  <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:14}}>✦ Verset du jour — {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}</div>
+                  <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:14}}>{t("pb.verseOfDayPrefix")} {new Date().toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}</div>
                   <div className="em-verset-card">&ldquo;{VERSET.text}&rdquo;</div>
                   <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:10,fontFamily:"Outfit,sans-serif"}}>— {VERSET.ref}</div>
                   <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
-                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {navigator.clipboard.writeText(VERSET.text);setToast("Verset copié !");}}> {t("priere.copy")}</button>
+                    <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {navigator.clipboard.writeText(VERSET.text);setToast(t("pb.verseCopied"));}}> {t("priere.copy")}</button>
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={() => {setBTab("lecteur");setBBook(42);setBCh(3);}}>{t("priere.readContext")}</button>
                     <button className="em-btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",fontSize:12}} onClick={loadVersetMeditation} disabled={versetMedLoading}>
                       {versetMedLoading ? "…" : versetMeditation ? t("priere.meditation") : t("priere.meditate")}
@@ -3379,7 +3382,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   </div>
                   {versetMeditation && (
                     <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:12}}>
-                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"rgba(255,255,255,.5)",marginBottom:8}}>✦ Méditation guidée</div>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"rgba(255,255,255,.5)",marginBottom:8}}>{t("pb.guidedMeditation")}</div>
                       <div style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{versetMeditation}</div>
                     </div>
                   )}
@@ -3389,8 +3392,8 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>📋 {t("priere.activePlans")}</div>
                     {Object.keys(rpProgress).length === 0 && (
                       <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"8px 0"}}>
-                        Aucun plan actif.
-                        <button className="em-btn em-btn-outline em-btn-sm" style={{display:"block",width:"100%",marginTop:8}} onClick={()=>setBTab("plans")}>Choisir un plan →</button>
+                        {t("pb.noActivePlan")}
+                        <button className="em-btn em-btn-outline em-btn-sm" style={{display:"block",width:"100%",marginTop:8}} onClick={()=>setBTab("plans")}>{t("pb.choosePlan")}</button>
                       </div>
                     )}
                     {Object.entries(rpProgress).slice(0,3).map(([pid, day]) => {
@@ -3401,15 +3404,15 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div key={pid} style={{marginBottom:12}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                             <span style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{plan.titre}</span>
-                            <span style={{fontSize:11,color:"#8b91b0"}}>Jour {day}/{plan.total_days}</span>
+                            <span style={{fontSize:11,color:"#8b91b0"}}>{t("pb.dayWord")} {day}/{plan.total_days}</span>
                           </div>
                           <div style={{background:"#f1f3fb",borderRadius:6,height:6,marginBottom:6}}>
                             <div style={{background:"#1e2464",borderRadius:6,height:"100%",width:`${pct}%`,transition:"width .3s"}} />
                           </div>
                           {day < plan.total_days && (
-                            <button className="em-btn em-btn-outline em-btn-sm" style={{fontSize:11}} onClick={()=>advancePlan(pid, plan.total_days)}>✓ Marquer jour {day} comme lu</button>
+                            <button className="em-btn em-btn-outline em-btn-sm" style={{fontSize:11}} onClick={()=>advancePlan(pid, plan.total_days)}>{t("pb.markDayReadPre")} {day} {t("pb.markDayReadPost")}</button>
                           )}
-                          {day >= plan.total_days && <span className="em-tag-vert em-tag" style={{fontSize:10}}>Terminé !</span>}
+                          {day >= plan.total_days && <span className="em-tag-vert em-tag" style={{fontSize:10}}>{t("pb.done")}</span>}
                         </div>
                       );
                     })}
@@ -3419,7 +3422,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     {prayers.slice(0,3).length > 0 ? prayers.slice(0,3).map(p => (
                       <div key={p.id} style={{padding:"7px 0",borderBottom:"1px solid #eceef7"}}>
                         <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{p.title}</div>
-                        <div style={{fontSize:11,color:"#8b91b0"}}>{p.prayer_count} prières · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
+                        <div style={{fontSize:11,color:"#8b91b0"}}>{p.prayer_count} {t("pb.prayersCountWord")} · {new Date(p.created_at).toLocaleDateString("fr-CH")}</div>
                       </div>
                     )) : (
                       <div style={{color:"#8b91b0",fontSize:13,textAlign:"center",padding:"12px 0"}}>{t("priere.noPrayer")}</div>
@@ -3438,10 +3441,10 @@ const [showSalle, setShowSalle]       = useState(false);
                     {TRANS.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
                   </select>
                   <select className="em-select" value={bBook} onChange={e=>{setBBook(+e.target.value);setBCh(1);}}>
-                    <optgroup label="Ancien Testament">
+                    <optgroup label={t("pb.oldTestament")}>
                       {BOOKS.slice(0,39).map((b,i) => <option key={i} value={i}>{b.n}</option>)}
                     </optgroup>
-                    <optgroup label="Nouveau Testament">
+                    <optgroup label={t("pb.newTestament")}>
                       {BOOKS.slice(39).map((b,i) => <option key={i+39} value={i+39}>{b.n}</option>)}
                     </optgroup>
                   </select>
@@ -3449,7 +3452,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setBCh(c=>Math.max(1,c-1))} disabled={bCh<=1}>‹</button>
                     <select className="em-select" value={bCh} onChange={e=>setBCh(+e.target.value)}>
                       {Array.from({length:BOOKS[bBook].c},(_,i)=>i+1).map(c=>(
-                        <option key={c} value={c}>Ch. {c}</option>
+                        <option key={c} value={c}>{t("pb.chapAbbr")} {c}</option>
                       ))}
                     </select>
                     <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>setBCh(c=>Math.min(BOOKS[bBook].c,c+1))} disabled={bCh>=BOOKS[bBook].c}>›</button>
@@ -3464,14 +3467,14 @@ const [showSalle, setShowSalle]       = useState(false);
                     <div style={{textAlign:"center",padding:"40px 0"}}>
                       <div style={{width:32,height:32,border:"3px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto"}} />
                       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                      <div style={{marginTop:8,color:"#8b91b0",fontSize:13}}>Chargement de {BOOKS[bBook].n} {bCh}…</div>
+                      <div style={{marginTop:8,color:"#8b91b0",fontSize:13}}>{t("pb.loadingChapterPrefix")} {BOOKS[bBook].n} {bCh}…</div>
                     </div>
                   ) : bError ? (
                     <div style={{textAlign:"center",padding:"40px 0"}}>
                       <div style={{fontSize:36,marginBottom:10}}>⚠️</div>
                       <div style={{fontWeight:600,color:"#e53e3e",marginBottom:6}}>{bError}</div>
-                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>Vérifiez votre connexion internet</div>
-                      <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadChapter(bBook,bCh,bTrans)}>↺ Réessayer</button>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>{t("pb.checkConnection")}</div>
+                      <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadChapter(bBook,bCh,bTrans)}>{t("pb.retry")}</button>
                     </div>
                   ) : bVerses.length > 0 ? (
                     <div className="em-reading-zone">
@@ -3489,7 +3492,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   ) : (
                     <div style={{textAlign:"center",padding:"40px 0",color:"#8b91b0"}}>
                       <div style={{fontSize:32,marginBottom:8}}>📖</div>
-                      <div style={{fontWeight:600}}>Sélectionne un livre et un chapitre</div>
+                      <div style={{fontWeight:600}}>{t("pb.selectBookChapter")}</div>
                     </div>
                   )}
                 </div>
@@ -3502,16 +3505,16 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                       <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>loadVerseExplanation(`${BOOKS[bBook].n} ${bCh}:${bHl}`)} disabled={bHlLoading}>
-                        {bHlLoading ? "Analyse…" : "🔍 Expliquer avec l'IA"}
+                        {bHlLoading ? t("pb.analyzing") : t("pb.explainAI")}
                       </button>
                       <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeInput(`${BOOKS[bBook].n} ${bCh}:${bHl}`);setBTab("etude");setBHl(null);}}>
-                        Étude approfondie →
+                        {t("pb.deepStudy")}
                       </button>
                     </div>
                     {bHlLoading && (
                       <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 0",color:"#8b91b0",fontSize:13}}>
                         <div style={{width:16,height:16,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
-                        Analyse en cours…
+                        {t("pb.analyzingProgress")}
                       </div>
                     )}
                     {bHlExplain && (
@@ -3530,26 +3533,26 @@ const [showSalle, setShowSalle]       = useState(false);
 
                 {/* ── Personnages bibliques ──────────────────────────── */}
                 <div className="em-card" style={{marginBottom:16,background:"linear-gradient(135deg,#fff8f0 0%,#fff1e0 100%)",border:"1px solid #f0d8b0"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#7a4a00",marginBottom:6}}>👤 Personnages bibliques</div>
-                  <div style={{fontSize:12,color:"#9a6a20",marginBottom:10}}>Recherchez un personnage de la Bible pour obtenir sa biographie et les passages clés</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#7a4a00",marginBottom:6}}>{t("pb.chars")}</div>
+                  <div style={{fontSize:12,color:"#9a6a20",marginBottom:10}}>{t("pb.charsDesc")}</div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <input
                       className="em-input"
                       style={{flex:1,minWidth:160,fontSize:13}}
-                      placeholder="Ex : Abraham, Marie, Moïse, Paul, David, Esther…"
+                      placeholder={t("pb.charsPlaceholder")}
                       value={personneQuery}
                       onChange={e=>setPersonneQuery(e.target.value)}
                       onKeyDown={e=>e.key==="Enter" && rechercherPersonne()}
                     />
                     <button className="em-btn em-btn-primary" style={{fontSize:12,flexShrink:0,background:"#c47a00"}} onClick={rechercherPersonne} disabled={personneLoading||!personneQuery.trim()}>
-                      {personneLoading ? "Recherche…" : "🔍 Rechercher"}
+                      {personneLoading ? t("pb.searching") : t("pb.search")}
                     </button>
                   </div>
 
                   {personneLoading && (
                     <div style={{textAlign:"center",padding:"20px 0"}}>
                       <div style={{width:28,height:28,border:"3px solid #f0d8b0",borderTopColor:"#c47a00",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}} />
-                      <div style={{fontSize:12,color:"#9a6a20"}}>Recherche de {personneQuery}…</div>
+                      <div style={{fontSize:12,color:"#9a6a20"}}>{t("pb.searchingOfPrefix")} {personneQuery}…</div>
                     </div>
                   )}
 
@@ -3559,7 +3562,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       <p style={{fontSize:13,lineHeight:1.8,color:"#5a3a00",whiteSpace:"pre-wrap",marginBottom:12}}>{personneInfo}</p>
                       {personneVerses.length > 0 && (
                         <div>
-                          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#c47a00",marginBottom:8}}>Passages clés</div>
+                          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#c47a00",marginBottom:8}}>{t("pb.keyPassages")}</div>
                           <div style={{display:"flex",flexDirection:"column",gap:6}}>
                             {personneVerses.map((v,i)=>(
                               <div key={i} style={{background:"rgba(255,255,255,.7)",borderRadius:8,padding:"8px 10px",border:"1px solid #f0d8b0"}}>
@@ -3570,7 +3573,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           </div>
                         </div>
                       )}
-                      <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,fontSize:11}} onClick={()=>{setPersonneInfo(null);setPersonneVerses([]);setPersonneQuery("");}}>← Nouvelle recherche</button>
+                      <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:10,fontSize:11}} onClick={()=>{setPersonneInfo(null);setPersonneVerses([]);setPersonneQuery("");}}>{t("pb.newSearch")}</button>
                     </div>
                   )}
                 </div>
@@ -3580,13 +3583,13 @@ const [showSalle, setShowSalle]       = useState(false);
                   <input
                     className="em-input"
                     style={{flex:1,minWidth:160,fontSize:13}}
-                    placeholder="Ex: Romains 8:28, Psaumes 23, Ésaïe 40:31…"
+                    placeholder={t("pb.refPlaceholder")}
                     value={etudeInput}
                     onChange={e=>setEtudeInput(e.target.value)}
                     onKeyDown={e=>e.key==="Enter" && generateEtudeAI(etudeInput)}
                   />
                   <button className="em-btn em-btn-primary" style={{fontSize:12,flexShrink:0}} onClick={()=>generateEtudeAI(etudeInput)} disabled={etudeAILoading}>
-                    {etudeAILoading ? "Analyse…" : "🔍 Analyser"}
+                    {etudeAILoading ? t("pb.analyzing") : t("pb.analyze")}
                   </button>
                 </div>
                 {/* Accès rapide aux études préconstruites */}
@@ -3600,19 +3603,19 @@ const [showSalle, setShowSalle]       = useState(false);
                 {etudeAILoading && (
                   <div className="em-card" style={{textAlign:"center",padding:"32px 0"}}>
                     <div style={{width:32,height:32,border:"3px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}} />
-                    <div style={{fontSize:13,color:"#8b91b0"}}>L&apos;IA analyse {etudeInput || etudeRef}…</div>
+                    <div style={{fontSize:13,color:"#8b91b0"}}>{t("pb.aiAnalyzingPrefix")} {etudeInput || etudeRef}…</div>
                   </div>
                 )}
                 {!etudeAILoading && etudeAI && (
                   <div>
                     <div className="em-card-dark" style={{marginBottom:14}}>
-                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>✦ Étude AI — {etudeAI.ref}</div>
+                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>{t("pb.aiStudyPrefix")} {etudeAI.ref}</div>
                     </div>
                     <div className="em-card" style={{marginBottom:12}}>
-                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>🔍 Analyse biblique</div>
+                      <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>{t("pb.biblicalAnalysis")}</div>
                       <p style={{fontSize:13.5,lineHeight:1.8,color:"#5c6280",whiteSpace:"pre-wrap"}}>{etudeAI.content}</p>
                     </div>
-                    <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeAI(null);setEtudeInput("");}}>← Nouvelle étude</button>
+                    <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setEtudeAI(null);setEtudeInput("");}}>{t("pb.newStudy")}</button>
                   </div>
                 )}
 
@@ -3620,14 +3623,14 @@ const [showSalle, setShowSalle]       = useState(false);
                 {!etudeAI && !etudeAILoading && ETUDE_DB[etudeRef] && (
                   <div>
                     <div className="em-card-dark" style={{marginBottom:14}}>
-                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>Passage étudié</div>
+                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"rgba(255,255,255,.4)",marginBottom:8}}>{t("pb.studiedPassage")}</div>
                       <div className="em-verset-card" style={{fontSize:17}}>&ldquo;{VERSET.text}&rdquo;</div>
                       <div style={{fontSize:12,color:"rgba(255,255,255,.4)",marginTop:6}}>— {ETUDE_DB[etudeRef].ref}</div>
                     </div>
                     {[
-                      {title:"📍 Contexte historique & littéraire",content:ETUDE_DB[etudeRef].contexte},
-                      {title:"⛪ Analyse théologique",content:ETUDE_DB[etudeRef].theologie},
-                      {title:"✦ Application pratique",content:ETUDE_DB[etudeRef].application},
+                      {title:t("pb.contextTitle"),content:ETUDE_DB[etudeRef].contexte},
+                      {title:t("pb.theologyTitle"),content:ETUDE_DB[etudeRef].theologie},
+                      {title:t("pb.applicationTitle"),content:ETUDE_DB[etudeRef].application},
                     ].map(s => (
                       <div key={s.title} className="em-card" style={{marginBottom:12}}>
                         <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:10}}>{s.title}</div>
@@ -3635,7 +3638,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       </div>
                     ))}
                     <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>generateEtudeAI(etudeRef)}>
-                      ✨ Approfondir avec l&apos;IA
+                      {t("pb.deepenAI")}
                     </button>
                   </div>
                 )}
@@ -3647,31 +3650,31 @@ const [showSalle, setShowSalle]       = useState(false);
               <div>
                 {/* Concordance biblique */}
                 <div className="em-card" style={{marginBottom:12,background:"linear-gradient(135deg,#f8f9ff 0%,#eef1fb 100%)",border:"1px solid #d8ddf0"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:8}}>📖 Concordance biblique</div>
-                  <div style={{fontSize:12,color:"#6b7394",marginBottom:10}}>Recherchez un thème, un mot ou un concept dans la Bible (BDS)</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:8}}>{t("pb.concordance")}</div>
+                  <div style={{fontSize:12,color:"#6b7394",marginBottom:10}}>{t("pb.concordanceDesc")}</div>
                   <div style={{display:"flex",gap:8}}>
                     <input
                       className="em-input"
                       style={{flex:1,fontSize:13}}
-                      placeholder="Ex: grâce, pardon, résurrection, alliance, foi..."
+                      placeholder={t("pb.concordancePlaceholder")}
                       value={concordQuery}
                       onChange={e=>setConcordQuery(e.target.value)}
                       onKeyDown={e=>e.key==="Enter" && searchConcordance()}
                     />
                     <button className="em-btn em-btn-primary em-btn-sm" onClick={searchConcordance} disabled={concordLoading||!concordQuery.trim()} style={{flexShrink:0}}>
-                      {concordLoading ? "…" : "🔍 Chercher"}
+                      {concordLoading ? "…" : t("pb.searchWord")}
                     </button>
                   </div>
                   {concordLoading && (
                     <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8b91b0",fontSize:13}}>
                       <div style={{width:14,height:14,border:"2px solid #d8ddf0",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
-                      Recherche dans la Bible…
+                      {t("pb.searchingBible")}
                     </div>
                   )}
                   {concordResults.length > 0 && (
                     <div style={{marginTop:14}}>
                       <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>
-                        {concordResults.length} résultat{concordResults.length>1?"s":""} — Bible du Semeur 2015
+                        {concordResults.length} {concordResults.length>1?t("msg.results"):t("msg.result")} {t("pb.bdsSuffix")}
                       </div>
                       <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:320,overflowY:"auto"}}>
                         {concordResults.map((v,i) => (
@@ -3681,40 +3684,40 @@ const [showSalle, setShowSalle]       = useState(false);
                           </div>
                         ))}
                       </div>
-                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setConcordResults([]);setConcordQuery("");}}>✕ Effacer</button>
+                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setConcordResults([]);setConcordQuery("");}}>{t("pb.clear")}</button>
                     </div>
                   )}
                 </div>
 
                 {/* Question libre */}
                 <div className="em-card" style={{marginBottom:16}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>✦ Poser une question théologique</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>{t("pb.askTheo")}</div>
                   <div style={{display:"flex",gap:8}}>
                     <input
                       className="em-input"
                       style={{flex:1,fontSize:13}}
-                      placeholder="Ex: Qu'est-ce que la grâce irrésistible ? Différence entre grâce et miséricorde ?"
+                      placeholder={t("pb.theoPlaceholder")}
                       value={theoQuestion}
                       onChange={e=>setTheoQuestion(e.target.value)}
                       onKeyDown={e=>e.key==="Enter" && askTheoQuestion()}
                     />
                     <button className="em-btn em-btn-primary em-btn-sm" onClick={askTheoQuestion} disabled={theoAskLoading||!theoQuestion.trim()} style={{flexShrink:0}}>
-                      {theoAskLoading ? "…" : "Demander"}
+                      {theoAskLoading ? "…" : t("pb.ask")}
                     </button>
                   </div>
                   {theoAskLoading && (
                     <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,color:"#8b91b0",fontSize:13}}>
                       <div style={{width:16,height:16,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}} />
-                      Réflexion en cours…
+                      {t("pb.thinking")}
                     </div>
                   )}
                   {theoAnswer && (
                     <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #f1f3fb"}}>
-                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>Réponse IA</div>
+                      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:6}}>{t("pb.aiAnswer")}</div>
                       <p style={{fontSize:13.5,lineHeight:1.8,color:"#2d3461",whiteSpace:"pre-wrap"}}>{theoAnswer}</p>
                       {theoAnsVerses.length > 0 && (
                         <div style={{marginTop:14}}>
-                          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>{t("pb.refVersesBDS")}</div>
                           <div style={{display:"flex",flexDirection:"column",gap:8}}>
                             {theoAnsVerses.map((v,i) => (
                               <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
@@ -3725,7 +3728,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           </div>
                         </div>
                       )}
-                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setTheoAnswer(null);setTheoQuestion("");setTheoAnsVerses([]);}}>← Nouvelle question</button>
+                      <button className="em-btn em-btn-ghost em-btn-sm" style={{marginTop:10}} onClick={()=>{setTheoAnswer(null);setTheoQuestion("");setTheoAnsVerses([]);}}>{t("pb.newQuestion")}</button>
                     </div>
                   )}
                 </div>
@@ -3755,7 +3758,7 @@ const [showSalle, setShowSalle]       = useState(false);
                       )
                       : (
                         <div className="em-card">
-                          <button className="em-btn em-btn-ghost em-btn-sm" style={{marginBottom:12}} onClick={()=>setTheoItem(null)}>← Retour</button>
+                          <button className="em-btn em-btn-ghost em-btn-sm" style={{marginBottom:12}} onClick={()=>setTheoItem(null)}>{t("pb.back")}</button>
                           {(() => {
                             const cat  = THEO_CATS.find(c=>c.id===theoCat);
                             const item = cat?.items.find(i=>i.id===theoItem);
@@ -3772,7 +3775,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                     <p style={{fontSize:13.5,lineHeight:1.8,color:"#5c6280",whiteSpace:"pre-wrap"}}>{content}</p>
                                     {aiContent && theoItemVerses[item.id]?.length > 0 && (
                                       <div style={{marginTop:16}}>
-                                        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>📖 Versets de référence (BDS)</div>
+                                        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:8}}>{t("pb.refVersesBDS")}</div>
                                         <div style={{display:"flex",flexDirection:"column",gap:8}}>
                                           {theoItemVerses[item.id].map((v,i) => (
                                             <div key={i} style={{background:"#f8f9ff",border:"1px solid #e0e4f4",borderRadius:10,padding:"10px 14px"}}>
@@ -3783,17 +3786,17 @@ const [showSalle, setShowSalle]       = useState(false);
                                         </div>
                                       </div>
                                     )}
-                                    {aiContent && <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>✨ Généré par l&apos;IA ARC</div>}
+                                    {aiContent && <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>{t("pb.aiGenARC")}</div>}
                                   </>
                                 ) : (
                                   <div style={{textAlign:"center",padding:"16px 0"}}>
-                                    <p style={{fontSize:13,color:"#8b91b0",marginBottom:12}}>Contenu en cours de rédaction par l&apos;équipe pastorale.</p>
+                                    <p style={{fontSize:13,color:"#8b91b0",marginBottom:12}}>{t("pb.contentDrafting")}</p>
                                     <button
                                       className="em-btn em-btn-primary em-btn-sm"
                                       onClick={()=>generateTheoItem(item.id, item.title)}
                                       disabled={theoAILoading===item.id}
                                     >
-                                      {theoAILoading===item.id ? "Génération…" : "✨ Générer avec l'IA"}
+                                      {theoAILoading===item.id ? t("pb.generating") : t("pb.generateAI")}
                                     </button>
                                   </div>
                                 )}
@@ -3810,23 +3813,23 @@ const [showSalle, setShowSalle]       = useState(false);
 
             {/* Dictionnaire théologique & personnages bibliques (IA — service intégré) */}
             {bTab==="dico" && (
-              <DictionaryPanel language="fr" />
+              <DictionaryPanel language={locale} />
             )}
 
             {/* Mur de prière */}
             {bTab==="mur" && (
               <div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-                  <div style={{fontSize:13,color:"#8b91b0"}}>{prayers.filter(p=>!p.is_answered).length} demande(s) active(s)</div>
+                  <div style={{fontSize:13,color:"#8b91b0"}}>{prayers.filter(p=>!p.is_answered).length} {t("pb.activeRequests")}</div>
                   {canPost && (
-                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setPTitle("");setPDesc("");setPAnon(false);setPVisibility("all");setPTargetGroups([]);setPTargetMembers([]);setPMemberSearch("");setPMembersLoaded(false);setShowNewPrayer(true);}}>🙏 Partager une prière</button>
+                    <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setPTitle("");setPDesc("");setPAnon(false);setPVisibility("all");setPTargetGroups([]);setPTargetMembers([]);setPMemberSearch("");setPMembersLoaded(false);setShowNewPrayer(true);}}>{t("pb.sharePrayer")}</button>
                   )}
                 </div>
                 {pLoading
-                  ? <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement…</div>
+                  ? <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>{t("common.loading")}</div>
                   : prayers.filter(p=>!p.is_answered).map(p => {
-                    const author = p.is_anonymous ? "Anonyme"
-                      : [p.profiles?.first_name,p.profiles?.last_name].filter(Boolean).join(" ") || "Membre";
+                    const author = p.is_anonymous ? t("pb.anonymous")
+                      : [p.profiles?.first_name,p.profiles?.last_name].filter(Boolean).join(" ") || t("msg.member");
                     const isAuthor = p.user_id === userId;
                     return (
                       <div key={p.id} className="em-prayer">
@@ -3837,13 +3840,13 @@ const [showSalle, setShowSalle]       = useState(false);
                           </div>
                           <div style={{display:"flex",gap:6,flexShrink:0}}>
                             <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>prayFor(p.id)}>
-                              🙏 {p.prayer_count > 0 ? p.prayer_count : "Prier"}
+                              🙏 {p.prayer_count > 0 ? p.prayer_count : t("pb.pray")}
                             </button>
                             {isAuthor && (
                               <button className="em-btn em-btn-success em-btn-sm" onClick={()=>markAnswered(p.id)}>✅</button>
                             )}
                             {isAuthor && (
-                              <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)"}} onClick={()=>deletePrayer(p.id)} title="Supprimer">🗑</button>
+                              <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)"}} onClick={()=>deletePrayer(p.id)} title={t("pb.deleteTitle")}>🗑</button>
                             )}
                           </div>
                         </div>
@@ -3854,15 +3857,15 @@ const [showSalle, setShowSalle]       = useState(false);
                 }
                 {prayers.filter(p=>p.is_answered).length > 0 && (
                   <div style={{marginTop:18}}>
-                    <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",color:"#2f855a",letterSpacing:".08em",marginBottom:10}}>✅ Prières exaucées ({prayers.filter(p=>p.is_answered).length})</div>
+                    <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",color:"#2f855a",letterSpacing:".08em",marginBottom:10}}>{t("pb.answeredPrayersPrefix")} ({prayers.filter(p=>p.is_answered).length})</div>
                     {prayers.filter(p=>p.is_answered).map(p => (
                       <div key={p.id} style={{background:"#f0fff4",border:"1px solid #9ae6b4",borderRadius:10,padding:"10px 14px",marginBottom:8,opacity:.8,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
                         <div>
                           <div className="em-reading-text" style={{fontWeight:600,color:"#276749"}}>{p.title}</div>
-                          <div style={{fontSize:11,color:"#68d391"}}>{p.prayer_count} personne(s) ont prié</div>
+                          <div style={{fontSize:11,color:"#68d391"}}>{p.prayer_count} {t("pb.peoplePrayed")}</div>
                         </div>
                         {p.user_id === userId && (
-                          <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)",flexShrink:0}} onClick={()=>deletePrayer(p.id)} title="Supprimer">🗑</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" style={{color:"#c53030",borderColor:"rgba(229,62,62,.3)",flexShrink:0}} onClick={()=>deletePrayer(p.id)} title={t("pb.deleteTitle")}>🗑</button>
                         )}
                       </div>
                     ))}
@@ -3870,7 +3873,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 )}
                 {!canPost && (
                   <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:12,padding:16,marginTop:10,fontSize:13,color:"#92400e"}}>
-                    <strong>Compte en attente</strong> — Tu pourras partager une prière une fois ton compte validé.
+                    <strong>{t("pb.accountPending")}</strong> {t("pb.accountPendingMsg")}
                   </div>
                 )}
               </div>
@@ -3881,12 +3884,12 @@ const [showSalle, setShowSalle]       = useState(false);
               <div>
 
                 {/* ── Plans personnels IA ────────────────────────────── */}
-                {aiRpLoading && <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>Chargement de vos plans…</div>}
+                {aiRpLoading && <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>{t("pb.loadingYourPlans")}</div>}
                 {!aiRpLoading && aiRpPlans.length > 0 && (
                   <div style={{marginBottom:20}}>
                     <div style={{fontWeight:700,fontSize:13,color:"#5a3d8a",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-                      <span>✨</span> Mes plans personnels
-                      <span style={{fontSize:10,color:"#8b91b0",fontWeight:400}}>— créés dans l&apos;Assistant IA</span>
+                      <span>✨</span> {t("pb.myPersonalPlans")}
+                      <span style={{fontSize:10,color:"#8b91b0",fontWeight:400}}>{t("pb.createdInAI")}</span>
                     </div>
                     {aiRpPlans.map(plan => {
                       const currentDay = getAIPlanCurrentDay(plan);
@@ -3903,11 +3906,11 @@ const [showSalle, setShowSalle]       = useState(false);
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                             <div style={{flex:1,minWidth:0}}>
                               <div style={{fontWeight:700,fontSize:14,color:"#3d1f7a"}}>{plan.title}</div>
-                              {plan.focus && <div style={{fontSize:12,color:"#8870aa",marginTop:2}}>Thème : {plan.focus}</div>}
-                              <div style={{fontSize:11,color:"#8870aa",marginTop:3}}>{plan.duration_days} jour{plan.duration_days>1?"s":""} · {plan.language}</div>
+                              {plan.focus && <div style={{fontSize:12,color:"#8870aa",marginTop:2}}>{t("pb.themePrefix")} {plan.focus}</div>}
+                              <div style={{fontSize:11,color:"#8870aa",marginTop:3}}>{plan.duration_days} {plan.duration_days>1?t("pb.dayPlural"):t("pb.daySingular")} · {plan.language}</div>
                             </div>
-                            {done && <span className="em-tag em-tag-vert" style={{fontSize:10,flexShrink:0}}>Terminé ✓</span>}
-                            {started && !done && <span style={{fontSize:10,background:"#ede4ff",color:"#5a3d8a",borderRadius:20,padding:"2px 8px",flexShrink:0,fontWeight:600}}>Actif · Jour {currentDay}</span>}
+                            {done && <span className="em-tag em-tag-vert" style={{fontSize:10,flexShrink:0}}>{t("pb.doneCheck")}</span>}
+                            {started && !done && <span style={{fontSize:10,background:"#ede4ff",color:"#5a3d8a",borderRadius:20,padding:"2px 8px",flexShrink:0,fontWeight:600}}>{t("pb.activeDayPrefix")} {currentDay}</span>}
                           </div>
 
                           {started && (
@@ -3921,7 +3924,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
                           {!started && (
                             <button className="em-btn em-btn-outline em-btn-sm" style={{marginBottom:8,borderColor:"#c4b0ee",color:"#5a3d8a"}} onClick={()=>startAIPlan(plan.id)}>
-                              ▶ Commencer ce plan
+                              {t("pb.startThisPlan")}
                             </button>
                           )}
 
@@ -3936,7 +3939,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                   if (!curDayData) loadAIPlanDayContent(plan.id, currentDay);
                                 }}
                               >
-                                {expanded ? "▲ Masquer" : "📖 Lire le jour " + currentDay}
+                                {expanded ? t("pb.hide") : t("pb.readDayPrefix") + " " + currentDay}
                               </button>
 
                               {expanded && (
@@ -3944,13 +3947,13 @@ const [showSalle, setShowSalle]       = useState(false);
                                   {dayLoading && (
                                     <div style={{textAlign:"center",padding:"12px 0",color:"#8870aa",fontSize:13}}>
                                       <div style={{width:20,height:20,border:"2px solid #ede4ff",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
-                                      Chargement…
+                                      {t("common.loading")}
                                     </div>
                                   )}
                                   {!dayLoading && curDayData && (
                                     <>
                                       <div style={{fontWeight:700,fontSize:13,color:"#3d1f7a",marginBottom:10}}>
-                                        Jour {currentDay}{curDayData.title ? ` — ${curDayData.title}` : ""}
+                                        {t("pb.dayWord")} {currentDay}{curDayData.title ? ` — ${curDayData.title}` : ""}
                                       </div>
                                       {verseTexts.length > 0 ? verseTexts.map((vt,i) => (
                                         <div key={i} style={{background:"rgba(124,58,237,.07)",borderLeft:"3px solid #7c3aed",borderRadius:"0 8px 8px 0",padding:"10px 12px",marginBottom:8}}>
@@ -3964,13 +3967,13 @@ const [showSalle, setShowSalle]       = useState(false);
                                       ))}
                                       {curDayData.reflection && (
                                         <div style={{marginTop:10}}>
-                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8870aa",marginBottom:4}}>Réflexion</div>
+                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8870aa",marginBottom:4}}>{t("pb.reflection")}</div>
                                           <div style={{fontSize:13,color:"#4a3070",fontStyle:"italic"}}>{curDayData.reflection}</div>
                                         </div>
                                       )}
                                       {curDayData.prayer_guide && (
                                         <div style={{marginTop:10,background:"#fef9ee",borderRadius:8,padding:"8px 12px"}}>
-                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#b7791f",marginBottom:4}}>Guide de prière</div>
+                                          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#b7791f",marginBottom:4}}>{t("pb.prayerGuide")}</div>
                                           <div style={{fontSize:13,color:"#744210"}}>{curDayData.prayer_guide}</div>
                                         </div>
                                       )}
@@ -3978,7 +3981,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                   )}
                                   {!dayLoading && !curDayData && !aiRpDays[plan.id] && (
                                     <div style={{fontSize:12,color:"#8870aa",textAlign:"center",padding:"8px 0"}}>
-                                      Ce jour n&apos;a pas encore été généré. Ouvre l&apos;Assistant IA pour générer le plan.
+                                      {t("pb.dayNotGenerated")}
                                     </div>
                                   )}
                                 </div>
@@ -3999,7 +4002,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                 }}
                                 disabled={curDayData?.is_completed}
                               >
-                                {curDayData?.is_completed ? "✓ Déjà complété" : `✓ Jour ${currentDay} terminé → Jour ${currentDay+1}`}
+                                {curDayData?.is_completed ? t("pb.alreadyCompleted") : `${t("pb.dayDonePre")} ${currentDay} ${t("pb.dayDoneArrow")} ${currentDay+1}`}
                               </button>
                             </>
                           )}
@@ -4012,13 +4015,13 @@ const [showSalle, setShowSalle]       = useState(false);
                 {/* Séparateur si les deux sources ont des plans */}
                 {!aiRpLoading && aiRpPlans.length > 0 && rpPlans.length > 0 && (
                   <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10,paddingTop:4,borderTop:"1px solid #eef1fb"}}>
-                    📋 Plans communautaires
+                    {t("pb.communityPlans")}
                   </div>
                 )}
 
-                {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des plans…</div>}
+                {rpLoading && <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>{t("pb.loadingPlans")}</div>}
                 {!rpLoading && rpPlans.length === 0 && aiRpPlans.length === 0 && (
-                  <div className="em-card" style={{textAlign:"center",color:"#8b91b0",padding:24}}>Aucun plan de lecture disponible pour le moment.</div>
+                  <div className="em-card" style={{textAlign:"center",color:"#8b91b0",padding:24}}>{t("pb.noPlanAvailable")}</div>
                 )}
                 {!rpLoading && rpPlans.map(plan => {
                   const currentDay = rpProgress[plan.id];
@@ -4035,10 +4038,10 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div>
                           <div style={{fontWeight:700,fontSize:14,color:"#1e2464"}}>{plan.titre}</div>
                           {plan.description && <div style={{fontSize:12,color:"#8b91b0",marginTop:2}}>{plan.description}</div>}
-                          <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>{plan.total_days} jour{plan.total_days>1?"s":""}</div>
+                          <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>{plan.total_days} {plan.total_days>1?t("pb.dayPlural"):t("pb.daySingular")}</div>
                         </div>
-                        {done && <span className="em-tag-vert em-tag" style={{fontSize:10,flexShrink:0}}>Terminé ✓</span>}
-                        {enrolled && !done && <span className="em-tag em-tag-bleu" style={{fontSize:10,flexShrink:0}}>Actif · Jour {currentDay}</span>}
+                        {done && <span className="em-tag-vert em-tag" style={{fontSize:10,flexShrink:0}}>{t("pb.doneCheck")}</span>}
+                        {enrolled && !done && <span className="em-tag em-tag-bleu" style={{fontSize:10,flexShrink:0}}>{t("pb.activeDayPrefix")} {currentDay}</span>}
                       </div>
                       {enrolled && (
                         <>
@@ -4060,7 +4063,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                 if (!dayContent) loadDayContent(plan.id, currentDay);
                               }}
                             >
-                              {expanded ? "▲ Masquer" : "📖 Lire le verset du jour"}
+                              {expanded ? t("pb.hide") : t("pb.readVerseOfDay")}
                             </button>
                           )}
 
@@ -4070,13 +4073,13 @@ const [showSalle, setShowSalle]       = useState(false);
                               {dayLoading && (
                                 <div style={{textAlign:"center",padding:"12px 0",color:"#8b91b0",fontSize:13}}>
                                   <div style={{width:20,height:20,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
-                                  Chargement du passage…
+                                  {t("pb.loadingPassage")}
                                 </div>
                               )}
                               {!dayLoading && dayContent && (
                                 <>
                                   <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>
-                                    Jour {currentDay} — {dayContent.title}
+                                    {t("pb.dayWord")} {currentDay} — {dayContent.title}
                                   </div>
                                   {dayContent.verse_texts.map((vt, i) => (
                                     <div key={i} style={{background:"rgba(30,36,100,.06)",borderLeft:"3px solid #1e2464",borderRadius:"0 8px 8px 0",padding:"10px 12px",marginBottom:8}}>
@@ -4086,7 +4089,7 @@ const [showSalle, setShowSalle]       = useState(false);
                                   ))}
                                   {dayContent.reflection && (
                                     <div style={{marginTop:10}}>
-                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:4}}>Réflexion</div>
+                                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",color:"#8b91b0",marginBottom:4}}>{t("pb.reflection")}</div>
                                       <div style={{fontSize:13,color:"#5c6280",fontStyle:"italic"}}>{dayContent.reflection}</div>
                                     </div>
                                   )}
@@ -4103,14 +4106,14 @@ const [showSalle, setShowSalle]       = useState(false);
 
                           {!done && (
                             <button className="em-btn em-btn-sm" style={{background:"#1e2464",color:"#fff",fontSize:12}} onClick={()=>advancePlan(plan.id, plan.total_days)}>
-                              ✓ Jour {currentDay} terminé → Jour {currentDay+1}
+                              {`${t("pb.dayDonePre")} ${currentDay} ${t("pb.dayDoneArrow")} ${currentDay+1}`}
                             </button>
                           )}
                         </>
                       )}
                       {!enrolled && (
                         <button className="em-btn em-btn-outline em-btn-sm" style={{marginTop:4}} onClick={()=>enrollPlanAndGenerate(plan.id)}>
-                          + S&apos;inscrire à ce plan
+                          {t("pb.enrollPlan")}
                         </button>
                       )}
                     </div>
@@ -4126,22 +4129,22 @@ const [showSalle, setShowSalle]       = useState(false);
                 {/* Vue détail d'une entrée */}
                 {jSelected ? (
                   <div>
-                    <button className="em-btn em-btn-outline em-btn-sm" style={{marginBottom:12}} onClick={()=>setJSelected(null)}>← Retour</button>
+                    <button className="em-btn em-btn-outline em-btn-sm" style={{marginBottom:12}} onClick={()=>setJSelected(null)}>{t("pb.back")}</button>
                     <div style={{fontSize:12,fontWeight:700,color:"#1e2464",marginBottom:4}}>
                       {new Date(jSelected.date).toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
                     </div>
-                    {jSelected.mood && <div style={{fontSize:11,color:"#8b91b0",marginBottom:10}}>Humeur : {jSelected.mood}</div>}
+                    {jSelected.mood && <div style={{fontSize:11,color:"#8b91b0",marginBottom:10}}>{t("pb.moodPrefix")} {jSelected.mood}</div>}
                     <div className="em-card" style={{marginBottom:12}}>
                       <p style={{fontSize:13.5,lineHeight:1.8,color:"#3a3d5c",whiteSpace:"pre-wrap"}}>{jSelected.content}</p>
                     </div>
                     {jSelected.ai_reflection ? (
                       <div className="em-card" style={{background:"linear-gradient(135deg,#f0f4ff 0%,#e8edff 100%)",border:"1px solid #c5d0f0"}}>
-                        <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"#1e2464",marginBottom:8}}>✦ Réflexion IA</div>
+                        <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".09em",color:"#1e2464",marginBottom:8}}>{t("pb.aiReflection")}</div>
                         <p style={{fontSize:13.5,lineHeight:1.8,color:"#3a3d5c",fontStyle:"italic"}}>{jSelected.ai_reflection}</p>
                       </div>
                     ) : (
                       <button className="em-btn em-btn-outline em-btn-sm" style={{width:"100%"}} onClick={()=>reflectJournal(jSelected.id)} disabled={jReflecting}>
-                        {jReflecting ? "Génération…" : "✦ Générer une réflexion IA"}
+                        {jReflecting ? t("pb.generating") : t("pb.genAIReflection")}
                       </button>
                     )}
                   </div>
@@ -4149,20 +4152,20 @@ const [showSalle, setShowSalle]       = useState(false);
                   <>
                     {/* Formulaire nouvelle entrée */}
                     <div className="em-card" style={{marginBottom:14}}>
-                      <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>📓 Nouvelle entrée du jour</div>
+                      <div style={{fontWeight:700,fontSize:13,color:"#1e2464",marginBottom:10}}>{t("pb.newEntry")}</div>
                       <textarea
                         className="em-input"
                         style={{width:"100%",minHeight:90,resize:"vertical",fontSize:13,lineHeight:1.7,fontFamily:"inherit"}}
-                        placeholder="Ce que Dieu m'a parlé aujourd'hui…"
+                        placeholder={t("pb.journalPlaceholder")}
                         value={jContent}
                         onChange={e=>setJContent(e.target.value)}
                       />
                       <div style={{display:"flex",gap:10,alignItems:"center",marginTop:10,flexWrap:"wrap"}}>
                         <div style={{display:"flex",gap:6,alignItems:"center",flex:1}}>
-                          <span style={{fontSize:11,color:"#8b91b0",flexShrink:0}}>Humeur :</span>
+                          <span style={{fontSize:11,color:"#8b91b0",flexShrink:0}}>{t("pb.moodPrefix")}</span>
                           <select className="em-select" style={{fontSize:12,flex:1}} value={jMood} onChange={e=>setJMood(e.target.value)}>
                             <option value="">—</option>
-                            {["Serein(e)","Reconnaissant(e)","Inquiet(e)","En deuil","Joyeux(se)","Confiant(e)","Questionneur(se)"].map(m=>(
+                            {[t("pb.mood.serein"),t("pb.mood.reconnaissant"),t("pb.mood.inquiet"),t("pb.mood.deuil"),t("pb.mood.joyeux"),t("pb.mood.confiant"),t("pb.mood.questionneur")].map(m=>(
                               <option key={m} value={m}>{m}</option>
                             ))}
                           </select>
@@ -4173,7 +4176,7 @@ const [showSalle, setShowSalle]       = useState(false);
                           onClick={saveJournalEntry}
                           disabled={!jContent.trim()||jSaving}
                         >
-                          {jSaving ? "Enregistrement…" : "💾 Enregistrer"}
+                          {jSaving ? t("set.saving") : t("pb.save")}
                         </button>
                       </div>
                     </div>
@@ -4182,14 +4185,14 @@ const [showSalle, setShowSalle]       = useState(false);
                     {jLoading && (
                       <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:13}}>
                         <div style={{width:24,height:24,border:"2px solid #f1f3fb",borderTopColor:"#1e2464",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 8px"}} />
-                        Chargement…
+                        {t("common.loading")}
                       </div>
                     )}
                     {!jLoading && jEntries.length === 0 && (
                       <div className="em-card" style={{textAlign:"center",color:"#8b91b0",padding:"28px 0"}}>
                         <div style={{fontSize:32,marginBottom:8}}>📓</div>
-                        <div style={{fontWeight:600,marginBottom:4}}>Journal vide</div>
-                        <div style={{fontSize:12}}>Commencez à noter vos pensées et réflexions spirituelles</div>
+                        <div style={{fontWeight:600,marginBottom:4}}>{t("pb.journalEmpty")}</div>
+                        <div style={{fontSize:12}}>{t("pb.journalEmptyHint")}</div>
                       </div>
                     )}
                     <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -4220,17 +4223,17 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* ── CONTACTS ────────────────────────────────────── */}
           <div className={`em-panel${panel==="contacts"?" active":""}`}>
-            <div className="em-sect-title">Contacts</div>
-            <div className="em-sect-sub">{membresValides} membres validés · Annuaire de l&apos;église</div>
+            <div className="em-sect-title">{t("contacts.title")}</div>
+            <div className="em-sect-sub">{membresValides} {t("contacts.subtitle")}</div>
             <div style={{display:"flex",gap:10,marginBottom:16}}>
-              <input className="em-input" placeholder="Rechercher un membre…" value={cSearch} onChange={e=>setCSearch(e.target.value)} style={{maxWidth:360}} />
+              <input className="em-input" placeholder={t("contacts.searchMember")} value={cSearch} onChange={e=>setCSearch(e.target.value)} style={{maxWidth:360}} />
               <select className="em-select">
-                <option value="">Tous les groupes</option>
+                <option value="">{t("contacts.allGroups")}</option>
                 {GROUPES.map(g=><option key={g.name}>{g.name}</option>)}
               </select>
             </div>
             {mLoading && (
-              <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des membres…</div>
+              <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>{t("contacts.loading")}</div>
             )}
             {!mLoading && (
               <div className="em-g4">
@@ -4253,8 +4256,8 @@ const [showSalle, setShowSalle]       = useState(false);
                           <div style={{fontSize:10,color:"#8899cc",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.groups[0]}</div>
                         )}
                         <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:10}}>
-                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}} title="Message">💬</button>
-                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>nav("agenda")} title="RDV">📅</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>{setMsgChan(name);nav("messagerie");}} title={t("contacts.msg")}>💬</button>
+                          <button className="em-btn em-btn-outline em-btn-sm" onClick={()=>nav("agenda")} title={t("contacts.rdv")}>📅</button>
                         </div>
                       </div>
                     );
@@ -4262,7 +4265,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 {members.filter(m=>m.validated).length === 0 && !mLoading && (
                   <div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:"#8b91b0"}}>
                     <div style={{fontSize:36,marginBottom:8}}>👥</div>
-                    <div>Aucun membre validé pour l&apos;instant</div>
+                    <div>{t("contacts.noValidated")}</div>
                   </div>
                 )}
               </div>
@@ -4273,39 +4276,39 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="presences"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:8}}>
               <div>
-                <div className="em-sect-title">Présences</div>
-                <div className="em-sect-sub">Historique de tes présences aux événements</div>
+                <div className="em-sect-title">{t("presences.title")}</div>
+                <div className="em-sect-sub">{t("presences.subtitle")}</div>
               </div>
               <div style={{display:"flex",gap:8}}>
-                <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>📅 Pointer ma présence</a>
-                {canAdmin && <a href="/espace-membres/presences" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>Vue admin →</a>}
+                <a href="/espace-membres/agenda" className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none"}}>{t("presences.check")}</a>
+                {canAdmin && <a href="/espace-membres/presences" className="em-btn em-btn-primary em-btn-sm" style={{textDecoration:"none"}}>{t("presences.adminView")}</a>}
               </div>
             </div>
             <div className="em-g2" style={{marginBottom:16}}>
               <div className="em-card-sm" style={{textAlign:"center"}}>
                 <div className="em-stat-num">{myPresences.length}</div>
-                <div className="em-stat-lbl">Événements fréquentés</div>
+                <div className="em-stat-lbl">{t("presences.statEvents")}</div>
               </div>
               <div className="em-card-sm" style={{textAlign:"center"}}>
                 <div className="em-stat-num">{events.length > 0 ? events[0]?.title?.split(" ").slice(0,2).join(" ") ?? "—" : "—"}</div>
-                <div className="em-stat-lbl">Prochain événement</div>
+                <div className="em-stat-lbl">{t("presences.statNext")}</div>
               </div>
             </div>
             <div className="em-card">
-              <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>Mes présences récentes</div>
+              <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:12}}>{t("presences.recent")}</div>
               {presLoading ? (
-                <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>Chargement…</div>
+                <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0",fontSize:13}}>{t("common.loading")}</div>
               ) : myPresences.length === 0 ? (
                 <div style={{textAlign:"center",padding:"24px 0",color:"#8b91b0",fontSize:13}}>
                   <div style={{fontSize:32,marginBottom:8}}>📋</div>
-                  <div>Aucune présence enregistrée.</div>
-                  <div style={{fontSize:12,marginTop:4}}>Utilise <a href="/espace-membres/agenda" style={{color:"#2d3a8c"}}>l&apos;agenda</a> pour pointer ta présence à un événement.</div>
+                  <div>{t("presences.none")}</div>
+                  <div style={{fontSize:12,marginTop:4}}>{t("presences.noneHintPre")} <a href="/espace-membres/agenda" style={{color:"#2d3a8c"}}>{t("presences.agendaLink")}</a> {t("presences.noneHintPost")}</div>
                 </div>
               ) : (
                 myPresences.map((p) => (
                   <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
                     <div>
-                      <div style={{fontWeight:600,color:"#1e2464"}}>{(p.events as {title:string;date:string}|null)?.title ?? "Événement"}</div>
+                      <div style={{fontWeight:600,color:"#1e2464"}}>{(p.events as {title:string;date:string}|null)?.title ?? t("presences.eventFallback")}</div>
                       <div style={{fontSize:11,color:"#8b91b0"}}>
                         {(p.events as {title:string;date:string}|null)?.date
                           ? new Date((p.events as {title:string;date:string}).date+"T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})
@@ -4323,18 +4326,18 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className={`em-panel${panel==="activites"?" active":""}`}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
-                <div className="em-sect-title">Activités</div>
-                <div className="em-sect-sub">Fil d&apos;actualité de la communauté</div>
+                <div className="em-sect-title">{t("activites.title")}</div>
+                <div className="em-sect-sub">{t("activites.subtitle")}</div>
               </div>
-              <button className="em-btn em-btn-outline em-btn-sm" onClick={loadActivities} disabled={actLoading}>↺ Actualiser</button>
+              <button className="em-btn em-btn-outline em-btn-sm" onClick={loadActivities} disabled={actLoading}>{t("activites.refresh")}</button>
             </div>
             <div className="em-card">
               {actLoading ? (
-                <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>Chargement…</div>
+                <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>{t("common.loading")}</div>
               ) : activities.length === 0 ? (
                 <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>
                   <div style={{fontSize:32,marginBottom:8}}>🔔</div>
-                  <div>Aucune activité récente dans la communauté.</div>
+                  <div>{t("activites.none")}</div>
                 </div>
               ) : (
                 activities.map((a) => (
@@ -4410,28 +4413,28 @@ const [showSalle, setShowSalle]       = useState(false);
             <div className={`em-panel${panel==="admin"?" active":""}`}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:10}}>
                 <div>
-                  <div className="em-sect-title">Administration</div>
-                  <div className="em-sect-sub">Gestion de l&apos;église · {totalUsers} utilisateurs · {membresValides} membres · 11 groupes</div>
+                  <div className="em-sect-title">{t("admin.title")}</div>
+                  <div className="em-sect-sub">{t("admin.manageChurch")} · {totalUsers} {t("admin.usersWord")} · {membresValides} {t("admin.membersWord")} · 11 {t("admin.groupsWord")}</div>
                 </div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {isAdmin && (
                     <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#c53030,#9b2c2c)",color:"white",fontWeight:700,display:"flex",alignItems:"center",gap:6}} onClick={()=>{setShowGD(true);setGdTab("matrix");}}>
-                      ⚡ Gestion des Droits
+                      {t("admin.rights")}
                     </button>
                   )}
                   {(canAdmin||canMajPlateforme) && (
-                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMP(true)} title="Gestion des 4 modules vitrine — Groupe Communication">
-                      Maj Plateformes
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#553c9a,#8b5cf6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowMP(true)} title={t("admin.majPlatformsTitle")}>
+                      {t("admin.majPlatforms")}
                     </button>
                   )}
                   {canVitrinePhoto && (
-                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowVitrinePhoto(true)} title="Photo de la section À propos — Communication / Média">
-                      Photo vitrine
+                    <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#2b5f8e,#3b82f6)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setShowVitrinePhoto(true)} title={t("admin.vitrinePhotoTitle")}>
+                      {t("admin.vitrinePhoto")}
                     </button>
                   )}
                   {canAdmin && (
                     <button className="em-btn em-btn-sm" style={{background:"linear-gradient(135deg,#276749,#2f855a)",color:"white",display:"flex",alignItems:"center",gap:6}} onClick={()=>setAdminTab("crm")}>
-                      🗂️ Gestion CRM
+                      {t("admin.crmManage")}
                     </button>
                   )}
                   {canBanner && (
@@ -4440,20 +4443,20 @@ const [showSalle, setShowSalle]       = useState(false);
                       style={{background:"linear-gradient(135deg,#1e2464,#2d3a8e)",color:"white",display:"flex",alignItems:"center",gap:6}}
                       onClick={()=>setShowBanniere(true)}
                     >
-                      📣 Bannière
+                      {t("admin.banner")}
                     </button>
                   )}
                   {canMajSite && (
                     <button className="em-btn em-btn-primary em-btn-sm" style={{display:"flex",alignItems:"center",gap:6}} onClick={()=>{if(!canAdmin)setMajInfoTab("infos");setShowMajInfo(true);}}>
-                      🌐 Maj site vitrine
+                      {t("admin.majSite")}
                     </button>
                   )}
                 </div>
               </div>
               <div className="em-tabs">
-                {([["membres","👥 Membres"],["groupes","🏷 Groupes"],["visiteurs","👁 Visiteurs"],
-                   ["crm","📊 CRM"],["support","🛠 Support"],["sermons","📺 Sermons"],["stats","📈 Stats"]] as [ATab,string][]).map(([t,l])=>(
-                  <button key={t} className={`em-tab${adminTab===t?" active":""}`} onClick={()=>setAdminTab(t)}>{l}</button>
+                {([["membres",t("admin.tab.membres")],["groupes",t("admin.tab.groupes")],["visiteurs",t("admin.tab.visiteurs")],
+                   ["crm",t("admin.tab.crm")],["support",t("admin.tab.support")],["sermons",t("admin.tab.sermons")],["stats",t("admin.tab.stats")]] as [ATab,string][]).map(([tab,l])=>(
+                  <button key={tab} className={`em-tab${adminTab===tab?" active":""}`} onClick={()=>setAdminTab(tab)}>{l}</button>
                 ))}
               </div>
 
@@ -4461,15 +4464,15 @@ const [showSalle, setShowSalle]       = useState(false);
               {adminTab==="membres" && (
                 <div className="em-card">
                   <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
-                    <input className="em-input" placeholder="Rechercher…" value={mSearch} onChange={e=>setMSearch(e.target.value)} style={{maxWidth:280,flex:1}} />
-                    <button className="em-btn em-btn-outline em-btn-sm" onClick={loadMembers}>↺ Actualiser</button>
-                    {canAdminFull && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>✉️ Inviter</button>}
+                    <input className="em-input" placeholder={t("admin.search")} value={mSearch} onChange={e=>setMSearch(e.target.value)} style={{maxWidth:280,flex:1}} />
+                    <button className="em-btn em-btn-outline em-btn-sm" onClick={loadMembers}>{t("admin.refresh")}</button>
+                    {canAdminFull && <button className="em-btn em-btn-primary em-btn-sm" onClick={()=>{setInvitePrenom("");setInviteNom("");setInviteEmail("");setInviteGroupe("");setShowInvite(true);}}>{t("admin.invite")}</button>}
                   </div>
                   {mLoading
-                    ? <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0"}}>Chargement…</div>
+                    ? <div style={{textAlign:"center",padding:"20px 0",color:"#8b91b0"}}>{t("common.loading")}</div>
                     : (
                       <table className="em-tbl">
-                        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Groupes</th><th>Statut</th><th>Date</th><th></th></tr></thead>
+                        <thead><tr><th>{t("admin.th.name")}</th><th>{t("admin.th.email")}</th><th>{t("admin.th.role")}</th><th>{t("admin.th.groups")}</th><th>{t("admin.th.status")}</th><th>{t("admin.th.date")}</th><th></th></tr></thead>
                         <tbody>
                           {members.filter(m=>mSearch
                             ? `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(mSearch.toLowerCase())
@@ -4482,16 +4485,16 @@ const [showSalle, setShowSalle]       = useState(false);
                               <td style={{fontSize:11}}>{(m.groups??[]).slice(0,2).join(", ")||"—"}</td>
                               <td>
                                 {m.validated
-                                  ? <span className="em-tag em-tag-vert">Actif</span>
-                                  : <span className="em-tag em-tag-orange">En attente</span>}
+                                  ? <span className="em-tag em-tag-vert">{t("admin.statusActive")}</span>
+                                  : <span className="em-tag em-tag-orange">{t("admin.statusPending")}</span>}
                               </td>
                               <td style={{color:"#8b91b0",fontSize:11}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr-CH"):"—"}</td>
-                              <td><a href={`/admin/crm/${m.id}`} className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",fontSize:11,whiteSpace:"nowrap"}}>Gérer →</a></td>
+                              <td><a href={`/admin/crm/${m.id}`} className="em-btn em-btn-outline em-btn-sm" style={{textDecoration:"none",fontSize:11,whiteSpace:"nowrap"}}>{t("admin.manage")}</a></td>
                             </tr>
                           ))}
                           {members.length===0 && !mLoading && (
                             <tr><td colSpan={7} style={{textAlign:"center",padding:"20px",color:"#8b91b0"}}>
-                              Clique sur Actualiser pour charger les membres
+                              {t("admin.loadHint")}
                             </td></tr>
                           )}
                         </tbody>
@@ -4505,7 +4508,7 @@ const [showSalle, setShowSalle]       = useState(false);
               {adminTab==="groupes" && (
                 <div>
                   {mLoading ? (
-                    <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>Chargement des groupes…</div>
+                    <div style={{textAlign:"center",padding:"30px 0",color:"#8b91b0"}}>{t("admin.loadingGroups")}</div>
                   ) : (
                     <div className="em-g3">
                       {GROUPES.map(g => {
@@ -4519,17 +4522,17 @@ const [showSalle, setShowSalle]       = useState(false);
                             </div>
                             <div style={{fontWeight:700,fontSize:13,color:"#1e2464",flex:1}}>{g.name}</div>
                             <div style={{fontSize:12,color:"#8b91b0",marginTop:3}}>
-                              <span style={{fontWeight:600,color:count>0?"#1e2464":"#8b91b0"}}>{count}</span> membre{count !== 1 ? "s" : ""}
+                              <span style={{fontWeight:600,color:count>0?"#1e2464":"#8b91b0"}}>{count}</span> {count !== 1 ? t("admin.membersWordPl") : t("admin.memberWord")}
                             </div>
                             {mgrCount > 0 && (
-                              <div style={{fontSize:11,color:"#C9A227",marginTop:2}}>👑 {mgrCount} manager{mgrCount > 1 ? "s" : ""}</div>
+                              <div style={{fontSize:11,color:"#C9A227",marginTop:2}}>👑 {mgrCount} {mgrCount > 1 ? t("admin.managersWord") : t("admin.managerWord")}</div>
                             )}
                             <button
                               className="em-btn em-btn-outline em-btn-sm"
                               style={{marginTop:10,width:"100%"}}
                               onClick={() => { setSelectedGroupSlug(g.slug); setGroupAddMemberId(""); }}
                             >
-                              Gérer
+                              {t("admin.manageGroup")}
                             </button>
                           </div>
                         );
@@ -4537,7 +4540,7 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   )}
                   <div style={{marginTop:12,fontSize:12,color:"#8b91b0",textAlign:"right"}}>
-                    {members.length > 0 && `${members.length} profils chargés`}
+                    {members.length > 0 && `${members.length} ${t("admin.profilesLoaded")}`}
                   </div>
                 </div>
               )}
@@ -4545,9 +4548,9 @@ const [showSalle, setShowSalle]       = useState(false);
               {/* Visiteurs */}
               {adminTab==="visiteurs" && (
                 <div className="em-card">
-                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Visiteurs récents</div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>{t("admin.recentVisitors")}</div>
                   <table className="em-tbl">
-                    <thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th><th>Action</th></tr></thead>
+                    <thead><tr><th>{t("admin.th.name")}</th><th>{t("admin.th.email")}</th><th>{t("admin.th.registeredOn")}</th><th>{t("admin.th.action")}</th></tr></thead>
                     <tbody>
                       {members.filter(m=>m.role==="visiteur"||!m.validated).slice(0,10).map(m=>(
                         <tr key={m.id}>
@@ -4557,15 +4560,15 @@ const [showSalle, setShowSalle]       = useState(false);
                           <td>
                             <button className="em-btn em-btn-success em-btn-sm" onClick={async()=>{
                               const res = await updateMemberValidation(m.id, true);
-                              if (res?.error) { setToast(`❌ Erreur : ${res.error}`); return; }
+                              if (res?.error) { setToast(`${t("admin.errorPrefix")} ${res.error}`); return; }
                               await loadMembers();
-                              setToast("Compte validé ✅");
-                            }}>Valider</button>
+                              setToast(t("admin.accountValidated"));
+                            }}>{t("admin.validate")}</button>
                           </td>
                         </tr>
                       ))}
                       {members.filter(m=>!m.validated).length===0 && (
-                        <tr><td colSpan={4} style={{textAlign:"center",padding:"20px",color:"#8b91b0"}}>Aucun visiteur en attente</td></tr>
+                        <tr><td colSpan={4} style={{textAlign:"center",padding:"20px",color:"#8b91b0"}}>{t("admin.noVisitor")}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -4576,38 +4579,38 @@ const [showSalle, setShowSalle]       = useState(false);
               {adminTab==="crm" && (
                 <div style={{textAlign:"center",padding:"32px 16px"}}>
                   <div style={{fontSize:44,marginBottom:12}}>🗂️</div>
-                  <div style={{fontWeight:700,fontSize:15,color:"#1e2464",marginBottom:8}}>CRM Pastoral</div>
-                  <p style={{fontSize:12,color:"#8b91b0",marginBottom:20,maxWidth:380,margin:"0 auto 20px"}}>Gérez les membres, les notes pastorales, les tags et les suivis depuis le CRM complet.</p>
+                  <div style={{fontWeight:700,fontSize:15,color:"#1e2464",marginBottom:8}}>{t("admin.crmTitle")}</div>
+                  <p style={{fontSize:12,color:"#8b91b0",marginBottom:20,maxWidth:380,margin:"0 auto 20px"}}>{t("admin.crmDesc")}</p>
                   <a href="/espace-membres/crm" className="em-btn em-btn-primary" style={{textDecoration:"none",display:"inline-block",marginBottom:10}}>
-                    Ouvrir le CRM Pastoral →
+                    {t("admin.crmOpen")}
                   </a>
-                  <div style={{fontSize:11,color:"#8b91b0",marginTop:6}}>Membres en attente de validation · Notes pastorales · Tags · Groupes</div>
+                  <div style={{fontSize:11,color:"#8b91b0",marginTop:6}}>{t("admin.crmSub")}</div>
                 </div>
               )}
 
               {/* Support */}
               {adminTab==="support" && (
                 <div className="em-card">
-                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>🛠 Support Technique</div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>{t("admin.supportTitle")}</div>
                   <div className="em-g2">
                     {(isAdmin || canSupportFunc) && (
                       <div style={{padding:16,background:"#f7f8fc",borderRadius:12,textAlign:"center"}}>
                         <div style={{fontSize:32,marginBottom:8}}>💻</div>
-                        <div style={{fontWeight:700,color:"#1e2464",marginBottom:6}}>RustDesk — Accès distant</div>
-                        <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Contrôle à distance sécurisé</div>
+                        <div style={{fontWeight:700,color:"#1e2464",marginBottom:6}}>{t("admin.rustdesk")}</div>
+                        <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>{t("admin.rustdeskDesc")}</div>
                         <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{
-                          if(confirm("⚠️ Vous êtes sur le point d'activer l'accès distant RustDesk. Confirmez-vous ?")) {
-                            setToast("RustDesk activé — en attente de connexion");
+                          if(confirm(t("admin.rustdeskConfirm"))) {
+                            setToast(t("admin.rustdeskToast"));
                           }
-                        }}>Activer RustDesk</button>
+                        }}>{t("admin.rustdeskActivate")}</button>
                       </div>
                     )}
                     <div style={{padding:16,background:"#f7f8fc",borderRadius:12}}>
-                      <div style={{fontWeight:700,color:"#1e2464",marginBottom:10}}>Tickets récents</div>
-                      {[{title:"Problème connexion WiFi",status:"Résolu"},{title:"Mise à jour serveur",status:"En cours"},{title:"Backup base de données",status:"Planifié"}].map(t=>(
-                        <div key={t.title} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
-                          <span>{t.title}</span>
-                          <span className={`em-tag ${t.status==="Résolu"?"em-tag-vert":t.status==="En cours"?"em-tag-orange":"em-tag-marine"}`}>{t.status}</span>
+                      <div style={{fontWeight:700,color:"#1e2464",marginBottom:10}}>{t("admin.recentTickets")}</div>
+                      {[{title:t("admin.ticketWifi"),status:"resolved"},{title:t("admin.ticketServer"),status:"inprogress"},{title:t("admin.ticketBackup"),status:"planned"}].map(tk=>(
+                        <div key={tk.title} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #eceef7",fontSize:13}}>
+                          <span>{tk.title}</span>
+                          <span className={`em-tag ${tk.status==="resolved"?"em-tag-vert":tk.status==="inprogress"?"em-tag-orange":"em-tag-marine"}`}>{tk.status==="resolved"?t("admin.statusResolved"):tk.status==="inprogress"?t("admin.statusInProgress"):t("admin.statusPlanned")}</span>
                         </div>
                       ))}
                     </div>
@@ -4621,7 +4624,7 @@ const [showSalle, setShowSalle]       = useState(false);
                   <SermonSummariesManager />
                   <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #e0e4f0"}}>
                     <a href="/admin/sermons" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,color:"#8899cc",textDecoration:"none"}}>
-                      Gérer les sermons (CMS) →
+                      {t("admin.manageSermons")}
                     </a>
                   </div>
                 </div>
@@ -4632,10 +4635,10 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div>
                   <div className="em-g4" style={{marginBottom:18}}>
                     {[
-                      {num:totalUsers,    lbl:"Utilisateurs total"},
-                      {num:membresValides,lbl:"Membres validés"},
-                      {num:visiteurs,     lbl:"Visiteurs inscrits"},
-                      {num:prayerCount,   lbl:"Prières actives"},
+                      {num:totalUsers,    lbl:t("home.stat.users")},
+                      {num:membresValides,lbl:t("home.stat.members")},
+                      {num:visiteurs,     lbl:t("home.stat.visitors")},
+                      {num:prayerCount,   lbl:t("home.stat.prayers")},
                     ].map(s=>(
                       <div key={s.lbl} className="em-card-sm" style={{textAlign:"center"}}>
                         <div className="em-stat-num">{s.num}</div><div className="em-stat-lbl">{s.lbl}</div>
@@ -4643,9 +4646,9 @@ const [showSalle, setShowSalle]       = useState(false);
                     ))}
                   </div>
                   <div className="em-card">
-                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>Évolution des membres</div>
+                    <div style={{fontWeight:700,fontSize:14,color:"#1e2464",marginBottom:14}}>{t("admin.membersEvolution")}</div>
                     <div style={{height:120,background:"#f1f3fb",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#8b91b0",fontSize:13}}>
-                      Graphique d&apos;évolution — Bientôt disponible
+                      {t("admin.chartSoon")}
                     </div>
                   </div>
                 </div>
@@ -6434,21 +6437,21 @@ const [showSalle, setShowSalle]       = useState(false);
         <div className="em-overlay" onClick={()=>setShowSettings(false)}>
           <div className="em-modal" style={{maxWidth:620}} onClick={e=>e.stopPropagation()}>
             <div className="em-modal-hdr">
-              <span className="em-modal-title">⚙️ Paramètres du compte</span>
+              <span className="em-modal-title">{t("set.title")}</span>
               <button className="em-modal-close" onClick={()=>setShowSettings(false)}>✕</button>
             </div>
             <div className="em-modal-body">
               <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:16}}>
                 <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                  {([["notifs","🔔 Notifications"],["privacy","🔒 Confidentialité"],["langue","🌐 Langue"],["bible","📖 Bible"],["affichage","🔤 Affichage"],["securite","🔑 Sécurité"]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite",string][]).map(([s,l])=>(
+                  {([["notifs",t("set.side.notifs")],["privacy",t("set.side.privacy")],["langue",t("set.side.langue")],["bible",t("set.side.bible")],["affichage",t("set.side.affichage")],["securite",t("set.side.securite")]] as ["notifs"|"privacy"|"langue"|"bible"|"affichage"|"securite",string][]).map(([s,l])=>(
                     <button key={s} onClick={()=>{setSettingsSection(s);setPwdError(null);setPwdSuccess(false);}} style={{padding:"8px 10px",borderRadius:8,border:"none",background:settingsSection===s?"#f1f3fb":"transparent",cursor:"pointer",fontSize:12,fontWeight:600,color:settingsSection===s?"#1e2464":"#8b91b0",textAlign:"left",fontFamily:"Outfit,sans-serif"}}>{l}</button>
                   ))}
                 </div>
                 <div>
                   {settingsSection==="notifs" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔔 Notifications</div>
-                      {([["dm","Messages directs"],["culte","Rappels de culte"],["priere","Intentions de prière"],["verset","Verset du jour"],["events","Nouveaux événements"]] as [keyof typeof settingsNotifs,string][]).map(([k,l])=>(
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>{t("set.notifs.title")}</div>
+                      {([["dm",t("set.notif.dm")],["culte",t("set.notif.culte")],["priere",t("set.notif.priere")],["verset",t("set.notif.verset")],["events",t("set.notif.events")]] as [keyof typeof settingsNotifs,string][]).map(([k,l])=>(
                         <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                           <span>{l}</span>
                           <input type="checkbox" checked={settingsNotifs[k]} onChange={e=>setSettingsNotifs(n=>({...n,[k]:e.target.checked}))} />
@@ -6458,8 +6461,8 @@ const [showSalle, setShowSalle]       = useState(false);
                   )}
                   {settingsSection==="privacy" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔒 Confidentialité</div>
-                      {([["profile","Afficher mon profil dans les contacts"],["presence","Partager mes présences avec le groupe"],["dm","Recevoir des messages directs"]] as [keyof typeof settingsPrivacy,string][]).map(([k,l])=>(
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>{t("set.privacy.title")}</div>
+                      {([["profile",t("set.priv.profile")],["presence",t("set.priv.presence")],["dm",t("set.priv.dm")]] as [keyof typeof settingsPrivacy,string][]).map(([k,l])=>(
                         <label key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:13,padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
                           <span>{l}</span>
                           <input type="checkbox" checked={settingsPrivacy[k]} onChange={e=>setSettingsPrivacy(p=>({...p,[k]:e.target.checked}))} />
@@ -6469,8 +6472,8 @@ const [showSalle, setShowSalle]       = useState(false);
                   )}
                   {settingsSection==="langue" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🌐 Langue &amp; Région</div>
-                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Langue de l&apos;interface</label>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>{t("set.lang.title")}</div>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>{t("set.lang.ui")}</label>
                       <select className="em-select" style={{marginBottom:12}} value={settingsLang.ui} onChange={e=>{
                         const l=e.target.value as Locale;
                         setSettingsLang(s=>({...s,ui:l}));
@@ -6478,19 +6481,19 @@ const [showSalle, setShowSalle]       = useState(false);
                       }}>
                         {LOCALES.map(l=><option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
                       </select>
-                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Format de date</label>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>{t("set.lang.dateFmt")}</label>
                       <select className="em-select" value={settingsLang.dateFmt} onChange={e=>setSettingsLang(l=>({...l,dateFmt:e.target.value}))}>
-                        <option value="fr-CH">DD/MM/YYYY (Suisse)</option>
-                        <option value="fr-FR">DD/MM/YYYY (France)</option>
-                        <option value="en-US">MM/DD/YYYY (USA)</option>
+                        <option value="fr-CH">{t("set.lang.dateSwiss")}</option>
+                        <option value="fr-FR">{t("set.lang.dateFrance")}</option>
+                        <option value="en-US">{t("set.lang.dateUS")}</option>
                       </select>
-                      <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>La navigation et les repères principaux changent immédiatement. La traduction du contenu détaillé s&apos;étend progressivement.</div>
+                      <div style={{fontSize:11,color:"#8b91b0",marginTop:10,fontStyle:"italic"}}>{t("set.lang.note")}</div>
                     </div>
                   )}
                   {settingsSection==="affichage" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>🔤 Taille du texte</div>
-                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>S&apos;applique à Prière &amp; Bible et Messagerie</div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>{t("set.disp.title")}</div>
+                      <div style={{fontSize:12,color:"#8b91b0",marginBottom:16}}>{t("set.disp.sub")}</div>
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
                         <span style={{fontSize:11,color:"#8b91b0"}}>A</span>
                         <input
@@ -6502,7 +6505,7 @@ const [showSalle, setShowSalle]       = useState(false);
                         <span style={{fontSize:15,color:"#8b91b0"}}>A</span>
                       </div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {([{px:14,lbl:"Petit"},{px:16,lbl:"Normal"},{px:18,lbl:"Moyen"},{px:20,lbl:"Grand"},{px:22,lbl:"Très grand"}]).map(({px,lbl})=>(
+                        {([{px:14,lbl:t("set.disp.small")},{px:16,lbl:t("set.disp.normal")},{px:18,lbl:t("set.disp.medium")},{px:20,lbl:t("set.disp.large")},{px:22,lbl:t("set.disp.xlarge")}]).map(({px,lbl})=>(
                           <button key={px} onClick={()=>updateReadingPrefs({ font_size_px: px })}
                             style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${readingPrefs.font_size_px===px?"#1e2464":"rgba(30,36,100,.15)"}`,background:readingPrefs.font_size_px===px?"#1e2464":"transparent",color:readingPrefs.font_size_px===px?"#fff":"#1e2464",fontSize:12,cursor:"pointer",fontFamily:"Outfit,sans-serif",fontWeight:600}}>
                             {lbl}
@@ -6510,14 +6513,14 @@ const [showSalle, setShowSalle]       = useState(false);
                         ))}
                       </div>
                       <div className="em-reading-zone" style={{marginTop:16,padding:12,background:"#f8f9ff",borderRadius:10,lineHeight:1.6,color:"#5c6280"}}>
-                        <span className="em-reading-text">Aperçu — &ldquo;Car Dieu a tant aimé le monde qu&apos;il a donné son Fils unique.&rdquo; Jean 3:16</span>
+                        <span className="em-reading-text">{t("set.disp.preview")}</span>
                       </div>
                     </div>
                   )}
                   {settingsSection==="bible" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>📖 Préférences Bible</div>
-                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>Traduction par défaut</label>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:12}}>{t("set.bible.title")}</div>
+                      <label style={{fontSize:12,color:"#5c6280",display:"block",marginBottom:4}}>{t("set.bible.defaultTrans")}</label>
                       <select className="em-select" style={{marginBottom:12}} value={settingsBible.translation} onChange={e=>setSettingsBible({translation:e.target.value})}>
                         <option value="NBS">NBS — Nouvelle Bible Segond (français)</option>
                         <option value="BDS">BDS — Bible du Semeur (français)</option>
@@ -6528,44 +6531,44 @@ const [showSalle, setShowSalle]       = useState(false);
                       </select>
                       <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
                         <input type="checkbox" defaultChecked />
-                        Afficher les numéros de versets
+                        {t("set.bible.showVerseNums")}
                       </label>
                     </div>
                   )}
                   {settingsSection==="securite" && (
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:16}}>🔑 Modifier le mot de passe</div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#1e2464",marginBottom:16}}>{t("set.sec.title")}</div>
                       {pwdSuccess ? (
                         <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"14px 16px",fontSize:13,color:"#166534"}}>
-                          ✅ Mot de passe modifié avec succès. Un email de confirmation t&apos;a été envoyé.
-                          <button onClick={()=>setPwdSuccess(false)} style={{display:"block",marginTop:8,fontSize:12,color:"#1e2464",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600,fontFamily:"Outfit,sans-serif"}}>Modifier à nouveau</button>
+                          {t("set.sec.success")}
+                          <button onClick={()=>setPwdSuccess(false)} style={{display:"block",marginTop:8,fontSize:12,color:"#1e2464",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{t("set.sec.changeAgain")}</button>
                         </div>
                       ) : (
                         <div style={{display:"flex",flexDirection:"column",gap:10}}>
                           {pwdError && <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991b1b"}}>⚠️ {pwdError}</div>}
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Mot de passe actuel</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>{t("set.sec.current")}</label>
                             <div style={{position:"relative"}}>
                               <input type={pwdShowCurrent?"text":"password"} value={pwdCurrent} onChange={e=>setPwdCurrent(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
-                              <button type="button" onClick={()=>setPwdShowCurrent(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowCurrent?"Masquer":"Voir"}</button>
+                              <button type="button" onClick={()=>setPwdShowCurrent(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowCurrent?t("set.sec.hide"):t("set.sec.show")}</button>
                             </div>
                           </div>
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Nouveau mot de passe</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>{t("set.sec.new")}</label>
                             <div style={{position:"relative"}}>
                               <input type={pwdShowNew?"text":"password"} value={pwdNew} onChange={e=>setPwdNew(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 44px 9px 12px",borderRadius:8,border:"1.5px solid rgba(30,36,100,.2)",fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
-                              <button type="button" onClick={()=>setPwdShowNew(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowNew?"Masquer":"Voir"}</button>
+                              <button type="button" onClick={()=>setPwdShowNew(v=>!v)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#8b91b0",fontWeight:600,fontFamily:"Outfit,sans-serif"}}>{pwdShowNew?t("set.sec.hide"):t("set.sec.show")}</button>
                             </div>
                             {pwdNew.length>0 && (
                               <ul style={{marginTop:6,padding:0,listStyle:"none",fontSize:11,display:"flex",flexDirection:"column",gap:2}}>
-                                <li style={{color:pwdNew.length>=8?"#166534":"#8b91b0"}}>{pwdNew.length>=8?"✓":"○"} 8 caractères minimum</li>
-                                <li style={{color:/[A-Z]/.test(pwdNew)?"#166534":"#8b91b0"}}>{/[A-Z]/.test(pwdNew)?"✓":"○"} 1 lettre majuscule</li>
-                                <li style={{color:/\d/.test(pwdNew)?"#166534":"#8b91b0"}}>{/\d/.test(pwdNew)?"✓":"○"} 1 chiffre</li>
+                                <li style={{color:pwdNew.length>=8?"#166534":"#8b91b0"}}>{pwdNew.length>=8?"✓":"○"} {t("set.sec.req8")}</li>
+                                <li style={{color:/[A-Z]/.test(pwdNew)?"#166534":"#8b91b0"}}>{/[A-Z]/.test(pwdNew)?"✓":"○"} {t("set.sec.reqUpper")}</li>
+                                <li style={{color:/\d/.test(pwdNew)?"#166534":"#8b91b0"}}>{/\d/.test(pwdNew)?"✓":"○"} {t("set.sec.reqDigit")}</li>
                               </ul>
                             )}
                           </div>
                           <div>
-                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>Confirmer le nouveau mot de passe</label>
+                            <label style={{fontSize:11,fontWeight:700,color:"#8b91b0",textTransform:"uppercase",letterSpacing:"0.5px",display:"block",marginBottom:4}}>{t("set.sec.confirm")}</label>
                             <input type={pwdShowNew?"text":"password"} value={pwdNewConfirm} onChange={e=>setPwdNewConfirm(e.target.value)} placeholder="••••••••" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${pwdNewConfirm&&pwdNewConfirm!==pwdNew?"#f87171":pwdNewConfirm&&pwdNewConfirm===pwdNew?"#4ade80":"rgba(30,36,100,.2)"}`,fontSize:13,outline:"none",fontFamily:"Outfit,sans-serif",boxSizing:"border-box"}} />
                           </div>
                           <button
@@ -6574,7 +6577,7 @@ const [showSalle, setShowSalle]       = useState(false);
                             className="em-btn em-btn-primary em-btn-sm"
                             style={{marginTop:4}}
                           >
-                            {pwdLoading?"Enregistrement…":"Modifier le mot de passe"}
+                            {pwdLoading?t("set.saving"):t("set.sec.change")}
                           </button>
                         </div>
                       )}
@@ -6586,10 +6589,10 @@ const [showSalle, setShowSalle]       = useState(false);
                       const res=await saveMemberSettings({notifs:settingsNotifs,privacy:settingsPrivacy,langue:settingsLang,bible:settingsBible});
                       setSettingsSaving(false);
                       if(res.error){setToast(`❌ ${res.error}`);}
-                      else{setShowSettings(false);setToast("✅ Paramètres enregistrés");}
-                    }}>{settingsSaving?"Enregistrement…":"Sauvegarder"}</button>
+                      else{setShowSettings(false);setToast(t("set.saved"));}
+                    }}>{settingsSaving?t("set.saving"):t("common.save")}</button>
                   )}
-                  {settingsSection==="affichage" && <div style={{fontSize:11,color:"#8b91b0",marginTop:16,fontStyle:"italic"}}>La taille du texte est appliquée et enregistrée automatiquement.</div>}
+                  {settingsSection==="affichage" && <div style={{fontSize:11,color:"#8b91b0",marginTop:16,fontStyle:"italic"}}>{t("set.disp.autoSaved")}</div>}
                 </div>
               </div>
             </div>
@@ -6602,30 +6605,30 @@ const [showSalle, setShowSalle]       = useState(false);
         <div className="em-overlay" onClick={()=>setShowInvite(false)}>
           <div className="em-modal" onClick={e=>e.stopPropagation()}>
             <div className="em-modal-hdr">
-              <span className="em-modal-title">✉️ Inviter un nouveau membre</span>
+              <span className="em-modal-title">{t("invite.title")}</span>
               <button className="em-modal-close" onClick={()=>setShowInvite(false)}>✕</button>
             </div>
             <div className="em-modal-body">
               <div style={{display:"flex",gap:10,marginBottom:10}}>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Prénom</label>
-                  <input className="em-input" placeholder="Prénom" value={invitePrenom} onChange={e=>setInvitePrenom(e.target.value)} />
+                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>{t("invite.firstName")}</label>
+                  <input className="em-input" placeholder={t("invite.firstName")} value={invitePrenom} onChange={e=>setInvitePrenom(e.target.value)} />
                 </div>
                 <div style={{flex:1}}>
-                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Nom</label>
-                  <input className="em-input" placeholder="Nom de famille" value={inviteNom} onChange={e=>setInviteNom(e.target.value)} />
+                  <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>{t("invite.lastName")}</label>
+                  <input className="em-input" placeholder={t("invite.lastNamePlaceholder")} value={inviteNom} onChange={e=>setInviteNom(e.target.value)} />
                 </div>
               </div>
-              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Email</label>
-              <input className="em-input" type="email" placeholder="adresse@email.com" style={{marginBottom:10}} value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} />
-              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Groupe proposé (optionnel)</label>
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>{t("invite.email")}</label>
+              <input className="em-input" type="email" placeholder={t("invite.emailPlaceholder")} style={{marginBottom:10}} value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} />
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>{t("invite.group")}</label>
               <select className="em-select" style={{marginBottom:10}} value={inviteGroupe} onChange={e=>setInviteGroupe(e.target.value)}>
-                <option value="">Aucun groupe pour l&apos;instant</option>
+                <option value="">{t("invite.noGroup")}</option>
                 {GROUPES.map(g=><option key={g.name} value={g.name}>{g.name}</option>)}
               </select>
-              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>Message personnalisé</label>
-              <textarea className="em-input" style={{minHeight:80,resize:"vertical",width:"100%",marginBottom:14}} defaultValue={`Bonjour${invitePrenom ? ` ${invitePrenom}` : ""},\n\nJe vous invite à rejoindre l'espace membres de l'Église ARC La Chaux-de-Fonds.\n\nQue Dieu vous bénisse !`} />
-              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!inviteEmail.trim()){setToast("⚠️ L'email est requis");return;}setShowInvite(false);setToast(`✅ Invitation envoyée à ${inviteEmail} ! Le lien expire dans 7 jours.`);}}>Envoyer l&apos;invitation</button>
+              <label style={{fontSize:11,color:"#8b91b0",display:"block",marginBottom:3}}>{t("invite.message")}</label>
+              <textarea className="em-input" style={{minHeight:80,resize:"vertical",width:"100%",marginBottom:14}} defaultValue={`${t("invite.msgHello")}${invitePrenom ? ` ${invitePrenom}` : ""},\n\n${t("invite.msgBody")}`} />
+              <button className="em-btn em-btn-primary" style={{width:"100%"}} onClick={()=>{if(!inviteEmail.trim()){setToast(t("invite.emailRequired"));return;}setShowInvite(false);setToast(`${t("invite.sentPre")} ${inviteEmail} ${t("invite.sentPost")}`);}}>{t("invite.send")}</button>
             </div>
           </div>
         </div>
@@ -6647,22 +6650,22 @@ const [showSalle, setShowSalle]       = useState(false);
           <div className="em-overlay" onClick={() => setShowRecipient(false)}>
             <div className="em-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
               <div className="em-modal-hdr">
-                <span className="em-modal-title">✍️ Écrire à…</span>
+                <span className="em-modal-title">{t("msg.writeTo")}</span>
                 <button className="em-modal-close" onClick={() => setShowRecipient(false)}>✕</button>
               </div>
               <div className="em-modal-body">
                 <div className="em-tabs" style={{ marginBottom: 14 }}>
-                  <button className={`em-tab${recipTab === "membre" ? " active" : ""}`} onClick={() => setRecipTab("membre")}>👤 Un membre</button>
-                  <button className={`em-tab${recipTab === "fonction" ? " active" : ""}`} onClick={() => setRecipTab("fonction")}>👥 Une fonction</button>
+                  <button className={`em-tab${recipTab === "membre" ? " active" : ""}`} onClick={() => setRecipTab("membre")}>{t("msg.recip.member")}</button>
+                  <button className={`em-tab${recipTab === "fonction" ? " active" : ""}`} onClick={() => setRecipTab("fonction")}>{t("msg.recip.function")}</button>
                 </div>
                 {recipTab === "membre" ? (
                   <>
-                    <input value={recipSearch} onChange={e => setRecipSearch(e.target.value)} placeholder="Rechercher un membre…" className="em-input" style={{ marginBottom: 10 }} autoFocus />
+                    <input value={recipSearch} onChange={e => setRecipSearch(e.target.value)} placeholder={t("msg.recip.searchMember")} className="em-input" style={{ marginBottom: 10 }} autoFocus />
                     <div style={{ maxHeight: 340, overflowY: "auto" }}>
-                      {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Chargement…</div>
-                        : memberList.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Aucun membre.</div>
+                      {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>{t("msg.loading")}</div>
+                        : memberList.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>{t("msg.recip.noMember")}</div>
                         : memberList.map(m => {
-                          const nm = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
+                          const nm = [m.first_name, m.last_name].filter(Boolean).join(" ") || t("msg.member");
                           return (
                             <button key={m.id} className="em-ch-item" style={{ width: "100%", padding: "9px 10px", borderRadius: 9 }} onClick={() => startDm(m.id)}>
                               <div className="em-av" style={{ width: 30, height: 30, fontSize: 11, background: "#1e2464" }}>{(m.first_name?.[0] ?? "?").toUpperCase()}</div>
@@ -6675,20 +6678,20 @@ const [showSalle, setShowSalle]       = useState(false);
                   </>
                 ) : (
                   <div style={{ maxHeight: 380, overflowY: "auto" }}>
-                    {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Chargement…</div>
-                      : myFns.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>Aucune fonction accessible.</div>
+                    {members.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>{t("msg.loading")}</div>
+                      : myFns.length === 0 ? <div style={{ textAlign: "center", color: "#8b91b0", fontSize: 13, padding: "20px 0" }}>{t("msg.recip.noFunction")}</div>
                       : myFns.map(slug => {
                         const count = members.filter(m => m.validated && (m.groups ?? []).includes(slug)).length;
                         return (
                           <button key={slug} className="em-ch-item" style={{ width: "100%", padding: 10, borderRadius: 9 }} disabled={recipBusy} onClick={() => openFunctionConv(slug, fnLabel(slug))}>
                             <span style={{ width: 30, height: 30, borderRadius: 8, background: fnColor(slug), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{fnLabel(slug)[0]}</span>
                             <span style={{ flex: 1, textAlign: "left", fontSize: 13, color: "#1a1d3a", fontWeight: 600 }}>{fnLabel(slug)}</span>
-                            <span style={{ fontSize: 11, color: "#8b91b0" }}>{count} membre{count > 1 ? "s" : ""}</span>
+                            <span style={{ fontSize: 11, color: "#8b91b0" }}>{count} {count>1?t("msg.membersWord"):t("msg.memberWord")}</span>
                           </button>
                         );
                       })}
                     <div style={{ fontSize: 11, color: "#8b91b0", marginTop: 10, lineHeight: 1.5 }}>
-                      Écrire à une fonction ouvre une conversation de groupe avec tous ses membres. {canAllFn ? "Tu peux écrire à toutes les fonctions." : "Tu peux écrire aux fonctions dont tu fais partie."}
+                      {t("msg.recip.explain")} {canAllFn ? t("msg.recip.explainAll") : t("msg.recip.explainOwn")}
                     </div>
                   </div>
                 )}
