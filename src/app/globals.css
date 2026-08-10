@@ -15,9 +15,9 @@
   --ink:      #1a1d33;
   --muted:    #767c9c;
   --line:     #e6e9f4;
-  /* Neutres maquette */
-  --em-bg:      #f5f6fb;
-  --em-sidebar: #151a4a;
+  /* Neutres maquette Stitch (Sacred Modernity) */
+  --em-bg:      #f8f9fa;
+  --em-sidebar: #1a237e;
   --em-card-line:#e6e9f4;
   --em-muted-2: #8b91b0;
 }
@@ -192,8 +192,8 @@
 }
 .em-logo {
   display: flex; align-items: center; gap: 9px;
-  font-family: 'Source Serif 4', Georgia, serif;
-  font-size: 14px; font-weight: 700; color: #1e2464;
+  font-family: 'Playfair Display', 'Source Serif 4', Georgia, serif;
+  font-size: 16px; font-weight: 700; color: #1a237e;
   white-space: nowrap; text-decoration: none;
 }
 .em-logo-icon {
@@ -245,10 +245,10 @@
   border: none; background: transparent; width: calc(100% - 16px); text-align: left;
 }
 .em-ni:hover { background: rgba(255,255,255,.07); color: #fff; }
-.em-ni.active { background: rgba(184,134,59,.16); color: #fff; font-weight: 600; }
+.em-ni.active { background: rgba(255,255,255,.2); color: #fff; font-weight: 700; }
 .em-ni.active::before {
   content: ''; position: absolute; left: -8px; top: 18%; height: 64%;
-  width: 3px; background: var(--gold, #b8863b); border-radius: 0 3px 3px 0;
+  width: 3px; background: #fff; border-radius: 0 3px 3px 0;
 }
 .em-ni-ico { width: 18px; text-align: center; font-size: 14px; flex-shrink: 0; }
 .em-ni-lbl { flex: 1; line-height: 1; }
