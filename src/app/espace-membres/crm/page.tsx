@@ -154,6 +154,7 @@ export default async function CrmPage({
 
   // Communication ciblée (Phase 6) — réservée admin/pasteur/communication
   const canSend = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("communication");
+  const canFinance = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("finance");
   const commUrl = seg({}).replace("/espace-membres/crm", "/espace-membres/crm/communication");
   const byRole  = all.reduce((acc, m) => { acc[m.role] = (acc[m.role] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
@@ -166,17 +167,20 @@ export default async function CrmPage({
         <p className="text-sm text-arc-text2 mt-0.5">{all.length} membres enregistrés</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats — charte Sacred Modernity (label + grand nombre + icône) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
-          { label: "Total",      val: all.length,         color: "text-arc-navy"  },
-          { label: "Validés",    val: validated.length,   color: "text-green-600" },
-          { label: "En attente", val: pending.length,     color: "text-amber-600" },
-          { label: "Membres",    val: byRole.membre ?? 0, color: "text-arc-blue"  },
+          { label: "Total membres", val: all.length,         color: "text-arc-navy",  icon: "👥" },
+          { label: "Validés",       val: validated.length,   color: "text-green-600", icon: "✓"  },
+          { label: "En attente",    val: pending.length,     color: "text-amber-600", icon: "⏳" },
+          { label: "Rôle membre",   val: byRole.membre ?? 0, color: "text-arc-blue",  icon: "🎫" },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-arc-border rounded-2xl p-4 text-center">
-            <div className={`text-3xl font-bold font-serif ${s.color}`}>{s.val}</div>
-            <div className="text-xs text-arc-text3 font-semibold mt-1">{s.label}</div>
+          <div key={s.label} className="bg-white border border-arc-border rounded-xl p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-arc-text3">{s.label}</span>
+              <span className="text-base leading-none opacity-80" aria-hidden="true">{s.icon}</span>
+            </div>
+            <div className={`text-3xl font-bold font-serif mt-2 ${s.color}`}>{s.val}</div>
           </div>
         ))}
       </div>
@@ -216,6 +220,7 @@ export default async function CrmPage({
             <Link href="/espace-membres/crm/tableau-de-bord" className="text-[11px] font-semibold text-arc-blue hover:underline">📈 Tableau de bord</Link>
             <Link href="/espace-membres/crm/taches" className="text-[11px] font-semibold text-arc-blue hover:underline">✅ Tâches</Link>
             <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
+            {canFinance && <Link href="/espace-membres/crm/dons" className="text-[11px] font-semibold text-arc-blue hover:underline">💶 Dons &amp; finances</Link>}
           </div>
         </div>
 

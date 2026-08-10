@@ -110,17 +110,20 @@ export default async function CrmDashboardPage() {
       <h1 className="text-xl font-bold text-arc-navy mb-1">📈 Tableau de bord pastoral</h1>
       <p className="text-sm text-arc-text3 mb-6">Vue d&apos;ensemble de la vie de la communauté.</p>
 
-      {/* KPIs */}
+      {/* KPIs — charte Sacred Modernity (label + grand nombre + icône) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Membres validés", val: members.length, cls: "text-arc-navy" },
-          { label: "À recontacter", val: engCounts.decrochage + engCounts.inactif, cls: "text-red-600" },
-          { label: "Tâches en retard", val: tasksOverdue.length, cls: "text-orange-600" },
-          { label: "Doléances ouvertes", val: grieOpen.length, cls: "text-amber-600" },
+          { label: "Membres validés", val: members.length, cls: "text-arc-navy", icon: "👥" },
+          { label: "À recontacter", val: engCounts.decrochage + engCounts.inactif, cls: "text-red-600", icon: "📵" },
+          { label: "Tâches en retard", val: tasksOverdue.length, cls: "text-orange-600", icon: "⏰" },
+          { label: "Doléances ouvertes", val: grieOpen.length, cls: "text-amber-600", icon: "🛠️" },
         ].map(k => (
-          <div key={k.label} className="bg-white border border-arc-border rounded-2xl p-4 text-center">
-            <div className={`text-3xl font-bold font-serif ${k.cls}`}>{k.val}</div>
-            <div className="text-[11px] text-arc-text3 font-semibold mt-1">{k.label}</div>
+          <div key={k.label} className="bg-white border border-arc-border rounded-xl p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-arc-text3">{k.label}</span>
+              <span className="text-base leading-none opacity-80" aria-hidden="true">{k.icon}</span>
+            </div>
+            <div className={`text-3xl font-bold font-serif mt-2 ${k.cls}`}>{k.val}</div>
           </div>
         ))}
       </div>

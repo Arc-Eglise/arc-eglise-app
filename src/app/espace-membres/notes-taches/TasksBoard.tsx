@@ -272,7 +272,7 @@ function TaskItem({
   const canDetails = !!(onRemind || onRecur);
 
   return (
-    <div className={`rounded-xl border border-arc-border bg-white ${compact ? "px-3 py-2" : "px-4 py-3"}`}>
+    <div className={`rounded-xl border border-arc-border bg-white shadow-sm hover:shadow-md transition-shadow ${compact ? "px-3 py-2" : "px-4 py-3"}`}>
       <div className="group flex items-center gap-3">
         {/* Case à cocher (cycle de statut) */}
         <button

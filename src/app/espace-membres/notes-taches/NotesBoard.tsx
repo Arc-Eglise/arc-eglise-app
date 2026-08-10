@@ -147,61 +147,84 @@ export default function NotesBoard({
         </button>
       </div>
 
-      {/* Formulaire (création / édition) */}
+      {/* Panneau latéral « Mode Édition » (création / édition) — charte Sacred Modernity */}
       {isForm && (
-        <div className="mb-5 rounded-2xl border border-arc-border bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-arc-navy">{creating ? "Nouvelle note" : "Modifier la note"}</h3>
-            <button onClick={closeForm} className="text-arc-text3 hover:text-arc-navy text-lg">✕</button>
-          </div>
-          <input
-            value={draft.title}
-            onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-            placeholder="Titre (facultatif)"
-            maxLength={200}
-            className="w-full px-3 py-2 mb-2 rounded-lg border border-arc-border text-sm font-semibold outline-none focus:border-arc-navy"
-          />
-          <input
-            value={draft.reference}
-            onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))}
-            placeholder="Référence biblique (ex. Jean 3:16) — facultatif"
-            maxLength={100}
-            className="w-full px-3 py-2 mb-2 rounded-lg border border-arc-border text-xs font-mono outline-none focus:border-arc-navy"
-          />
-          {/* Barre de mise en forme */}
-          <div className="flex items-center gap-1 mb-2">
-            <FmtBtn label="G" title="Gras"      onClick={() => wrap("**")} className="font-bold" />
-            <FmtBtn label="I" title="Italique"  onClick={() => wrap("*")}  className="italic" />
-            <FmtBtn label="S" title="Souligné"  onClick={() => wrap("__")} className="underline" />
-            <FmtBtn label="B" title="Barré"     onClick={() => wrap("~~")} className="line-through" />
-            <FmtBtn label="•"  title="Liste"     onClick={() => prefixLine("- ")} />
-          </div>
-          <textarea
-            ref={bodyRef}
-            value={draft.body}
-            onChange={e => setDraft(d => ({ ...d, body: e.target.value }))}
-            placeholder="Ta note…"
-            maxLength={10000}
-            rows={5}
-            className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-y"
-          />
-          {/* Couleurs */}
-          <div className="flex items-center gap-2 mt-3">
-            {NOTE_COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => setDraft(d => ({ ...d, color: c }))}
-                title={c}
-                className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-arc-navy" : "border-white"}`}
-                style={{ background: colorOf(c).dot }}
-              />
-            ))}
-            <div className="ml-auto flex gap-2">
-              <button onClick={closeForm} className="px-4 py-2 rounded-lg border border-arc-border text-sm text-arc-text2 hover:border-arc-navy">Annuler</button>
-              <button onClick={creating ? saveCreate : saveEdit} className="px-5 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2">Enregistrer</button>
+        <>
+          <div className="fixed inset-0 z-40 bg-arc-navy/30 backdrop-blur-[2px]" onClick={closeForm} />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+            {/* En-tête */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-arc-border">
+              <h3 className="font-serif text-2xl text-arc-navy">{creating ? "Mode Édition" : "Mode Édition"}</h3>
+              <div className="flex items-center gap-2">
+                {!creating && editing && (
+                  <button
+                    onClick={() => { const n = notes.find(x => x.id === editing); if (n) setSharing(n); }}
+                    title="Partager" aria-label="Partager la note"
+                    className="w-8 h-8 rounded-lg text-arc-text2 hover:text-arc-navy hover:bg-arc-blueBg flex items-center justify-center transition-colors"
+                  >📤</button>
+                )}
+                <button onClick={closeForm} aria-label="Fermer" className="w-8 h-8 rounded-lg text-arc-text3 hover:text-arc-navy hover:bg-arc-blueBg flex items-center justify-center transition-colors text-lg">✕</button>
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Corps */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Titre</label>
+              <input
+                value={draft.title}
+                onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+                placeholder="Titre (facultatif)"
+                maxLength={200}
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-sm font-semibold outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy"
+              />
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Référence biblique</label>
+              <input
+                value={draft.reference}
+                onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))}
+                placeholder="ex. Jean 3:16 — facultatif"
+                maxLength={100}
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-xs font-mono outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy"
+              />
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Contenu</label>
+              {/* Barre de mise en forme */}
+              <div className="flex items-center gap-1 mb-2">
+                <FmtBtn label="G" title="Gras"      onClick={() => wrap("**")} className="font-bold" />
+                <FmtBtn label="I" title="Italique"  onClick={() => wrap("*")}  className="italic" />
+                <FmtBtn label="S" title="Souligné"  onClick={() => wrap("__")} className="underline" />
+                <FmtBtn label="B" title="Barré"     onClick={() => wrap("~~")} className="line-through" />
+                <FmtBtn label="•"  title="Liste"     onClick={() => prefixLine("- ")} />
+              </div>
+              <textarea
+                ref={bodyRef}
+                value={draft.body}
+                onChange={e => setDraft(d => ({ ...d, body: e.target.value }))}
+                placeholder="Ta note…"
+                maxLength={10000}
+                rows={10}
+                className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy resize-y"
+              />
+              {/* Couleurs */}
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mt-4 mb-2">Couleur</label>
+              <div className="flex items-center gap-2">
+                {NOTE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setDraft(d => ({ ...d, color: c }))}
+                    title={c}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-arc-navy" : "border-white"}`}
+                    style={{ background: colorOf(c).dot }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Pied */}
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-arc-border">
+              <button onClick={creating ? saveCreate : saveEdit} className="px-5 py-2.5 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">Enregistrer</button>
+              <button onClick={closeForm} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-arc-text2 hover:text-arc-navy transition-colors">Annuler</button>
+            </div>
+          </aside>
+        </>
       )}
 
       {/* Grille de notes */}
@@ -212,32 +235,42 @@ export default function NotesBoard({
           <div className="text-sm">{search ? "Aucun résultat pour cette recherche." : "Crée ton premier pense-bête ci-dessus."}</div>
         </div>
       ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
           {filtered.map(n => {
             const col = colorOf(n.color);
+            const dateLabel = new Date(n.updated_at).toLocaleDateString("fr-CH", { day: "2-digit", month: "short" });
             return (
               <div
                 key={n.id}
-                className="group relative rounded-2xl p-4 flex flex-col min-h-[140px] shadow-sm transition-shadow hover:shadow-md"
-                style={{ background: col.bg, border: `1px solid ${col.border}` }}
+                className="group relative rounded-xl bg-white border border-arc-border p-4 flex flex-col min-h-[150px] shadow-sm transition-shadow hover:shadow-md overflow-hidden"
               >
-                {/* Actions flottantes */}
-                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => togglePin(n)} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-sm">{n.is_pinned ? "📌" : "📍"}</button>
-                  <button onClick={() => setSharing(n)} title="Partager" className="text-sm">📤</button>
-                  <button onClick={() => openEdit(n)} title="Modifier" className="text-sm">✏️</button>
-                  <button onClick={() => remove(n)} title="Supprimer" className="text-sm">🗑️</button>
-                </div>
-                {n.is_pinned && <div className="absolute top-2 left-3 text-xs">📌</div>}
+                {/* Accent couleur (identité sticky-note conservée) */}
+                <span className="absolute top-0 left-0 h-full w-1" style={{ background: col.dot }} aria-hidden="true" />
 
-                {n.title && <div className="font-bold text-arc-navy text-sm mb-1 pr-14 mt-1">{n.title}</div>}
-                {n.reference && <div className="text-[10px] font-mono text-arc-navy/70 mb-1">📖 {n.reference}</div>}
+                {/* Ligne méta : badge référence/date + actions */}
+                <div className="flex items-center justify-between gap-2 mb-1.5 pl-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {n.is_pinned && <span title="Épinglée" className="text-[11px]">📌</span>}
+                    {n.reference
+                      ? <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-arc-blueBg text-arc-blue truncate">📖 {n.reference}</span>
+                      : <span className="text-[10px] font-semibold uppercase tracking-wide text-arc-text3">Note</span>}
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => togglePin(n)} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-sm px-0.5">{n.is_pinned ? "📌" : "📍"}</button>
+                    <button onClick={() => setSharing(n)} title="Partager" className="text-sm px-0.5">📤</button>
+                    <button onClick={() => openEdit(n)} title="Modifier" className="text-sm px-0.5">✏️</button>
+                    <button onClick={() => remove(n)} title="Supprimer" className="text-sm px-0.5">🗑️</button>
+                  </div>
+                </div>
+
+                {n.title && <div className="font-bold text-arc-navy text-sm mb-1 pl-2">{n.title}</div>}
                 <div
-                  className="text-[13px] text-arc-navy/90 leading-snug flex-1 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ul]:pl-4"
+                  className="text-[13px] text-arc-text leading-snug flex-1 whitespace-pre-wrap break-words pl-2 [&_ul]:list-disc [&_ul]:pl-4"
                   dangerouslySetInnerHTML={{ __html: renderRich(n.body) }}
                 />
+
                 {/* Étiquettes */}
-                <div className="mt-2">
+                <div className="mt-2 pl-2">
                   <TagBar
                     kind="note" resourceId={n.id} allTags={allTags}
                     tagIds={tagMap[n.id] ?? []}
@@ -245,17 +278,21 @@ export default function NotesBoard({
                     onCreated={onTagCreated}
                   />
                 </div>
-                {/* Sélecteur couleur rapide */}
-                <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {NOTE_COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => changeColor(n, c)}
-                      title={c}
-                      className="w-3.5 h-3.5 rounded-full border border-white/70"
-                      style={{ background: colorOf(c).dot }}
-                    />
-                  ))}
+
+                {/* Pied : date + sélecteur couleur rapide */}
+                <div className="flex items-center justify-between gap-2 mt-3 pl-2">
+                  <span className="text-[10px] text-arc-text3">{dateLabel}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {NOTE_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => changeColor(n, c)}
+                        title={c}
+                        className={`w-3.5 h-3.5 rounded-full border ${n.color === c ? "border-arc-navy" : "border-arc-border"}`}
+                        style={{ background: colorOf(c).dot }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             );

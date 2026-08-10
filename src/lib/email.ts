@@ -494,6 +494,62 @@ export async function sendEventTicketEmail(opts: {
   });
 }
 
+// 08 · Déclaration RH d'un membre (retard / absence / congé) — notification
+// Envoyée au pasteur et aux membres des groupes de fonction du déclarant.
+export async function sendHrDeclarationEmail(opts: {
+  to: string;
+  memberName: string;
+  typeLabel: string;      // ex. "Congé"
+  startDate: string;      // déjà formaté (fr-CH)
+  returnDate: string;     // déjà formaté (fr-CH)
+  note?: string | null;
+}) {
+  const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+  const noteBlock = opts.note
+    ? `<div style="background-color:#f4f6fb;border-left:4px solid #8495C1;border-radius:0 8px 8px 0;padding:16px 20px;margin:0 0 24px;">
+         <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;">${esc(opts.note)}</p>
+       </div>`
+    : "";
+  const body = `
+<h2 style="margin:0 0 18px;color:#2B3475;font-size:22px;font-weight:bold;">
+  Déclaration RH — ${esc(opts.typeLabel)} 🗓
+</h2>
+<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7;">
+  <strong>${esc(opts.memberName)}</strong> a déclaré un(e) <strong>${esc(opts.typeLabel.toLowerCase())}</strong>.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px;">
+  <tr>
+    <td style="background-color:#f4f6fb;border-radius:10px;padding:20px;">
+      <p style="margin:0;color:#374151;font-size:14px;line-height:1.9;">
+        📌 <strong>Type :</strong> ${esc(opts.typeLabel)}<br/>
+        📅 <strong>Du :</strong> ${esc(opts.startDate)}<br/>
+        🔙 <strong>Retour prévu :</strong> ${esc(opts.returnDate)}
+      </p>
+    </td>
+  </tr>
+</table>
+${noteBlock}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px;">
+  <tr>
+    <td align="center" bgcolor="#2B3475" style="border-radius:10px;">
+      <a href="${SITE_URL}/espace-membres/presences?tab=rh" target="_blank"
+         style="display:inline-block;padding:14px 32px;background-color:#2B3475;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;border-radius:10px;font-family:Arial,sans-serif;letter-spacing:0.3px;">
+        Voir dans l'espace RH →
+      </a>
+    </td>
+  </tr>
+</table>
+<p style="margin:0 0 6px;color:#374151;font-size:14px;">Que Dieu vous bénisse,</p>
+<p style="margin:0;color:#2B3475;font-size:14px;font-weight:bold;">L'équipe ARC</p>`;
+  await sendEmail({
+    from:    FROM_NOREPLY,
+    replyTo: REPLY_TO,
+    to:      opts.to,
+    subject: `[RH] ${opts.typeLabel} déclaré — ${opts.memberName}`,
+    html:    layout(body),
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  FORMULAIRE DE CONTACT (contact@)
 // ═══════════════════════════════════════════════════════════════════════════
