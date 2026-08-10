@@ -86,6 +86,9 @@ export interface EMClientProps {
   prayerCount:    number;
   events:         Evt[];
   youtubeChannelId: string;
+  /** Rend l'espace membre en page dédiée plein écran sur un seul panneau
+   *  (ex. "messagerie") : le chrome (en-têtes + barre latérale) est masqué. */
+  standalone?:    Panel;
 }
 
 /* ─── Static data ────────────────────────────────────────────────── */
@@ -377,13 +380,14 @@ export default function EspaceMembresClient(props: EMClientProps) {
   );
 }
 
-function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId }: EMClientProps) {
+function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId, standalone }: EMClientProps) {
   const { t, locale, setLocale } = useI18n();
   const supabase = createClient();
   const searchParams = useSearchParams();
 
   /* Nav */
   const [panel, setPanel]     = useState<Panel>(() => {
+    if (standalone) return standalone;
     const p = searchParams.get("panel") as Panel | null;
     return p && VALID_PANELS.includes(p) ? p : "accueil";
   });
@@ -2297,7 +2301,17 @@ const [showSalle, setShowSalle]       = useState(false);
      RENDER
   ════════════════════════════════════════════════════════════════ */
   return (
-    <div className="em-app">
+    <div className={`em-app${standalone ? " em-standalone" : ""}`}>
+      {standalone && (
+        <style>{`
+          .em-standalone .em-hdr,
+          .em-standalone .em-mob-hdr,
+          .em-standalone .em-sb { display: none !important; }
+          .em-standalone .em-body { display: block; height: 100vh; }
+          .em-standalone .em-main { height: 100vh; max-width: none; padding: 0; }
+          .em-standalone .em-panel.active { height: 100vh; }
+        `}</style>
+      )}
 
       {/* ╔══════ HEADER MOBILE ══════╗ */}
       <header className="em-mob-hdr">
@@ -2789,7 +2803,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-conv" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Conv header */}
                   <div style={{padding:"10px 14px",borderBottom:"1px solid #eceef7",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <BackButton onClick={()=>setPanel("accueil")} label={t("nav.accueil")} />
+                    <BackButton onClick={()=> standalone ? (window.location.href = "/espace-membres") : setPanel("accueil")} label={standalone ? "Espace membre" : t("nav.accueil")} />
                     <button className="mob-only" style={{border:"none",background:"#f1f3fb",borderRadius:7,padding:"4px 8px",fontSize:18,cursor:"pointer",lineHeight:1}} onClick={()=>setMobChanOpen(true)}>☰</button>
                     {isAI
                       ? <span style={{fontSize:16}}>🤖</span>

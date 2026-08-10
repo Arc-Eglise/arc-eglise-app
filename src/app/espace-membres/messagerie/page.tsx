@@ -1,5 +1,59 @@
-import { redirect } from "next/navigation";
+import { createClient }   from "@/lib/supabase/server";
+import { redirect }        from "next/navigation";
+import { Suspense }        from "react";
+import EspaceMembresClient from "../EspaceMembresClient";
+import type { EMClientProps } from "../EspaceMembresClient";
 
-export default function MessageriePage() {
-  redirect("/espace-membres?panel=messagerie");
+// Vraie page dédiée : la messagerie (avec ARC IA) rendue en plein écran via le
+// mode « standalone » de EspaceMembresClient — tous les panneaux restent montés
+// (ARC IA agentique conserve son accès aux autres panneaux), seul le chrome
+// (en-têtes + barre latérale) est masqué. Remplace l'ancien redirect.
+export default async function MessageriePage() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/connexion");
+
+  const [
+    { data: profile },
+    { count: totalUsers },
+    { count: membresValides },
+    { count: visiteurs },
+    { count: prayerCount },
+    { data: events },
+    { data: ytChannel },
+  ] = await Promise.all([
+    supabase.from("profiles")
+      .select("id, first_name, last_name, email, role, validated, groups, managed_groups, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false),
+    supabase.from("events")
+      .select("id, title, date, time_start, location")
+      .gte("date", new Date().toISOString().split("T")[0])
+      .eq("is_published", true)
+      .order("date")
+      .limit(6),
+    supabase.from("site_settings").select("value").eq("key", "youtube_channel_id").maybeSingle(),
+  ]);
+
+  const props: EMClientProps = {
+    profile: profile as EMClientProps["profile"],
+    userId: user.id,
+    totalUsers:    totalUsers    ?? 0,
+    membresValides: membresValides ?? 0,
+    visiteurs:     visiteurs     ?? 0,
+    prayerCount:   prayerCount   ?? 0,
+    events: (events ?? []) as EMClientProps["events"],
+    youtubeChannelId: (ytChannel?.value as string) ?? "",
+    standalone: "messagerie",
+  };
+
+  return (
+    <Suspense fallback={null}>
+      <EspaceMembresClient {...props} />
+    </Suspense>
+  );
 }
