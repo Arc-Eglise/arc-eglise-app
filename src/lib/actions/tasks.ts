@@ -1,7 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { notifyUser } from "@/lib/notify";
 import { nextOccurrence } from "@/lib/tasks/recurrence";
 import {
   TASK_STATUSES, TASK_PRIORITIES,
@@ -18,7 +20,7 @@ export async function listTasks() {
   const { data, error } = await supabase
     .from("tasks")
     .select("*")
-    .eq("owner_id", user.id)
+    .or(`owner_id.eq.${user.id},assignee_id.eq.${user.id}`)
     .order("position", { ascending: true })
     .order("created_at", { ascending: false });
 
@@ -117,6 +119,105 @@ export async function updateTask(
     .eq("owner_id", user.id);
 
   if (error) return { error: error.message };
+  revalidatePath(PATH);
+  return { success: true as const };
+}
+
+/**
+ * Attribue (ou retire, assigneeId=null) une tâche à un membre.
+ * Réservé au propriétaire (RLS + garde owner_id). Notifie l'assigné.
+ */
+export async function assignTask(id: string, assigneeId: string | null) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+
+  // ── Contrôle directionnel des droits d'attribution (sécurité serveur) ──────
+  //   • manager de groupe → membres de SES groupes ; • pasteur/support/admin → tous.
+  if (assigneeId) {
+    const { data: me } = await supabase
+      .from("profiles").select("role, groups, managed_groups").eq("id", user.id).single();
+    const role = me?.role ?? "visiteur";
+    const myGroups: string[] = me?.groups ?? [];
+    const managedGroups: string[] = me?.managed_groups ?? [];
+    const canAssignAnyone = ["admin", "pasteur"].includes(role) || myGroups.includes("support");
+
+    if (!canAssignAnyone) {
+      if (managedGroups.length === 0) return { error: "Non autorisé à attribuer des tâches" as const };
+      // Vérifie que la cible appartient à un groupe géré (lecture admin des groupes)
+      const admin = createAdminClient();
+      const { data: target } = await admin
+        .from("profiles").select("groups").eq("id", assigneeId).maybeSingle();
+      const targetGroups: string[] = (target?.groups as string[] | null) ?? [];
+      const allowed = targetGroups.some((g) => managedGroups.includes(g));
+      if (!allowed) return { error: "Vous ne pouvez attribuer qu'aux membres de vos groupes" as const };
+    }
+  }
+
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .update({ assignee_id: assigneeId })
+    .eq("id", id)
+    .eq("owner_id", user.id)
+    .select("title")
+    .single();
+
+  if (error) return { error: error.message };
+
+  // Notifie le membre nouvellement assigné (pas soi-même)
+  if (assigneeId && assigneeId !== user.id) {
+    await notifyUser({
+      userId: assigneeId,
+      type: "system",
+      title: "📌 Tâche attribuée",
+      body: `Une tâche vous a été attribuée : « ${(task?.title as string) ?? "tâche"} ».`,
+      link: PATH,
+    }).catch(() => {});
+  }
+
+  revalidatePath(PATH);
+  return { success: true as const };
+}
+
+/**
+ * Changement de statut par l'ASSIGNÉ (pas le propriétaire).
+ * Passe par le service role après vérification stricte `assignee_id = auth.uid()`,
+ * et se limite au statut/completion — l'assigné ne peut rien modifier d'autre.
+ */
+export async function setAssignedStatus(taskId: string, status: TaskStatus) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+  if (!TASK_STATUSES.includes(status)) return { error: "Statut invalide" as const };
+
+  const admin = createAdminClient();
+  const { data: task } = await admin
+    .from("tasks").select("assignee_id, owner_id").eq("id", taskId).maybeSingle();
+  if (!task) return { error: "Tâche introuvable" as const };
+  if (task.assignee_id !== user.id) return { error: "Non autorisé" as const };
+
+  const { error } = await admin
+    .from("tasks")
+    .update({
+      status,
+      completed_at: status === "termine" ? new Date().toISOString() : null,
+      ...(status !== "termine" ? { reminded_at: null } : {}),
+    })
+    .eq("id", taskId)
+    .eq("assignee_id", user.id);
+
+  if (error) return { error: error.message };
+
+  // Informe le propriétaire de l'avancement
+  if (task.owner_id && task.owner_id !== user.id) {
+    await notifyUser({
+      userId: task.owner_id as string, type: "system",
+      title: "🔄 Tâche mise à jour",
+      body: `Une tâche que vous avez attribuée est passée à « ${status} ».`,
+      link: PATH,
+    }).catch(() => {});
+  }
+
   revalidatePath(PATH);
   return { success: true as const };
 }

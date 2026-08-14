@@ -3,12 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendHrDeclarationEmail } from "@/lib/email";
-
-/** Statuts RH — miroir de la contrainte CHECK de public.hr_attendance. */
-export const HR_STATUSES = [
-  "present", "absent", "conge", "vacances", "maladie", "distance", "retard",
-] as const;
-export type HrStatus = (typeof HR_STATUSES)[number];
+import {
+  HR_STATUSES, HR_DECLARABLE_TYPES,
+  type HrStatus, type HrDeclarationType,
+} from "@/lib/hr-constants";
 
 export interface HrRecord {
   id: string;
@@ -96,10 +94,6 @@ export async function deleteHrAttendance(member_id: string, date: string) {
 }
 
 // ─── Déclarations self-service (membre) ──────────────────────────────────────
-
-/** Types déclarables par un membre lui-même (miroir du CHECK hr_declarations). */
-export const HR_DECLARABLE_TYPES = ["retard", "absent", "conge", "vacances", "maladie", "distance"] as const;
-export type HrDeclarationType = (typeof HR_DECLARABLE_TYPES)[number];
 
 const TYPE_LABEL: Record<HrDeclarationType, string> = {
   retard: "Retard", absent: "Absence", conge: "Congé",

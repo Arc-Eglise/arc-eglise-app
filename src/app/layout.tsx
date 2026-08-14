@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Source_Serif_4, DM_Sans } from "next/font/google";
+import { Source_Serif_4, DM_Sans, Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { SITE_BASE } from "@/lib/url";
 import { createClient } from "@/lib/supabase/server";
@@ -19,6 +19,24 @@ const manrope = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+// Portage maquettes « Sacred Modernity » : Playfair Display (titres) + Inter (corps).
+// Ajout ADDITIF — les polices existantes (Cormorant/Manrope) restent le défaut du site ;
+// ces deux-ci ne sont appliquées que sur les pages effectivement portées.
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -132,7 +150,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="fr" className={`${cormorant.variable} ${manrope.variable}`}>
+    <html lang="fr" className={`${cormorant.variable} ${manrope.variable} ${playfair.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
         {themeStyle && <style dangerouslySetInnerHTML={{ __html: themeStyle }} />}
         {children}

@@ -3,6 +3,8 @@ import { redirect }        from "next/navigation";
 import { Suspense }        from "react";
 import EspaceMembresClient from "./EspaceMembresClient";
 import type { EMClientProps } from "./EspaceMembresClient";
+import { getMyUpcomingFormationSessions, listMyFormations } from "@/lib/actions/formations";
+import { computeSessionDates } from "@/lib/formations-constants";
 
 export default async function EspaceMembresPage() {
   const supabase = createClient();
@@ -45,6 +47,28 @@ export default async function EspaceMembresPage() {
       .maybeSingle(),
   ]);
 
+  // Formations : séances à venir (fusion dans « Prochains événements » —
+  // élève inscrit OU formateur) + progression pour le panneau « Activités ».
+  const today = new Date().toISOString().slice(0, 10);
+  const [formationSessions, myFormationsRes] = await Promise.all([
+    getMyUpcomingFormationSessions(user.id, 6),
+    listMyFormations(),
+  ]);
+  const baseEvents = (events ?? []) as EMClientProps["events"];
+  const mergedEvents = [
+    ...baseEvents,
+    ...formationSessions.map((s) => ({ id: s.id, title: s.title, date: s.date, time_start: s.time_start, location: s.location })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  const myFormData = myFormationsRes && "data" in myFormationsRes ? myFormationsRes.data : null;
+  const myFormations = (myFormData?.formations ?? []).map((f) => ({
+    id: f.id,
+    title: f.title,
+    daysCompleted: myFormData?.myCompleted?.[f.id] ?? 0,
+    totalDays: f.total_days,
+    nextDate: computeSessionDates(f, { from: today })[0] ?? null,
+  }));
+
   const props: EMClientProps = {
     profile: profile as EMClientProps["profile"],
     userId: user.id,
@@ -52,7 +76,8 @@ export default async function EspaceMembresPage() {
     membresValides: membresValides ?? 0,
     visiteurs:     visiteurs     ?? 0,
     prayerCount:   prayerCount   ?? 0,
-    events: (events ?? []) as EMClientProps["events"],
+    events: mergedEvents as EMClientProps["events"],
+    myFormations,
     youtubeChannelId: (ytChannel?.value as string) ?? "",
   };
 

@@ -77,6 +77,7 @@ interface Evt { id:string; title:string; date:string; time_start:string|null; lo
 interface Prayer { id:string; user_id:string; title:string; description:string|null; is_anonymous:boolean; is_answered:boolean; prayer_count:number; created_at:string; profiles?:{first_name:string|null;last_name:string|null}|null; visibility?:string; target_groups?:string[]|null; target_members?:string[]|null; }
 interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; managed_groups:string[]|null; created_at:string; }
 
+interface MyFormation { id:string; title:string; daysCompleted:number; totalDays:number|null; nextDate:string|null; }
 export interface EMClientProps {
   profile:        Profile|null;
   userId:         string;
@@ -85,6 +86,7 @@ export interface EMClientProps {
   visiteurs:      number;
   prayerCount:    number;
   events:         Evt[];
+  myFormations?:  MyFormation[];
   youtubeChannelId: string;
   /** Rend l'espace membre en page dédiée plein écran sur un seul panneau
    *  (ex. "messagerie") : le chrome (en-têtes + barre latérale) est masqué. */
@@ -380,7 +382,7 @@ export default function EspaceMembresClient(props: EMClientProps) {
   );
 }
 
-function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, youtubeChannelId, standalone }: EMClientProps) {
+function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, myFormations = [], youtubeChannelId, standalone }: EMClientProps) {
   const { t, locale, setLocale } = useI18n();
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -4345,6 +4347,36 @@ const [showSalle, setShowSalle]       = useState(false);
               </div>
               <button className="em-btn em-btn-outline em-btn-sm" onClick={loadActivities} disabled={actLoading}>{t("activites.refresh")}</button>
             </div>
+
+            {myFormations.length > 0 && (
+              <div className="em-card" style={{marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:12,color:"#1e2464"}}>🎓 Mes formations</div>
+                {myFormations.map((f) => {
+                  const pct = f.totalDays && f.totalDays > 0 ? Math.round((f.daysCompleted / f.totalDays) * 100) : 0;
+                  return (
+                    <div key={f.id} style={{padding:"8px 0",borderBottom:"1px solid #eceef7"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"baseline"}}>
+                        <span style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{f.title}</span>
+                        {f.totalDays != null
+                          ? <span style={{fontSize:12,fontWeight:700,color:"#1e2464",whiteSpace:"nowrap"}}>{f.daysCompleted}/{f.totalDays} j</span>
+                          : <span style={{fontSize:11,color:"#8b91b0",whiteSpace:"nowrap"}}>{f.daysCompleted} j faits</span>}
+                      </div>
+                      {f.totalDays != null && (
+                        <div style={{height:6,borderRadius:999,background:"#e2e2ee",overflow:"hidden",marginTop:6}}>
+                          <div style={{height:"100%",borderRadius:999,background:"#1e2464",width:`${pct}%`}} />
+                        </div>
+                      )}
+                      {f.nextDate && (
+                        <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>
+                          Prochaine séance : {new Date(f.nextDate + "T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="em-card">
               {actLoading ? (
                 <div style={{textAlign:"center",padding:"32px 0",color:"#8b91b0",fontSize:13}}>{t("common.loading")}</div>

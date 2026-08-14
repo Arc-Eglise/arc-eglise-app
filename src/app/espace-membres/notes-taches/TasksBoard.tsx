@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { createTask, updateTask, deleteTask, listTasks } from "@/lib/actions/tasks";
+import { useMemo, useRef, useState } from "react";
+import { createTask, updateTask, deleteTask, listTasks, assignTask, setAssignedStatus } from "@/lib/actions/tasks";
 import { type TaskRow, type TaskStatus, type TaskPriority, type TagRow } from "@/lib/notes-taches/types";
 import { RECURRENCE_PRESETS, recurrenceLabel } from "@/lib/tasks/recurrence";
+import type { AssignableMember } from "./NotesTachesClient";
 import ShareModal from "./ShareModal";
 import TagBar from "./TagBar";
+
+const initialsOf = (name: string) =>
+  name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   a_faire:  { label: "À faire",  color: "#5c6280", bg: "#eef1f8" },
@@ -26,13 +30,21 @@ const NEXT_STATUS: Record<string, TaskStatus> = {
 type Filter = "all" | "actives" | TaskStatus;
 
 export default function TasksBoard({
-  initialTasks, allTags, initialTagMap, onTagCreated,
+  initialTasks, allTags, initialTagMap, onTagCreated, members = [], assignableMembers = [], currentUserId,
 }: {
   initialTasks: TaskRow[];
   allTags: TagRow[];
   initialTagMap: Record<string, string[]>;
   onTagCreated: (t: TagRow) => void;
+  members?: AssignableMember[];
+  assignableMembers?: AssignableMember[];
+  currentUserId: string;
 }) {
+  const memberMap = useMemo(() => {
+    const m: Record<string, AssignableMember> = {};
+    for (const x of members) m[x.id] = x;
+    return m;
+  }, [members]);
   const [tasks, setTasks] = useState<TaskRow[]>(initialTasks);
   const [tagMap, setTagMap] = useState<Record<string, string[]>>(initialTagMap);
   const [search, setSearch] = useState("");
@@ -47,9 +59,15 @@ export default function TasksBoard({
   // Ajout de sous-tâche : id de la tâche parente ciblée
   const [subFor, setSubFor] = useState<string | null>(null);
   const [subTitle, setSubTitle] = useState("");
+  const quickAddRef = useRef<HTMLInputElement | null>(null);
 
-  const roots = useMemo(() => tasks.filter(t => !t.parent_task_id), [tasks]);
-  const childrenOf = (id: string) => tasks.filter(t => t.parent_task_id === id);
+  // Racines : mes tâches sans parent + toute tâche qui m'est ATTRIBUÉE (owner ≠ moi)
+  const roots = useMemo(
+    () => tasks.filter(t => (t.owner_id === currentUserId ? !t.parent_task_id : true)),
+    [tasks, currentUserId],
+  );
+  // Sous-tâches : uniquement dans MES propres tâches
+  const childrenOf = (id: string) => tasks.filter(t => t.owner_id === currentUserId && t.parent_task_id === id);
 
   function matches(t: TaskRow) {
     const q = search.toLowerCase();
@@ -87,11 +105,13 @@ export default function TasksBoard({
     setTasks(prev => prev.map(x => x.id === t.id
       ? { ...x, status: next, completed_at: next === "termine" ? new Date().toISOString() : null }
       : x));
-    await updateTask(t.id, { status: next });
+    if (t.owner_id === currentUserId) await updateTask(t.id, { status: next });
+    else await setAssignedStatus(t.id, next); // tâche attribuée : je ne suis pas propriétaire
   }
   async function setStatus(t: TaskRow, status: TaskStatus) {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, status } : x));
-    await updateTask(t.id, { status });
+    if (t.owner_id === currentUserId) await updateTask(t.id, { status });
+    else await setAssignedStatus(t.id, status);
   }
   async function setPrio(t: TaskRow, p: TaskPriority) {
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, priority: p } : x));
@@ -109,6 +129,10 @@ export default function TasksBoard({
     setTasks(prev => prev.map(x => x.id === t.id ? { ...x, recurrence: rrule || null } : x));
     await updateTask(t.id, { recurrence: rrule || null });
   }
+  async function assign(t: TaskRow, assigneeId: string | null) {
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, assignee_id: assigneeId } : x));
+    await assignTask(t.id, assigneeId);
+  }
   async function remove(t: TaskRow) {
     if (!confirm("Supprimer cette tâche" + (childrenOf(t.id).length ? " et ses sous-tâches ?" : " ?"))) return;
     const ids = new Set([t.id, ...childrenOf(t.id).map(c => c.id)]);
@@ -123,47 +147,12 @@ export default function TasksBoard({
 
   return (
     <div>
-      {/* Saisie rapide */}
-      <div className="rounded-2xl border border-arc-border bg-white p-3 mb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") addTask(); }}
-            placeholder="Nouvelle tâche… (Entrée pour ajouter)"
-            className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
-          />
-          <select
-            value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}
-            className="px-2 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
-          >
-            <option value="haute">🔴 Haute</option>
-            <option value="moyenne">🟠 Moyenne</option>
-            <option value="basse">🔵 Basse</option>
-          </select>
-          <input
-            type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)}
-            title="Échéance (= rappel)"
-            className="px-2 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
-          />
-          <select
-            value={recurrence} onChange={e => setRecurrence(e.target.value)} title="Récurrence"
-            className="px-2 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
-          >
-            {RECURRENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label === "Ne pas répéter" ? "🔁 —" : `🔁 ${p.label}`}</option>)}
-          </select>
-          <button onClick={addTask} className="px-4 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2">
-            + Ajouter
-          </button>
-        </div>
-      </div>
-
-      {/* Recherche + filtres */}
+      {/* Recherche + filtres (logique existante) */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher…"
-          className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
+          className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-[#c6c5d4] bg-white text-sm outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] transition-colors"
         />
         <FilterChip active={filter === "actives"} onClick={() => setFilter("actives")}>Actives ({counts.actives})</FilterChip>
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>Toutes</FilterChip>
@@ -172,64 +161,129 @@ export default function TasksBoard({
         ))}
       </div>
 
-      {/* Liste */}
-      {visibleRoots.length === 0 ? (
-        <div className="text-center py-16 text-arc-text3">
-          <div className="text-5xl mb-3">✅</div>
-          <div className="font-semibold text-arc-navy mb-1">Aucune tâche</div>
-          <div className="text-sm">{search || filter !== "actives" ? "Aucun résultat." : "Ajoute ta première tâche ci-dessus."}</div>
+      {/* Carte Tâches — portage maquette (shadow-ambient) */}
+      <div className="bg-white rounded-xl p-6 shadow-[0_4px_20px_rgba(26,35,126,0.05)] flex flex-col gap-4">
+        {/* Saisie rapide (input pointillés maquette) */}
+        <div className="relative">
+          <input
+            ref={quickAddRef}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") addTask(); }}
+            placeholder="Ajouter une tâche rapide…"
+            className="w-full bg-[#f3f4f5] border border-dashed border-[#c6c5d4] rounded-lg px-4 py-2 pr-10 text-sm italic outline-none focus:border-[#000666] focus:ring-0 transition-all"
+          />
+          <button onClick={addTask} title="Ajouter" className="absolute right-2 top-1/2 -translate-y-1/2 text-[#767683] hover:text-[#000666] transition-colors flex">
+            <span className="material-symbols-outlined text-[20px]">add</span>
+          </button>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {visibleRoots.map(t => (
-            <div key={t.id}>
-              <TaskItem
-                t={t}
-                onCycle={() => cycleStatus(t)}
-                onStatus={(s) => setStatus(t, s)}
-                onPrio={(p) => setPrio(t, p)}
-                onDue={(d) => setDue(t, d)}
-                onRemind={(d) => setRemind(t, d)}
-                onRecur={(r) => setRecur(t, r)}
-                onDelete={() => remove(t)}
-                onShare={() => setSharing(t)}
-                onAddSub={() => { setSubFor(subFor === t.id ? null : t.id); setSubTitle(""); }}
-                allTags={allTags}
-                tagIds={tagMap[t.id] ?? []}
-                onTagChange={(ids) => setTagMap(m => ({ ...m, [t.id]: ids }))}
-                onTagCreated={onTagCreated}
-              />
-              {/* Sous-tâches */}
-              {childrenOf(t.id).length > 0 && (
-                <div className="ml-8 mt-1 space-y-1 border-l-2 border-arc-border pl-3">
-                  {childrenOf(t.id).map(c => (
-                    <TaskItem
-                      key={c.id} t={c} compact
-                      onCycle={() => cycleStatus(c)}
-                      onStatus={(s) => setStatus(c, s)}
-                      onPrio={(p) => setPrio(c, p)}
-                      onDue={(d) => setDue(c, d)}
-                      onDelete={() => remove(c)}
+        {/* Options rapides réelles : priorité · échéance(=rappel) · récurrence */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={priority} onChange={e => setPriority(e.target.value as TaskPriority)} title="Priorité"
+            className="px-2 py-1.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-xs outline-none focus:border-[#000666] text-[#454652]"
+          >
+            <option value="haute">🔴 Haute</option>
+            <option value="moyenne">🟠 Moyenne</option>
+            <option value="basse">🔵 Basse</option>
+          </select>
+          <input
+            type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)}
+            title="Échéance (= rappel)"
+            className="px-2 py-1.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-xs outline-none focus:border-[#000666] text-[#454652]"
+          />
+          <select
+            value={recurrence} onChange={e => setRecurrence(e.target.value)} title="Récurrence"
+            className="px-2 py-1.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-xs outline-none focus:border-[#000666] text-[#454652]"
+          >
+            {RECURRENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label === "Ne pas répéter" ? "🔁 —" : `🔁 ${p.label}`}</option>)}
+          </select>
+        </div>
+
+        {/* Liste */}
+        {visibleRoots.length === 0 ? (
+          <div className="text-center py-12 text-[#767683]">
+            <span className="material-symbols-outlined text-[40px] mb-2">task_alt</span>
+            <div className="font-semibold text-[#000666] mb-1">Aucune tâche</div>
+            <div className="text-sm">{search || filter !== "actives" ? "Aucun résultat." : "Ajoute ta première tâche ci-dessus."}</div>
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {visibleRoots.map(t => t.owner_id !== currentUserId ? (
+              /* Tâche qui m'est ATTRIBUÉE : carte lecture (statut seulement) */
+              <div key={t.id}>
+                <TaskItem
+                  t={t}
+                  assignedView
+                  ownerName={memberMap[t.owner_id]?.name}
+                  onCycle={() => cycleStatus(t)}
+                  onStatus={(s) => setStatus(t, s)}
+                  onPrio={() => {}}
+                  onDue={() => {}}
+                  onDelete={() => {}}
+                />
+              </div>
+            ) : (
+              <div key={t.id}>
+                <TaskItem
+                  t={t}
+                  onCycle={() => cycleStatus(t)}
+                  onStatus={(s) => setStatus(t, s)}
+                  onPrio={(p) => setPrio(t, p)}
+                  onDue={(d) => setDue(t, d)}
+                  onRemind={(d) => setRemind(t, d)}
+                  onRecur={(r) => setRecur(t, r)}
+                  onDelete={() => remove(t)}
+                  onShare={() => setSharing(t)}
+                  onAddSub={() => { setSubFor(subFor === t.id ? null : t.id); setSubTitle(""); }}
+                  allTags={allTags}
+                  tagIds={tagMap[t.id] ?? []}
+                  onTagChange={(ids) => setTagMap(m => ({ ...m, [t.id]: ids }))}
+                  onTagCreated={onTagCreated}
+                  assignee={t.assignee_id ? memberMap[t.assignee_id] : undefined}
+                  assignableMembers={assignableMembers}
+                  onAssign={(mid) => assign(t, mid)}
+                />
+                {/* Sous-tâches */}
+                {childrenOf(t.id).length > 0 && (
+                  <div className="ml-9 space-y-1 border-l-2 border-[#c6c5d4] pl-3 mb-1">
+                    {childrenOf(t.id).map(c => (
+                      <TaskItem
+                        key={c.id} t={c} compact
+                        onCycle={() => cycleStatus(c)}
+                        onStatus={(s) => setStatus(c, s)}
+                        onPrio={(p) => setPrio(c, p)}
+                        onDue={(d) => setDue(c, d)}
+                        onDelete={() => remove(c)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Ajout sous-tâche */}
+                {subFor === t.id && (
+                  <div className="ml-9 mb-1 flex items-center gap-2 pl-3">
+                    <input
+                      autoFocus value={subTitle} onChange={e => setSubTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") addSubtask(t.id); if (e.key === "Escape") setSubFor(null); }}
+                      placeholder="Sous-tâche…"
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-sm outline-none focus:border-[#000666]"
                     />
-                  ))}
-                </div>
-              )}
-              {/* Ajout sous-tâche */}
-              {subFor === t.id && (
-                <div className="ml-8 mt-1 flex items-center gap-2 pl-3">
-                  <input
-                    autoFocus value={subTitle} onChange={e => setSubTitle(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") addSubtask(t.id); if (e.key === "Escape") setSubFor(null); }}
-                    placeholder="Sous-tâche…"
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
-                  />
-                  <button onClick={() => addSubtask(t.id)} className="px-3 py-1.5 rounded-lg bg-arc-navy text-white text-xs font-bold">OK</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+                    <button onClick={() => addSubtask(t.id)} className="px-3 py-1.5 rounded-lg bg-[#000666] text-white text-xs font-bold">OK</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Bouton bas — focus la saisie rapide (maquette : « Nouvelle Tâche ») */}
+        <button
+          onClick={() => quickAddRef.current?.focus()}
+          className="mt-2 w-full py-2 border border-[#000666] text-[#000666] text-xs font-semibold uppercase tracking-wider rounded-lg hover:bg-[#000666] hover:text-white transition-all"
+        >
+          Nouvelle Tâche
+        </button>
+      </div>
 
       {sharing && (
         <ShareModal
@@ -245,7 +299,7 @@ export default function TasksBoard({
 
 function TaskItem({
   t, compact = false, onCycle, onStatus, onPrio, onDue, onRemind, onRecur, onDelete, onShare, onAddSub,
-  allTags, tagIds, onTagChange, onTagCreated,
+  allTags, tagIds, onTagChange, onTagCreated, assignee, assignableMembers, onAssign, assignedView, ownerName,
 }: {
   t: TaskRow; compact?: boolean;
   onCycle: () => void;
@@ -261,6 +315,11 @@ function TaskItem({
   tagIds?: string[];
   onTagChange?: (ids: string[]) => void;
   onTagCreated?: (t: TagRow) => void;
+  assignee?: AssignableMember;
+  assignableMembers?: AssignableMember[];
+  onAssign?: (id: string | null) => void;
+  assignedView?: boolean;
+  ownerName?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const st = STATUS_META[t.status] ?? STATUS_META.a_faire;
@@ -270,40 +329,47 @@ function TaskItem({
   const dueLocal    = t.due_at    ? new Date(t.due_at).toISOString().slice(0, 16) : "";
   const remindLocal = t.remind_at ? new Date(t.remind_at).toISOString().slice(0, 16) : "";
   const canDetails = !!(onRemind || onRecur);
+  const dueLabel = t.due_at
+    ? new Date(t.due_at).toLocaleString("fr-CH", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "";
+  const remindLabel = t.remind_at
+    ? new Date(t.remind_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })
+    : "";
 
   return (
-    <div className={`rounded-xl border border-arc-border bg-white shadow-sm hover:shadow-md transition-shadow ${compact ? "px-3 py-2" : "px-4 py-3"}`}>
-      <div className="group flex items-center gap-3">
-        {/* Case à cocher (cycle de statut) */}
+    <div className={`rounded-lg border border-transparent hover:border-[#c6c5d4] hover:bg-[#f3f4f5] transition-colors group ${compact ? "p-2" : "p-3"}`}>
+      <div className="flex items-start gap-4">
+        {/* Case à cocher (cycle de statut) — Material Symbols */}
         <button
           onClick={onCycle}
           title="Changer le statut"
-          className="flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors"
-          style={{ borderColor: st.color, background: done ? st.color : "transparent" }}
+          className="mt-0.5 flex-shrink-0 text-[#767683] group-hover:text-[#000666] transition-colors flex"
+          style={done ? { color: st.color } : undefined}
         >
-          {done && <span className="text-white text-xs leading-none">✓</span>}
+          <span className="material-symbols-outlined" style={done ? { fontVariationSettings: "'FILL' 1" } : undefined}>
+            {done ? "check_box" : "check_box_outline_blank"}
+          </span>
         </button>
 
         {/* Titre + méta */}
         <div className="flex-1 min-w-0">
-          <div className={`text-sm text-arc-navy truncate ${done ? "line-through text-arc-text3" : ""}`}>
+          <h4 className={`text-[13px] font-bold mb-0.5 ${done ? "line-through text-[#767683]" : "text-[#191c1d]"}`}>
             <span title={pr.label}>{pr.flag}</span> {t.title}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          </h4>
+          {t.description && (
+            <p className="text-[14px] text-[#454652] leading-snug">{t.description}</p>
+          )}
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: st.color, background: st.bg }}>{st.label}</span>
             {t.due_at && (
-              <span className={`text-[10px] ${overdue ? "text-red-600 font-bold" : "text-arc-text3"}`}>
-                ⏰ {new Date(t.due_at).toLocaleString("fr-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                {overdue && " · en retard"}
+              <span className={`text-xs ${overdue ? "text-[#ba1a1a] font-bold" : "text-[#454652]"}`}>
+                {dueLabel}{overdue && " · en retard"}
               </span>
             )}
             {t.recurrence && (
-              <span className="text-[10px] text-arc-blue font-semibold">🔁 {recurrenceLabel(t.recurrence)}</span>
+              <span className="text-[10px] text-[#000666] font-semibold">🔁 {recurrenceLabel(t.recurrence)}</span>
             )}
-            {t.remind_at && !t.reminded_at && (
-              <span className="text-[10px] text-arc-text3" title="Rappel programmé">🔔</span>
-            )}
-            {allTags && onTagChange && (
+            {!assignedView && allTags && onTagChange && (
               <TagBar
                 kind="task" resourceId={t.id} allTags={allTags}
                 tagIds={tagIds ?? []} onChange={onTagChange}
@@ -311,44 +377,79 @@ function TaskItem({
               />
             )}
           </div>
+          {t.remind_at && !t.reminded_at && (
+            <div className="flex items-center gap-1 mt-1 text-[#000666]">
+              <span className="material-symbols-outlined text-[14px]">notifications_active</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Rappel: {remindLabel}</span>
+            </div>
+          )}
+          {assignedView ? (
+            <div className="flex items-center gap-1 mt-1 text-[#775a19]">
+              <span className="material-symbols-outlined text-[14px]">assignment_ind</span>
+              <span className="text-[10px] font-semibold">Attribuée par {ownerName ?? "un membre"}</span>
+            </div>
+          ) : assignee ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-5 h-5 rounded-full bg-[#e0e0ff] text-[#000666] text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                {initialsOf(assignee.name)}
+              </span>
+              <span className="text-[10px] text-[#000666] font-semibold">Attribué à {assignee.name}</span>
+            </div>
+          ) : null}
         </div>
 
-        {/* Contrôles (au survol) */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {/* Contrôles — en vue attribuée : statut seulement ; sinon contrôles complets */}
+        {assignedView ? (
+          <div className="ml-auto flex-shrink-0">
+            <select value={t.status} onChange={e => onStatus(e.target.value as TaskStatus)} title="Statut"
+              className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-1 py-1 outline-none">
+              {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+            </select>
+          </div>
+        ) : (
+        <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <select value={t.status} onChange={e => onStatus(e.target.value as TaskStatus)} title="Statut"
-            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
+            className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-1 py-1 outline-none">
             {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
           </select>
           <select value={t.priority} onChange={e => onPrio(e.target.value as TaskPriority)} title="Priorité"
-            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none">
+            className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-1 py-1 outline-none">
             <option value="haute">🔴</option><option value="moyenne">🟠</option><option value="basse">🔵</option>
           </select>
           <input type="datetime-local" value={dueLocal} onChange={e => onDue(e.target.value)} title="Échéance"
-            className="text-[11px] rounded-md border border-arc-border px-1 py-1 outline-none w-[140px]" />
-          {canDetails && (
-            <button onClick={() => setExpanded(e => !e)} title="Rappel & récurrence" className="text-sm px-1">{expanded ? "🔽" : "🔔"}</button>
+            className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-1 py-1 outline-none w-[140px]" />
+          {onAssign && assignableMembers && assignableMembers.length > 0 && (
+            <select value={t.assignee_id ?? ""} onChange={e => onAssign(e.target.value || null)} title="Attribuer à un membre"
+              className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-1 py-1 outline-none max-w-[130px]">
+              <option value="">— Attribuer</option>
+              {assignableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
           )}
-          {onShare && <button onClick={onShare} title="Partager" className="text-sm px-1">📤</button>}
-          {onAddSub && <button onClick={onAddSub} title="Ajouter une sous-tâche" className="text-sm px-1">➕</button>}
-          <button onClick={onDelete} title="Supprimer" className="text-sm px-1">🗑️</button>
+          {canDetails && (
+            <button onClick={() => setExpanded(e => !e)} title="Rappel & récurrence" className="text-[#454652] hover:text-[#000666] transition-colors flex"><span className="material-symbols-outlined text-[18px]">{expanded ? "expand_less" : "notifications"}</span></button>
+          )}
+          {onShare && <button onClick={onShare} title="Partager" className="text-[#454652] hover:text-[#000666] transition-colors flex"><span className="material-symbols-outlined text-[18px]">share</span></button>}
+          {onAddSub && <button onClick={onAddSub} title="Ajouter une sous-tâche" className="text-[#454652] hover:text-[#000666] transition-colors flex"><span className="material-symbols-outlined text-[18px]">add_circle</span></button>}
+          <button onClick={onDelete} title="Supprimer" className="text-[#454652] hover:text-[#ba1a1a] transition-colors flex"><span className="material-symbols-outlined text-[18px]">delete</span></button>
         </div>
+        )}
       </div>
 
       {/* Détails : rappel + récurrence (édition après création) */}
       {expanded && canDetails && (
-        <div className="mt-3 pt-3 border-t border-arc-border flex flex-wrap items-center gap-4">
+        <div className="mt-3 pt-3 border-t border-[#c6c5d4] flex flex-wrap items-center gap-4">
           {onRemind && (
-            <label className="flex items-center gap-2 text-[11px] text-arc-text2">
+            <label className="flex items-center gap-2 text-[11px] text-[#454652]">
               🔔 Rappel
               <input type="datetime-local" value={remindLocal} onChange={e => onRemind(e.target.value)}
-                className="text-[11px] rounded-md border border-arc-border px-2 py-1 outline-none" />
+                className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-2 py-1 outline-none" />
             </label>
           )}
           {onRecur && (
-            <label className="flex items-center gap-2 text-[11px] text-arc-text2">
+            <label className="flex items-center gap-2 text-[11px] text-[#454652]">
               🔁 Répéter
               <select value={t.recurrence ?? ""} onChange={e => onRecur(e.target.value)}
-                className="text-[11px] rounded-md border border-arc-border px-2 py-1 outline-none">
+                className="text-[11px] rounded-md border border-[#c6c5d4] bg-white px-2 py-1 outline-none">
                 {RECURRENCE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </label>
@@ -363,8 +464,8 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-        active ? "bg-arc-navy text-white border-arc-navy" : "bg-white text-arc-text2 border-arc-border hover:border-arc-navy"
+      className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap ${
+        active ? "bg-[#000666] text-white" : "bg-[#edeeef] text-[#191c1d] hover:bg-[#e1e3e4]"
       }`}
     >
       {children}

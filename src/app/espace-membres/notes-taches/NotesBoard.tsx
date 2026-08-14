@@ -132,60 +132,61 @@ export default function NotesBoard({
 
   return (
     <div>
-      {/* Barre du haut */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      {/* Barre du haut (recherche = filtre réel existant) */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher dans mes notes…"
-          className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
+          className="flex-1 min-w-[200px] px-4 py-2 rounded-lg border border-[#c6c5d4] bg-white text-sm outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] transition-colors"
         />
         <button
           onClick={openCreate}
-          className="px-4 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
+          className="px-4 py-2 rounded-lg bg-[#000666] text-white text-xs font-semibold uppercase tracking-wider hover:bg-[#1a237e] transition-colors inline-flex items-center gap-1"
         >
-          + Nouvelle note
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          Nouvelle note
         </button>
       </div>
 
       {/* Panneau latéral « Mode Édition » (création / édition) — charte Sacred Modernity */}
       {isForm && (
         <>
-          <div className="fixed inset-0 z-40 bg-arc-navy/30 backdrop-blur-[2px]" onClick={closeForm} />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+          <div className="fixed inset-0 z-40 bg-[#191c1d]/20 backdrop-blur-sm" onClick={closeForm} />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#f8f9fa] shadow-2xl flex flex-col border-l border-[#c6c5d4]">
             {/* En-tête */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-arc-border">
-              <h3 className="font-serif text-2xl text-arc-navy">{creating ? "Mode Édition" : "Mode Édition"}</h3>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#c6c5d4]">
+              <h3 className="text-2xl text-[#000666]" style={{ fontFamily: '"Playfair Display", serif', fontWeight: 600 }}>Mode Édition</h3>
               <div className="flex items-center gap-2">
                 {!creating && editing && (
                   <button
                     onClick={() => { const n = notes.find(x => x.id === editing); if (n) setSharing(n); }}
                     title="Partager" aria-label="Partager la note"
-                    className="w-8 h-8 rounded-lg text-arc-text2 hover:text-arc-navy hover:bg-arc-blueBg flex items-center justify-center transition-colors"
-                  >📤</button>
+                    className="w-8 h-8 rounded-lg text-[#454652] hover:text-[#000666] hover:bg-[#edeeef] flex items-center justify-center transition-colors"
+                  ><span className="material-symbols-outlined text-[20px]">share</span></button>
                 )}
-                <button onClick={closeForm} aria-label="Fermer" className="w-8 h-8 rounded-lg text-arc-text3 hover:text-arc-navy hover:bg-arc-blueBg flex items-center justify-center transition-colors text-lg">✕</button>
+                <button onClick={closeForm} aria-label="Fermer" className="w-8 h-8 rounded-lg text-[#454652] hover:text-[#000666] hover:bg-[#edeeef] flex items-center justify-center transition-colors"><span className="material-symbols-outlined text-[20px]">close</span></button>
               </div>
             </div>
 
             {/* Corps */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Titre</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Titre</label>
               <input
                 value={draft.title}
                 onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
                 placeholder="Titre (facultatif)"
                 maxLength={200}
-                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-sm font-semibold outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy"
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-sm font-semibold outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Référence biblique</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Référence biblique</label>
               <input
                 value={draft.reference}
                 onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))}
                 placeholder="ex. Jean 3:16 — facultatif"
                 maxLength={100}
-                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-xs font-mono outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy"
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-xs font-mono outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
               />
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Contenu</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Contenu</label>
               {/* Barre de mise en forme */}
               <div className="flex items-center gap-1 mb-2">
                 <FmtBtn label="G" title="Gras"      onClick={() => wrap("**")} className="font-bold" />
@@ -201,17 +202,17 @@ export default function NotesBoard({
                 placeholder="Ta note…"
                 maxLength={10000}
                 rows={10}
-                className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy focus:ring-1 focus:ring-arc-navy resize-y"
+                className="w-full px-3 py-2.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-sm outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] resize-y"
               />
               {/* Couleurs */}
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mt-4 mb-2">Couleur</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mt-4 mb-2">Couleur</label>
               <div className="flex items-center gap-2">
                 {NOTE_COLORS.map(c => (
                   <button
                     key={c}
                     onClick={() => setDraft(d => ({ ...d, color: c }))}
                     title={c}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-arc-navy" : "border-white"}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-[#000666]" : "border-white"}`}
                     style={{ background: colorOf(c).dot }}
                   />
                 ))}
@@ -219,9 +220,9 @@ export default function NotesBoard({
             </div>
 
             {/* Pied */}
-            <div className="flex items-center gap-3 px-6 py-4 border-t border-arc-border">
-              <button onClick={creating ? saveCreate : saveEdit} className="px-5 py-2.5 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">Enregistrer</button>
-              <button onClick={closeForm} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-arc-text2 hover:text-arc-navy transition-colors">Annuler</button>
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-[#c6c5d4]">
+              <button onClick={creating ? saveCreate : saveEdit} className="flex-1 py-3 rounded-lg bg-[#000666] text-white text-xs font-semibold uppercase tracking-wider hover:bg-[#1a237e] transition-colors shadow-sm">Enregistrer</button>
+              <button onClick={closeForm} className="flex-1 py-3 rounded-lg text-xs font-semibold uppercase tracking-wider text-[#454652] hover:text-[#000666] transition-colors">Annuler</button>
             </div>
           </aside>
         </>
@@ -316,7 +317,7 @@ function FmtBtn({ label, title, onClick, className = "" }: {
   return (
     <button
       type="button" onClick={onClick} title={title}
-      className={`w-8 h-8 rounded-md border border-arc-border text-sm text-arc-text2 hover:border-arc-navy hover:text-arc-navy transition-colors ${className}`}
+      className={`w-8 h-8 rounded-md border border-[#c6c5d4] text-sm text-[#454652] hover:border-[#000666] hover:text-[#000666] transition-colors ${className}`}
     >
       {label}
     </button>

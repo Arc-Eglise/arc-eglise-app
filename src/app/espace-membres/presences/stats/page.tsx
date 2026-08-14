@@ -10,8 +10,10 @@ export default async function PresencesStatsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!["admin", "pasteur"].includes(me?.role ?? "")) redirect("/espace-membres");
+  // Stats de présence RH réservées aux fonctions Pasteur et Support (+ admin superuser)
+  const { data: me } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const canSeeStats = me?.role === "pasteur" || ((me?.groups as string[] | null) ?? []).includes("support") || me?.role === "admin";
+  if (!canSeeStats) redirect("/espace-membres");
 
   const today    = new Date().toISOString().split("T")[0];
   const from12   = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];

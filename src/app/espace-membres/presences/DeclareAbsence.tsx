@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  declareAbsence, deleteDeclaration,
-  HR_DECLARABLE_TYPES, type HrDeclaration, type HrDeclarationType,
-} from "@/lib/actions/hr";
+import { declareAbsence, deleteDeclaration, type HrDeclaration } from "@/lib/actions/hr";
+import { HR_DECLARABLE_TYPES, type HrDeclarationType } from "@/lib/hr-constants";
 
 const TYPE_LABEL: Record<HrDeclarationType, string> = {
   retard: "Retard", absent: "Absence", conge: "Congé",
@@ -13,7 +11,7 @@ const TYPE_LABEL: Record<HrDeclarationType, string> = {
 const TYPE_TONE: Record<HrDeclarationType, string> = {
   retard: "bg-amber-50 text-amber-700 border-amber-200",
   absent: "bg-red-50 text-red-600 border-red-200",
-  conge: "bg-blue-50 text-arc-blue border-blue-200",
+  conge: "bg-blue-50 text-[#000666] border-blue-200",
   vacances: "bg-cyan-50 text-cyan-700 border-cyan-200",
   maladie: "bg-orange-50 text-orange-700 border-orange-200",
   distance: "bg-violet-50 text-violet-700 border-violet-200",
@@ -65,32 +63,32 @@ export default function DeclareAbsence({ initialDeclarations }: { initialDeclara
         </div>
       )}
 
-      <div className="bg-white border border-arc-border rounded-xl p-4 shadow-sm">
+      <div className="bg-white border border-[#c6c5d4] rounded-xl p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <div className="font-serif text-lg text-arc-navy">Mes déclarations RH</div>
-            <p className="text-xs text-arc-text2 mt-0.5">Déclare un retard, une absence ou un congé (période début → retour).</p>
+            <div className="font-serif text-lg text-[#000666]">Mes déclarations RH</div>
+            <p className="text-xs text-[#454652] mt-0.5">Déclare un retard, une absence ou un congé (période début → retour).</p>
           </div>
           <button
             onClick={() => { reset(); setOpen(true); }}
-            className="px-4 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
+            className="px-4 py-2 rounded-lg bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors"
           >
             + Déclarer une absence
           </button>
         </div>
 
         {list.length > 0 && (
-          <div className="mt-4 divide-y divide-arc-border/60">
+          <div className="mt-4 divide-y divide-[#c6c5d4]/60">
             {list.map(d => (
               <div key={d.id} className="flex items-center gap-3 py-2.5">
                 <span className={`text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${TYPE_TONE[d.type]}`}>
                   {TYPE_LABEL[d.type]}
                 </span>
-                <span className="text-sm text-arc-navy">
+                <span className="text-sm text-[#000666]">
                   Du <strong>{fmt(d.start_date)}</strong> au <strong>{fmt(d.return_date)}</strong>
                 </span>
-                {d.note && <span className="text-xs text-arc-text3 truncate hidden sm:block">— {d.note}</span>}
-                <button onClick={() => remove(d.id)} title="Supprimer" className="ml-auto text-arc-text3 hover:text-red-500 text-sm">✕</button>
+                {d.note && <span className="text-xs text-[#767683] truncate hidden sm:block">— {d.note}</span>}
+                <button onClick={() => remove(d.id)} title="Supprimer" className="ml-auto text-[#767683] hover:text-red-500 text-sm">✕</button>
               </div>
             ))}
           </div>
@@ -100,47 +98,47 @@ export default function DeclareAbsence({ initialDeclarations }: { initialDeclara
       {/* Modale de déclaration */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-arc-navy/30 backdrop-blur-[2px]" onClick={() => !pending && setOpen(false)} />
+          <div className="absolute inset-0 bg-[#000666]/30 backdrop-blur-[2px]" onClick={() => !pending && setOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
-            <button onClick={() => setOpen(false)} className="absolute top-4 right-4 w-7 h-7 rounded-full border border-arc-border text-arc-text3 hover:text-arc-navy text-sm flex items-center justify-center">✕</button>
-            <h2 className="font-serif text-2xl text-arc-navy mb-1">Déclarer une absence</h2>
-            <p className="text-xs text-arc-text2 mb-5">Le pasteur et ton/tes groupe(s) de fonction seront notifiés par email.</p>
+            <button onClick={() => setOpen(false)} className="absolute top-4 right-4 w-7 h-7 rounded-full border border-[#c6c5d4] text-[#767683] hover:text-[#000666] text-sm flex items-center justify-center">✕</button>
+            <h2 className="font-serif text-2xl text-[#000666] mb-1">Déclarer une absence</h2>
+            <p className="text-xs text-[#454652] mb-5">Le pasteur et ton/tes groupe(s) de fonction seront notifiés par email.</p>
 
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Motif</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Motif</label>
             <select
               value={type} onChange={e => setType(e.target.value as HrDeclarationType)}
-              className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy bg-white"
+              className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666] bg-white"
             >
               {HR_DECLARABLE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
             </select>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Date de début</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Date de début</label>
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy" />
+                  className="w-full px-3 py-2.5 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]" />
               </div>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Date de retour</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Date de retour</label>
                 <input type="date" value={returnDate} min={startDate || undefined} onChange={e => setReturnDate(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy" />
+                  className="w-full px-3 py-2.5 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]" />
               </div>
             </div>
 
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-arc-blue mb-1.5">Note (facultatif)</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Note (facultatif)</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={2000}
               placeholder="Précisions éventuelles…"
-              className="w-full px-3 py-2.5 mb-4 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-y" />
+              className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666] resize-y" />
 
             {err && <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">⚠️ {err}</div>}
 
             <div className="flex items-center gap-3">
               <button onClick={submit} disabled={pending}
-                className="px-5 py-2.5 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors disabled:opacity-60">
+                className="px-5 py-2.5 rounded-lg bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors disabled:opacity-60">
                 {pending ? "Envoi…" : "Envoyer la déclaration"}
               </button>
               <button onClick={() => setOpen(false)} disabled={pending}
-                className="px-4 py-2.5 rounded-lg text-sm font-semibold text-arc-text2 hover:text-arc-navy transition-colors">
+                className="px-4 py-2.5 rounded-lg text-sm font-semibold text-[#454652] hover:text-[#000666] transition-colors">
                 Annuler
               </button>
             </div>

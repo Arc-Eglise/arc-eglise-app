@@ -39,6 +39,9 @@ const config: Config = {
       fontFamily: {
         serif: ["var(--font-cormorant)", "Georgia", "serif"],
         sans:  ["var(--font-manrope)", "system-ui", "sans-serif"],
+        // Portage maquettes « Sacred Modernity »
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
+        inter:    ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       maxWidth: {
         "8xl": "1240px",

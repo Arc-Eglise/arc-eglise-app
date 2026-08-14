@@ -12,39 +12,45 @@ export default async function ConnexionPage() {
     .single();
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#f8f9fa] text-[#191c1d] antialiased">
 
-      {/* LEFT — panneau de marque avec citation depuis la DB */}
-      <div className="hidden lg:flex flex-col justify-between p-16 relative overflow-hidden bg-arc-navy">
-        {/* Shader overlay — halos diffus pour la profondeur (charte Sacred Modernity) */}
+      {/* LEFT — panneau de marque (maquette : indigo #000666, visible aussi en mobile) */}
+      <div className="relative w-full md:w-[45%] lg:w-1/2 bg-[#000666] flex flex-col justify-between p-8 md:p-12 lg:p-16 min-h-[40vh] md:min-h-screen overflow-hidden">
+        {/* Shader overlay — halos diffus pour la profondeur */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage:
-              "radial-gradient(circle at top right,rgba(255,255,255,.06) 0%,transparent 40%)," +
-              "radial-gradient(circle at bottom left,rgba(255,255,255,.03) 0%,transparent 50%)",
+              "radial-gradient(circle at top right,rgba(255,255,255,.05) 0%,transparent 40%)," +
+              "radial-gradient(circle at bottom left,rgba(255,255,255,.02) 0%,transparent 50%)",
           }}
         />
-        <Link href="/" className="relative z-10">
-          <div className="bg-white/95 rounded-xl p-4 inline-flex shadow-md">
+
+        {/* Logo dans une boîte blanche arrondie */}
+        <div className="relative z-10">
+          <Link href="/" className="inline-block bg-white rounded-xl p-4 shadow-md">
             <Image
               src="/images/logo-arc.jpeg"
               alt="ARC — Ambassade du Royaume de Christ"
-              width={140} height={86}
-              style={{ objectFit: "contain" }}
+              width={160} height={64}
+              className="h-16 w-auto object-contain"
               priority
             />
-          </div>
-        </Link>
+          </Link>
+        </div>
 
+        {/* Citation — visuel maquette, texte depuis Supabase */}
         {citation && (
-          <div className="relative z-10 max-w-xl">
-            <blockquote className="font-serif text-[32px] italic text-arc-bluePale leading-snug mb-6">
+          <div className="relative z-10 mt-12 md:mt-0 max-w-xl">
+            <blockquote className="font-playfair italic font-bold text-[#bdc2ff] text-[28px] leading-[36px] md:text-[32px] md:leading-[40px] mb-6">
               &ldquo;{citation.texte}&rdquo;
             </blockquote>
-            <div className="text-sm text-white/60">
-              — {citation.auteur}{citation.role_mention ? ` · ${citation.role_mention}` : ""}
-            </div>
+            <p className="font-inter text-[16px] leading-[24px] text-[#bdc2ff] opacity-90">
+              — {citation.auteur}
+              {citation.role_mention && (
+                <><span className="mx-2 opacity-50">·</span>{citation.role_mention}</>
+              )}
+            </p>
           </div>
         )}
       </div>

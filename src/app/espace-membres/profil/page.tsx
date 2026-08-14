@@ -7,20 +7,37 @@ import AvatarUpload from "@/components/membres/AvatarUpload";
 import { getSpiritualProfile } from "@/lib/spiritual-profile";
 import SpiritualProfileSection from "@/components/profil/SpiritualProfileSection";
 import GroupBadge from "@/components/GroupBadge";
+import { listMyFormations } from "@/lib/actions/formations";
+import { computeSessionDates, formationLocation, DAY_LABELS } from "@/lib/formations-constants";
 
 export default async function ProfilPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const [{ data: profile }, spiritualProfile] = await Promise.all([
+  const [{ data: profile }, spiritualProfile, myFormationsRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, last_name, email, role, groups, validated, country, phone, avatar_url")
       .eq("id", user.id)
       .single(),
     getSpiritualProfile(user.id),
+    listMyFormations(),
   ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const myFormData = myFormationsRes && "data" in myFormationsRes ? myFormationsRes.data : null;
+  const myFormations = (myFormData?.formations ?? []).map((f) => {
+    const done = myFormData?.myCompleted?.[f.id] ?? 0;
+    const total = f.total_days ?? null;
+    const nextDate = computeSessionDates(f, { from: today })[0] ?? null;
+    return {
+      id: f.id, title: f.title, location: formationLocation(f.location),
+      days: (f.days ?? []).map((d) => DAY_LABELS[d] ?? d).join(", "),
+      time: f.time_start ? f.time_start.slice(0, 5) : null,
+      done, total, pct: total && total > 0 ? Math.round((done / total) * 100) : 0, nextDate,
+    };
+  });
 
   const roleLabels: Record<string, string> = {
     admin:    "👑 Administrateur",
@@ -146,6 +163,45 @@ export default async function ProfilPage() {
           </div>
 
           <SpiritualProfileSection initialProfile={spiritualProfile} />
+
+          {myFormations.length > 0 && (
+            <div className="bg-white border border-arc-border rounded-2xl p-5">
+              <h2 className="font-bold text-arc-navy mb-1">🎓 Mes formations</h2>
+              <p className="text-sm text-arc-text2 mb-4">Ta progression et tes prochaines séances.</p>
+              <div className="space-y-3">
+                {myFormations.map((f) => (
+                  <div key={f.id} className="border border-arc-border rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-arc-navy truncate">{f.title}</div>
+                        <div className="text-xs text-arc-text3 mt-0.5">
+                          📍 {f.location}
+                          {f.days ? ` · ${f.days}` : ""}{f.time ? ` · ${f.time}` : ""}
+                        </div>
+                      </div>
+                      {f.total != null && (
+                        <span className="text-sm font-bold text-arc-navy whitespace-nowrap">{f.done}/{f.total} j</span>
+                      )}
+                    </div>
+                    {f.total != null ? (
+                      <div className="mt-2 h-2 rounded-full bg-arc-bg overflow-hidden">
+                        <div className="h-full rounded-full bg-arc-navy" style={{ width: `${f.pct}%` }} />
+                      </div>
+                    ) : (
+                      <div className="text-xs text-arc-text2 mt-1">{f.done} jour(s) effectué(s)</div>
+                    )}
+                    {f.nextDate && (
+                      <div className="text-xs text-arc-text2 mt-2">
+                        Prochaine séance : <span className="font-semibold text-arc-navy">
+                          {new Date(f.nextDate + "T00:00:00").toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long" })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white border border-arc-border rounded-2xl p-5">
             <h2 className="font-bold text-arc-navy mb-1">Mot de passe</h2>

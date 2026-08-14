@@ -2,10 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  upsertHrAttendance, deleteHrAttendance,
-  type HrRecord, type HrStatus, HR_STATUSES,
-} from "@/lib/actions/hr";
+import { upsertHrAttendance, deleteHrAttendance, type HrRecord } from "@/lib/actions/hr";
+import { HR_STATUSES, type HrStatus } from "@/lib/hr-constants";
 
 interface Member {
   id: string;
@@ -18,6 +16,7 @@ interface Props {
   members: Member[];
   date: string;                 // YYYY-MM-DD
   initialRecords: HrRecord[];
+  readOnly?: boolean;           // manager de groupe : voit mais ne modifie pas
 }
 
 const STATUS_META: Record<HrStatus, { label: string; color: string; bg: string }> = {
@@ -30,7 +29,7 @@ const STATUS_META: Record<HrStatus, { label: string; color: string; bg: string }
   retard:   { label: "Retard",     color: "#b45309", bg: "#fef3c7" },
 };
 
-export default function HrBoard({ members, date, initialRecords }: Props) {
+export default function HrBoard({ members, date, initialRecords, readOnly = false }: Props) {
   const router = useRouter();
   const [, startT] = useTransition();
   const [search, setSearch] = useState("");
@@ -116,27 +115,27 @@ export default function HrBoard({ members, date, initialRecords }: Props) {
 
       {/* Barre d'outils : date + recherche */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <label className="flex items-center gap-2 text-sm text-arc-text2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-arc-blue">Jour</span>
+        <label className="flex items-center gap-2 text-sm text-[#454652]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#000666]">Jour</span>
           <input
             type="date" value={date}
             onChange={e => setDate(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
+            className="px-3 py-2 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]"
           />
         </label>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher un nom…"
-          className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
+          className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]"
         />
       </div>
 
       {/* Table RH */}
-      <div className="bg-white border border-arc-border rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-[#c6c5d4] rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse" style={{ minWidth: 720 }}>
             <thead>
-              <tr className="border-b border-arc-border bg-arc-bg text-[11px] font-bold text-arc-text3 uppercase tracking-wider">
+              <tr className="border-b border-[#c6c5d4] bg-[#f3f4f5] text-[11px] font-bold text-[#767683] uppercase tracking-wider">
                 <th className="px-4 py-3 text-left" style={{ minWidth: 180 }}>Membre</th>
                 <th className="px-3 py-3 text-left" style={{ minWidth: 150 }}>Statut</th>
                 <th className="px-3 py-3 text-left">Arrivée</th>
@@ -147,56 +146,74 @@ export default function HrBoard({ members, date, initialRecords }: Props) {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-arc-text3 text-sm">Aucun membre.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-[#767683] text-sm">Aucun membre.</td></tr>
               ) : filtered.map((m, i) => {
                 const rec = byMember[m.id];
                 const dept = m.groups[0] ?? null;
                 const meta = rec ? STATUS_META[rec.status] : null;
                 return (
-                  <tr key={m.id} className={i % 2 === 0 ? "bg-white" : "bg-arc-bg/40"}>
-                    <td className="px-4 py-2.5 border-b border-arc-border/50">
-                      <div className="text-sm font-semibold text-arc-navy">{memberName(m)}</div>
-                      {dept && <div className="text-[11px] text-arc-text3 capitalize">{dept}</div>}
+                  <tr key={m.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f3f4f5]/40"}>
+                    <td className="px-4 py-2.5 border-b border-[#c6c5d4]/50">
+                      <div className="text-sm font-semibold text-[#000666]">{memberName(m)}</div>
+                      {dept && <div className="text-[11px] text-[#767683] capitalize">{dept}</div>}
                     </td>
-                    <td className="px-3 py-2.5 border-b border-arc-border/50">
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
                       <div className="flex items-center gap-2">
                         {meta && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.color }} />}
-                        <select
-                          value={rec?.status ?? ""}
-                          onChange={e => e.target.value ? save(m, { status: e.target.value as HrStatus }) : reset(m)}
-                          className="text-xs rounded-md border border-arc-border px-2 py-1.5 outline-none focus:border-arc-navy bg-white"
-                          style={meta ? { color: meta.color, background: meta.bg } : undefined}
-                        >
-                          <option value="">— Non renseigné —</option>
-                          {HR_STATUSES.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-                        </select>
+                        {readOnly ? (
+                          <span className="text-xs font-semibold px-2 py-1 rounded-full" style={meta ? { color: meta.color, background: meta.bg } : { color: "#767683" }}>
+                            {meta ? meta.label : "— Non renseigné —"}
+                          </span>
+                        ) : (
+                          <select
+                            value={rec?.status ?? ""}
+                            onChange={e => e.target.value ? save(m, { status: e.target.value as HrStatus }) : reset(m)}
+                            className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666] bg-white"
+                            style={meta ? { color: meta.color, background: meta.bg } : undefined}
+                          >
+                            <option value="">— Non renseigné —</option>
+                            {HR_STATUSES.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+                          </select>
+                        )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 border-b border-arc-border/50">
-                      <input
-                        type="time" value={rec?.arrival_time?.slice(0, 5) ?? ""}
-                        onChange={e => save(m, { arrival_time: e.target.value || null })}
-                        className="text-xs rounded-md border border-arc-border px-2 py-1.5 outline-none focus:border-arc-navy"
-                      />
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      {readOnly ? (
+                        <span className="text-xs text-[#454652]">{rec?.arrival_time?.slice(0, 5) ?? "--:--"}</span>
+                      ) : (
+                        <input
+                          type="time" value={rec?.arrival_time?.slice(0, 5) ?? ""}
+                          onChange={e => save(m, { arrival_time: e.target.value || null })}
+                          className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]"
+                        />
+                      )}
                     </td>
-                    <td className="px-3 py-2.5 border-b border-arc-border/50">
-                      <input
-                        type="time" value={rec?.departure_time?.slice(0, 5) ?? ""}
-                        onChange={e => save(m, { departure_time: e.target.value || null })}
-                        className="text-xs rounded-md border border-arc-border px-2 py-1.5 outline-none focus:border-arc-navy"
-                      />
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      {readOnly ? (
+                        <span className="text-xs text-[#454652]">{rec?.departure_time?.slice(0, 5) ?? "--:--"}</span>
+                      ) : (
+                        <input
+                          type="time" value={rec?.departure_time?.slice(0, 5) ?? ""}
+                          onChange={e => save(m, { departure_time: e.target.value || null })}
+                          className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]"
+                        />
+                      )}
                     </td>
-                    <td className="px-3 py-2.5 border-b border-arc-border/50">
-                      <input
-                        defaultValue={rec?.note ?? ""}
-                        onBlur={e => { if ((e.target.value || null) !== (rec?.note ?? null)) save(m, { note: e.target.value || null }); }}
-                        placeholder="—"
-                        className="w-full text-xs rounded-md border border-arc-border px-2 py-1.5 outline-none focus:border-arc-navy"
-                      />
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      {readOnly ? (
+                        <span className="text-xs text-[#454652]">{rec?.note ?? "—"}</span>
+                      ) : (
+                        <input
+                          defaultValue={rec?.note ?? ""}
+                          onBlur={e => { if ((e.target.value || null) !== (rec?.note ?? null)) save(m, { note: e.target.value || null }); }}
+                          placeholder="—"
+                          className="w-full text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]"
+                        />
+                      )}
                     </td>
-                    <td className="px-3 py-2.5 border-b border-arc-border/50 text-center">
-                      {rec && (
-                        <button onClick={() => reset(m)} title="Réinitialiser" className="text-arc-text3 hover:text-red-500 text-sm">✕</button>
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50 text-center">
+                      {!readOnly && rec && (
+                        <button onClick={() => reset(m)} title="Réinitialiser" className="text-[#767683] hover:text-red-500 text-sm">✕</button>
                       )}
                     </td>
                   </tr>
@@ -207,7 +224,7 @@ export default function HrBoard({ members, date, initialRecords }: Props) {
         </div>
       </div>
 
-      <p className="text-[11px] text-arc-text3 mt-3">
+      <p className="text-[11px] text-[#767683] mt-3">
         Les données proviennent de Supabase (table <code>hr_attendance</code>). Un jour sans saisie reste vide.
       </p>
     </div>
@@ -215,10 +232,10 @@ export default function HrBoard({ members, date, initialRecords }: Props) {
 }
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone: "navy" | "green" | "red" | "blue" }) {
-  const toneClass = tone === "green" ? "text-green-600" : tone === "red" ? "text-red-500" : tone === "blue" ? "text-arc-blue" : "text-arc-navy";
+  const toneClass = tone === "green" ? "text-green-600" : tone === "red" ? "text-red-500" : tone === "blue" ? "text-[#000666]" : "text-[#000666]";
   return (
-    <div className="bg-white border border-arc-border rounded-xl p-5 shadow-sm">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-arc-text3">{label}</div>
+    <div className="bg-white border border-[#c6c5d4] rounded-xl p-5 shadow-sm">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-[#767683]">{label}</div>
       <div className={`text-3xl font-bold font-serif mt-2 ${toneClass}`}>{value}</div>
     </div>
   );

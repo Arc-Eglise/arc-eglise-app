@@ -123,15 +123,15 @@ export default function PresencesTable({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeclModal(false)} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
-        <button onClick={() => setDeclModal(false)} className="absolute top-4 right-4 w-7 h-7 rounded-full border border-arc-border text-arc-text3 hover:text-arc-navy text-sm flex items-center justify-center">✕</button>
-        <h2 className="font-bold text-arc-navy text-lg mb-4">✓ Déclarer ma présence</h2>
+        <button onClick={() => setDeclModal(false)} className="absolute top-4 right-4 w-7 h-7 rounded-full border border-[#c6c5d4] text-[#767683] hover:text-[#000666] text-sm flex items-center justify-center">✕</button>
+        <h2 className="font-bold text-[#000666] text-lg mb-4">✓ Déclarer ma présence</h2>
         <div className="space-y-3 mb-5">
           <div>
-            <label className="text-xs font-bold text-arc-text3 mb-1 block">Événement</label>
+            <label className="text-xs font-bold text-[#767683] mb-1 block">Événement</label>
             <select
               value={declEventId}
               onChange={e => setDeclEventId(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy bg-white"
+              className="w-full px-3 py-2.5 rounded-xl border border-[#c6c5d4] text-sm outline-none focus:border-[#000666] bg-white"
             >
               {pastEvents.map(e => (
                 <option key={e.id} value={e.id}>
@@ -155,7 +155,7 @@ export default function PresencesTable({
             setDeclModal(false);
           }}
           disabled={!declEventId || myChecked.has(declEventId)}
-          className="w-full py-3 rounded-xl bg-arc-navy text-white font-bold text-sm hover:bg-arc-navy2 transition-colors disabled:opacity-50"
+          className="w-full py-3 rounded-xl bg-[#000666] text-white font-bold text-sm hover:bg-[#1a237e] transition-colors disabled:opacity-50"
         >
           Enregistrer ma présence
         </button>
@@ -171,18 +171,18 @@ export default function PresencesTable({
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <button
           onClick={() => setDeclModal(true)}
-          className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors flex items-center gap-1.5"
+          className="px-4 py-2 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors flex items-center gap-1.5"
         >
           + Déclarer ma présence
         </button>
 
-        <div className="flex bg-white border border-arc-border rounded-xl overflow-hidden ml-auto">
+        <div className="flex bg-white border border-[#c6c5d4] rounded-xl overflow-hidden ml-auto">
           <button onClick={() => setGroupView(true)}
-            className={`px-3 py-2 text-xs font-semibold transition-colors ${groupView ? "bg-arc-navy text-white" : "text-arc-text2 hover:bg-arc-bg"}`}>
+            className={`px-3 py-2 text-xs font-semibold transition-colors ${groupView ? "bg-[#000666] text-white" : "text-[#454652] hover:bg-[#f3f4f5]"}`}>
             Par groupe
           </button>
           <button onClick={() => setGroupView(false)}
-            className={`px-3 py-2 text-xs font-semibold transition-colors ${!groupView ? "bg-arc-navy text-white" : "text-arc-text2 hover:bg-arc-bg"}`}>
+            className={`px-3 py-2 text-xs font-semibold transition-colors ${!groupView ? "bg-[#000666] text-white" : "text-[#454652] hover:bg-[#f3f4f5]"}`}>
             Liste
           </button>
         </div>
@@ -192,32 +192,32 @@ export default function PresencesTable({
           <button
             onClick={() => navigate(offset + pageSize)}
             disabled={offset + pageSize >= totalEvents}
-            className="w-8 h-8 rounded-lg border border-arc-border text-arc-text2 hover:border-arc-navy disabled:opacity-30 text-sm flex items-center justify-center"
+            className="w-8 h-8 rounded-lg border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-30 text-sm flex items-center justify-center"
           >‹</button>
-          <span className="text-xs text-arc-text3 px-1">
+          <span className="text-xs text-[#767683] px-1">
             {offset + 1}–{Math.min(offset + pageSize, totalEvents)} / {totalEvents}
           </span>
           <button
             onClick={() => navigate(Math.max(0, offset - pageSize))}
             disabled={offset === 0}
-            className="w-8 h-8 rounded-lg border border-arc-border text-arc-text2 hover:border-arc-navy disabled:opacity-30 text-sm flex items-center justify-center"
+            className="w-8 h-8 rounded-lg border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-30 text-sm flex items-center justify-center"
           >›</button>
         </div>
       </div>
 
       {events.length === 0 && (
-        <div className="bg-white border border-arc-border rounded-2xl py-10 text-center text-arc-text3 text-sm">
+        <div className="bg-white border border-[#c6c5d4] rounded-2xl py-10 text-center text-[#767683] text-sm">
           Aucun événement passé.
         </div>
       )}
 
       {events.length > 0 && (
-        <div className="bg-white border border-arc-border rounded-2xl overflow-hidden">
+        <div className="bg-white border border-[#c6c5d4]/50 rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(30,36,100,0.05)]">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse" style={{ minWidth: 600 }}>
               <thead>
-                <tr className="border-b border-arc-border bg-arc-bg">
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-arc-text3 uppercase tracking-wider" style={{ minWidth: 160 }}>
+                <tr className="border-b border-[#c6c5d4] bg-[#f3f4f5]">
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-[#767683] uppercase tracking-wider" style={{ minWidth: 160 }}>
                     Groupe / Nom
                   </th>
                   {events.map(ev => {
@@ -226,14 +226,14 @@ export default function PresencesTable({
                     return (
                       <th key={ev.id} className="px-3 py-3 text-center" style={{ minWidth: 110 }}>
                         <Link href={`/espace-membres/presences/${ev.id}`} className="group block">
-                          <div className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? "text-arc-blue" : "text-arc-text3"}`}>{day}</div>
-                          <div className={`text-xs font-bold mt-0.5 group-hover:text-arc-blue transition-colors ${isToday ? "text-arc-blue" : "text-arc-navy"}`}>{short}</div>
-                          <div className="text-[9px] text-arc-text3 mt-0.5 truncate max-w-[90px] mx-auto">{ev.title}</div>
+                          <div className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? "text-[#000666]" : "text-[#767683]"}`}>{day}</div>
+                          <div className={`text-xs font-bold mt-0.5 group-hover:text-[#000666] transition-colors ${isToday ? "text-[#000666]" : "text-[#000666]"}`}>{short}</div>
+                          <div className="text-[9px] text-[#767683] mt-0.5 truncate max-w-[90px] mx-auto">{ev.title}</div>
                         </Link>
                       </th>
                     );
                   })}
-                  <th className="px-3 py-3 text-center text-[11px] font-bold text-arc-text3 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center text-[11px] font-bold text-[#767683] uppercase tracking-wider">
                     Taux moy.
                   </th>
                 </tr>
@@ -248,15 +248,15 @@ export default function PresencesTable({
                         ? Math.round(events.reduce((s, e) => s + (getRate(e.id, groupMembers)?.pct ?? 0), 0) / events.length) : 0;
 
                       return (
-                        <tr key={groupName} className={gi % 2 === 0 ? "bg-white" : "bg-arc-bg/50"}>
+                        <tr key={groupName} className={gi % 2 === 0 ? "bg-white" : "bg-[#f3f4f5]/50"}>
                           {/* Colonne groupe */}
-                          <td className="px-4 py-2.5 border-b border-arc-border/50">
+                          <td className="px-4 py-2.5 border-b border-[#c6c5d4]/50">
                             <div className="flex items-center gap-2">
                               <span className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border ${gDef.bg} ${gDef.border}`}>
                                 <Icon name={gDef.icon} variant="line" size={15} alt={gDef.name} />
                               </span>
-                              <span className="text-xs font-bold text-arc-navy">{gDef.name}</span>
-                              <span className="text-[10px] text-arc-text3 ml-1">({groupMembers.length})</span>
+                              <span className="text-xs font-bold text-[#000666]">{gDef.name}</span>
+                              <span className="text-[10px] text-[#767683] ml-1">({groupMembers.length})</span>
                             </div>
                           </td>
 
@@ -268,7 +268,7 @@ export default function PresencesTable({
                             const isMyEvent      = myChecked.has(ev.id) && groupMembers.some(m => m.id === currentUserId);
 
                             return (
-                              <td key={ev.id} className="px-2 py-2 border-b border-arc-border/50 border-l border-arc-border/30 text-center align-top">
+                              <td key={ev.id} className="px-2 py-2 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center align-top">
                                 <div className="flex flex-wrap gap-1 justify-center">
                                   {presentInGroup.slice(0, 3).map(m => {
                                     const name = `${m.first_name?.[0] ?? ""}. ${m.last_name ?? ""}`.trim();
@@ -280,7 +280,7 @@ export default function PresencesTable({
                                         title={isAdmin ? `Clic pour retirer la présence de ${m.first_name} ${m.last_name}` : undefined}
                                         className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border transition-colors ${
                                           isAdmin ? "cursor-pointer" : "cursor-default"
-                                        } ${isMe ? "bg-arc-blue text-white border-arc-blue" : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"}`}
+                                        } ${isMe ? "bg-[#000666] text-white border-[#000666]" : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"}`}
                                       >
                                         {name} ✓
                                       </button>
@@ -301,7 +301,7 @@ export default function PresencesTable({
                                         title={isAdmin ? `Clic pour marquer présent : ${m.first_name} ${m.last_name}` : undefined}
                                         className={`text-[9px] px-1.5 py-0.5 rounded-full border transition-colors ${
                                           isAdmin ? "cursor-pointer hover:bg-green-50 hover:text-green-700 hover:border-green-200" : "cursor-default"
-                                        } text-arc-text3 border-arc-border/50`}
+                                        } text-[#767683] border-[#c6c5d4]/50`}
                                       >
                                         {name}
                                       </button>
@@ -309,13 +309,13 @@ export default function PresencesTable({
                                   })}
                                   {absentInGroup.length > 2 && (
                                     <Link href={`/espace-membres/presences/${ev.id}`}
-                                      className="text-[9px] text-arc-text3 px-1.5 py-0.5">
+                                      className="text-[9px] text-[#767683] px-1.5 py-0.5">
                                       …{absentInGroup.length - 2} abs.
                                     </Link>
                                   )}
                                   {isAdmin && groupMembers.length > 0 && (
                                     <Link href={`/espace-membres/presences/${ev.id}`}
-                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-arc-blue border border-arc-blue/30 hover:bg-arc-blue/5">
+                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-[#000666] border border-[#000666]/30 hover:bg-[#000666]/5">
                                       +
                                     </Link>
                                   )}
@@ -330,7 +330,7 @@ export default function PresencesTable({
                           })}
 
                           {/* Taux moyen */}
-                          <td className="px-3 py-2.5 border-b border-arc-border/50 border-l border-arc-border/30 text-center">
+                          <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center">
                             <span className={`text-sm font-bold ${rateClass(overallRate)}`}>{overallRate}%</span>
                           </td>
                         </tr>
@@ -342,23 +342,23 @@ export default function PresencesTable({
                       const overallRate = events.length > 0
                         ? Math.round(events.reduce((s, e) => s + (getRate(e.id, noGroupMembers)?.pct ?? 0), 0) / events.length) : 0;
                       return (
-                        <tr className="bg-arc-bg/30">
-                          <td className="px-4 py-2.5 border-b border-arc-border/50">
-                            <div className="text-xs font-bold text-arc-text2">Membres sans groupe ({noGroupMembers.length})</div>
+                        <tr className="bg-[#f3f4f5]/30">
+                          <td className="px-4 py-2.5 border-b border-[#c6c5d4]/50">
+                            <div className="text-xs font-bold text-[#454652]">Membres sans groupe ({noGroupMembers.length})</div>
                           </td>
                           {events.map(ev => {
                             const rate = getRate(ev.id, noGroupMembers);
                             const present = noGroupMembers.filter(m => localAttend[ev.id]?.has(m.id)).length;
                             return (
-                              <td key={ev.id} className="px-2 py-2.5 border-b border-arc-border/50 border-l border-arc-border/30 text-center">
+                              <td key={ev.id} className="px-2 py-2.5 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center">
                                 <Link href={`/espace-membres/presences/${ev.id}`}
-                                  className={`text-xs font-semibold hover:underline ${rate && rate.pct >= 60 ? "text-green-600" : "text-arc-text2"}`}>
+                                  className={`text-xs font-semibold hover:underline ${rate && rate.pct >= 60 ? "text-green-600" : "text-[#454652]"}`}>
                                   {present} présents
                                 </Link>
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2.5 border-b border-arc-border/50 border-l border-arc-border/30 text-center">
+                          <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center">
                             <span className={`text-sm font-bold ${rateClass(overallRate)}`}>{overallRate}%</span>
                           </td>
                         </tr>
@@ -373,23 +373,23 @@ export default function PresencesTable({
                     const presentCount = events.filter(e => localAttend[e.id]?.has(m.id)).length;
                     const rate = events.length > 0 ? Math.round(presentCount / events.length * 100) : 0;
                     return (
-                      <tr key={m.id} className={mi % 2 === 0 ? "bg-white" : "bg-arc-bg/50"}>
-                        <td className="px-4 py-2.5 border-b border-arc-border/50">
-                          <span className={`text-xs font-semibold ${isMe ? "text-arc-blue" : "text-arc-navy"}`}>
+                      <tr key={m.id} className={mi % 2 === 0 ? "bg-white" : "bg-[#f3f4f5]/50"}>
+                        <td className="px-4 py-2.5 border-b border-[#c6c5d4]/50">
+                          <span className={`text-xs font-semibold ${isMe ? "text-[#000666]" : "text-[#000666]"}`}>
                             {name}{isMe ? " (moi)" : ""}
                           </span>
                         </td>
                         {events.map(ev => {
                           const present = localAttend[ev.id]?.has(m.id);
                           return (
-                            <td key={ev.id} className="px-2 py-2.5 border-b border-arc-border/50 border-l border-arc-border/30 text-center">
+                            <td key={ev.id} className="px-2 py-2.5 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center">
                               <button
                                 onClick={() => {
                                   if (isMe) toggleMyCheckIn(ev.id);
                                   else if (isAdmin) toggleAdminCheckIn(ev.id, m.id);
                                 }}
                                 className={`text-xs font-bold transition-colors ${
-                                  present ? "text-green-600 hover:text-red-400" : "text-arc-text3 hover:text-green-600"
+                                  present ? "text-green-600 hover:text-red-400" : "text-[#767683] hover:text-green-600"
                                 } ${(!isMe && !isAdmin) ? "cursor-default" : "cursor-pointer"}`}
                               >
                                 {present ? "✓" : "—"}
@@ -397,7 +397,7 @@ export default function PresencesTable({
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2.5 border-b border-arc-border/50 border-l border-arc-border/30 text-center">
+                        <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50 border-l border-[#c6c5d4]/30 text-center">
                           <span className={`text-xs font-bold ${rateClass(rate)}`}>{rate}%</span>
                         </td>
                       </tr>
@@ -412,21 +412,21 @@ export default function PresencesTable({
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-3">
-        <span className="text-xs text-arc-text3">
+        <span className="text-xs text-[#767683]">
           {Math.min(offset + pageSize, totalEvents)} événements sur {totalEvents} au total
         </span>
         <div className="flex gap-2">
           <button
             onClick={() => navigate(offset + pageSize)}
             disabled={offset + pageSize >= totalEvents}
-            className="px-3 py-1.5 text-xs rounded-lg border border-arc-border text-arc-text2 hover:border-arc-navy disabled:opacity-30 transition-colors"
+            className="px-3 py-1.5 text-xs rounded-lg border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-30 transition-colors"
           >
             ← Événements précédents
           </button>
           <button
             onClick={() => navigate(Math.max(0, offset - pageSize))}
             disabled={offset === 0}
-            className="px-3 py-1.5 text-xs rounded-lg border border-arc-border text-arc-text2 hover:border-arc-navy disabled:opacity-30 transition-colors"
+            className="px-3 py-1.5 text-xs rounded-lg border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-30 transition-colors"
           >
             Événements récents →
           </button>
