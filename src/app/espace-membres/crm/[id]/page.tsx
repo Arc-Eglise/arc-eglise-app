@@ -247,53 +247,71 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
         {/* ── Colonne gauche ── */}
         <div className="space-y-5">
 
-          {/* Carte identité */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-arc-navy flex items-center justify-center overflow-hidden flex-shrink-0">
+          {/* Carte identité — portage maquette « Fiche Membre » (profil centré) */}
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl p-6 shadow-[0_4px_12px_rgba(26,35,126,0.05)] flex flex-col items-center text-center">
+            <div className="relative mb-4">
+              <div className="w-28 h-28 rounded-full bg-[#000666] flex items-center justify-center overflow-hidden border-4 border-[#f8f9fa]">
                 {member.avatar_url
-                  ? <Image src={member.avatar_url} alt={fullName} width={64} height={64} className="w-full h-full object-cover" />
-                  : <span className="font-serif text-2xl font-bold text-white">{initiale}</span>}
+                  ? <Image src={member.avatar_url} alt={fullName} width={112} height={112} className="w-full h-full object-cover" />
+                  : <span className="text-4xl font-bold text-white" style={{ fontFamily: '"Playfair Display", serif' }}>{initiale}</span>}
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="font-serif text-2xl font-bold text-arc-navy">{fullName}</h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_STYLE[member.role] ?? "text-arc-text3 bg-gray-50 border-gray-200"}`}>
-                    {member.role}
-                  </span>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${member.validated ? "text-green-700 bg-green-50 border-green-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
-                    {member.validated ? "Validé" : "En attente"}
-                  </span>
-                  {isBanned && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-gray-100 text-gray-500 border-gray-200">
-                      🚫 Bloqué
-                    </span>
-                  )}
+              {member.validated && (
+                <div className="absolute bottom-0 right-0 bg-[#fed488] text-[#785a1a] rounded-full p-1 border-2 border-white flex">
+                  <span className="material-symbols-outlined text-[18px]">verified</span>
+                </div>
+              )}
+            </div>
+            <h1 className="text-[28px] leading-tight font-bold text-[#000666]" style={{ fontFamily: '"Playfair Display", serif' }}>{fullName}</h1>
+            <p className="text-sm text-[#454652] mt-1">Membre depuis {new Date(member.created_at).getFullYear()}</p>
+
+            <div className="flex flex-wrap justify-center gap-2 mt-3">
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${ROLE_STYLE[member.role] ?? "text-[#454652] bg-[#edeeef] border-[#c6c5d4]/40"}`}>{member.role}</span>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${member.validated ? "text-green-700 bg-green-50 border-green-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
+                {member.validated ? "Validé" : "En attente"}
+              </span>
+              {isBanned && <span className="text-xs font-bold px-3 py-1 rounded-full border bg-gray-100 text-gray-500 border-gray-200">🚫 Bloqué</span>}
+            </div>
+
+            {/* Contact / stats */}
+            <div className="w-full text-left flex flex-col gap-3 border-t border-[#c6c5d4]/30 pt-5 mt-5">
+              {member.email && (
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Email</label>
+                  <div className="text-sm text-[#191c1d] break-all">{member.email}</div>
+                </div>
+              )}
+              {member.country && (
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Pays</label>
+                  <div className="text-sm text-[#191c1d]">{member.country}</div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Présences</label>
+                  <div className="text-sm font-semibold text-[#000666]">{attends.length}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">RSVP « J&apos;y vais »</label>
+                  <div className="text-sm font-semibold text-[#000666]">{rsvpGoing}</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {member.country && <div><span className="text-arc-text3 text-xs">Pays</span><div className="font-medium text-arc-navy">{member.country}</div></div>}
-              <div><span className="text-arc-text3 text-xs">Inscrit le</span><div className="font-medium text-arc-navy">{new Date(member.created_at).toLocaleDateString("fr-CH")}</div></div>
-              <div><span className="text-arc-text3 text-xs">Présences</span><div className="font-medium text-arc-navy">{attends.length}</div></div>
-              <div><span className="text-arc-text3 text-xs">RSVP &quot;J&apos;y vais&quot;</span><div className="font-medium text-arc-navy">{rsvpGoing}</div></div>
-            </div>
-
             {/* Actions validation — admin/pasteur uniquement */}
             {callerIsAdminFull && (
-              <div className="mt-4 pt-4 border-t border-arc-border flex gap-2 flex-wrap">
+              <div className="w-full mt-5 pt-4 border-t border-[#c6c5d4]/30 flex gap-2 flex-wrap justify-center">
                 {!member.validated ? (
                   <form action={handleValidation}>
                     <input type="hidden" name="action" value="validate" />
-                    <button className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold hover:bg-green-600 transition-colors">
-                      ✓ Valider le compte
+                    <button className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-colors inline-flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">check</span> Valider le compte
                     </button>
                   </form>
                 ) : (
                   <form action={handleValidation}>
                     <input type="hidden" name="action" value="invalidate" />
-                    <button className="px-4 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
+                    <button className="px-4 py-2 rounded-lg border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
                       Suspendre
                     </button>
                   </form>
