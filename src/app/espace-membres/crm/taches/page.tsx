@@ -94,11 +94,11 @@ export default async function MesTachesPage() {
     <div className="max-w-3xl">
       <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
 
-      <h1 className="text-xl font-bold text-arc-navy mb-1">🗓️ Mes tâches de suivi</h1>
-      <p className="text-sm text-arc-text3 mb-6">Les tâches pastorales qui te sont assignées.</p>
+      <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Mes tâches de suivi</h1>
+      <p className="text-[#454652] mt-1 mb-8">Les tâches pastorales qui te sont assignées.</p>
 
       <section className="mb-8">
-        <h2 className="font-bold text-arc-navy mb-3">À faire ({todo.length})</h2>
+        <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">À faire ({todo.length})</h2>
         <div className="space-y-2">
           {todo.length === 0 ? <p className="text-sm text-arc-text3">Aucune tâche en cours. 🎉</p> : todo.map(renderTask)}
         </div>

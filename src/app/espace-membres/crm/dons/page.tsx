@@ -80,9 +80,9 @@ export default async function DonsPage() {
   return (
     <div className="max-w-4xl">
       <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">Dons &amp; Finances</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">Suivi des offrandes reçues (données Stripe).</p>
+      <div className="mb-8">
+        <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Dons &amp; Finances</h1>
+        <p className="text-[#454652] mt-1">Suivi des offrandes reçues (données Stripe).</p>
       </div>
 
       {/* KPIs — charte Sacred Modernity */}

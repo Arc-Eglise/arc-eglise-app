@@ -56,11 +56,11 @@ export default async function CommunicationPage({
     <div className="max-w-2xl">
       <BackButton href={backToSegment} label="Segment" className="mb-4" />
 
-      <h1 className="text-xl font-bold text-arc-navy mb-1">✉️ Communication ciblée</h1>
-      <p className="text-sm text-arc-text3 mb-5">Envoi depuis <strong>communication@arc-eglise.ch</strong>, individuellement à chaque membre du segment.</p>
+      <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Communication ciblée</h1>
+      <p className="text-[#454652] mt-1 mb-6">Envoi depuis <strong>communication@arc-eglise.ch</strong>, individuellement à chaque membre du segment.</p>
 
       {/* Récap du segment */}
-      <div className="bg-arc-bg border border-arc-border rounded-2xl p-4 mb-5">
+      <div className="bg-arc-bg border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-4 mb-5">
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-[11px] font-bold uppercase tracking-widest text-arc-blue">Segment ciblé</span>
           <span className="text-sm font-bold text-arc-navy">{withEmail.length} destinataire{withEmail.length !== 1 ? "s" : ""}</span>
@@ -82,7 +82,7 @@ export default async function CommunicationPage({
         )}
       </div>
 
-      <div className="bg-white border border-arc-border rounded-2xl p-5">
+      <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
         <SegmentComposer filters={filters} recipientCount={withEmail.length} noEmail={noEmail} />
       </div>
     </div>

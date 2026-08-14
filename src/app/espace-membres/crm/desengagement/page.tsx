@@ -83,8 +83,8 @@ export default async function DesengagementPage() {
     <div className="max-w-3xl">
       <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
 
-      <h1 className="text-xl font-bold text-arc-navy mb-1">📊 Alertes de désengagement</h1>
-      <p className="text-sm text-arc-text3 mb-5">Membres à recontacter en priorité, du plus à risque au moins à risque.</p>
+      <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Alertes de désengagement</h1>
+      <p className="text-[#454652] mt-1 mb-6">Membres à recontacter en priorité, du plus à risque au moins à risque.</p>
 
       {/* Répartition */}
       <div className="grid grid-cols-4 gap-2 mb-6">
