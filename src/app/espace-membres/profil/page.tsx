@@ -30,11 +30,14 @@ export default async function ProfilPage() {
   const myFormations = (myFormData?.formations ?? []).map((f) => {
     const done = myFormData?.myCompleted?.[f.id] ?? 0;
     const total = f.total_days ?? null;
-    const nextDate = computeSessionDates(f, { from: today })[0] ?? null;
+    const startFrom = myFormData?.myStartFrom?.[f.id] ?? null;
+    const from = startFrom && startFrom > today ? startFrom : today;
+    const nextDate = computeSessionDates(f, { from })[0] ?? null;
     return {
       id: f.id, title: f.title, location: formationLocation(f.location),
       days: (f.days ?? []).map((d) => DAY_LABELS[d] ?? d).join(", "),
       time: f.time_start ? f.time_start.slice(0, 5) : null,
+      pending: (myFormData?.myEnrollStatus?.[f.id] ?? "active") === "pending",
       done, total, pct: total && total > 0 ? Math.round((done / total) * 100) : 0, nextDate,
     };
   });
@@ -179,23 +182,31 @@ export default async function ProfilPage() {
                           {f.days ? ` · ${f.days}` : ""}{f.time ? ` · ${f.time}` : ""}
                         </div>
                       </div>
-                      {f.total != null && (
+                      {f.pending ? (
+                        <span className="text-[11px] font-bold text-[#b45309] bg-[#fef3c7] px-2.5 py-1 rounded-full whitespace-nowrap">⏳ En attente</span>
+                      ) : f.total != null && (
                         <span className="text-sm font-bold text-arc-navy whitespace-nowrap">{f.done}/{f.total} j</span>
                       )}
                     </div>
-                    {f.total != null ? (
-                      <div className="mt-2 h-2 rounded-full bg-arc-bg overflow-hidden">
-                        <div className="h-full rounded-full bg-arc-navy" style={{ width: `${f.pct}%` }} />
-                      </div>
+                    {f.pending ? (
+                      <div className="text-xs text-arc-text2 mt-2">Ton inscription doit être validée par le formateur.</div>
                     ) : (
-                      <div className="text-xs text-arc-text2 mt-1">{f.done} jour(s) effectué(s)</div>
-                    )}
-                    {f.nextDate && (
-                      <div className="text-xs text-arc-text2 mt-2">
-                        Prochaine séance : <span className="font-semibold text-arc-navy">
-                          {new Date(f.nextDate + "T00:00:00").toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long" })}
-                        </span>
-                      </div>
+                      <>
+                        {f.total != null ? (
+                          <div className="mt-2 h-2 rounded-full bg-arc-bg overflow-hidden">
+                            <div className="h-full rounded-full bg-arc-navy" style={{ width: `${f.pct}%` }} />
+                          </div>
+                        ) : (
+                          <div className="text-xs text-arc-text2 mt-1">{f.done} jour(s) effectué(s)</div>
+                        )}
+                        {f.nextDate && (
+                          <div className="text-xs text-arc-text2 mt-2">
+                            Prochaine séance : <span className="font-semibold text-arc-navy">
+                              {new Date(f.nextDate + "T00:00:00").toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long" })}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}

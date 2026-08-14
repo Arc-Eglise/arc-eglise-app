@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   createFormation, updateFormation, enrollMembers, unenrollMember, deleteFormation,
-  setFormationDaysCompleted,
+  setFormationDaysCompleted, validateEnrollment,
 } from "@/lib/actions/formations";
-import { WEEKDAYS, formationLocation, type Formation, type FormationStatus } from "@/lib/formations-constants";
+import { WEEKDAYS, formationLocation, type Formation, type FormationStatus, type EnrollmentStatus } from "@/lib/formations-constants";
 
 type Member = { id: string; name: string; avatarUrl: string | null };
 
@@ -20,11 +20,12 @@ const STATUS_CLS: Record<FormationStatus, string> = {
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "");
 
 export default function FormationsClient({
-  initialFormations, initialEnrollments, initialCompleted, initialAttendance, members, canWrite, currentUserId,
+  initialFormations, initialEnrollments, initialCompleted, initialStatus, initialAttendance, members, canWrite, currentUserId,
 }: {
   initialFormations: Formation[];
   initialEnrollments: Record<string, string[]>;
   initialCompleted: Record<string, Record<string, number>>;
+  initialStatus: Record<string, Record<string, EnrollmentStatus>>;
   initialAttendance: Record<string, Record<string, FormationStatus>>;
   members: Member[];
   canWrite: boolean;
@@ -34,6 +35,7 @@ export default function FormationsClient({
   const [formations, setFormations] = useState<Formation[]>(initialFormations);
   const [enroll, setEnroll] = useState<Record<string, string[]>>(initialEnrollments);
   const [completed, setCompleted] = useState<Record<string, Record<string, number>>>(initialCompleted);
+  const [status, setStatus] = useState<Record<string, Record<string, EnrollmentStatus>>>(initialStatus);
   const attendance = initialAttendance;
   const memberMap = useMemo(() => Object.fromEntries(members.map(m => [m.id, m])), [members]);
   const memberName = (id: string) => memberMap[id]?.name ?? "Membre";
@@ -90,11 +92,17 @@ export default function FormationsClient({
   function addMember(f: Formation, mid: string) {
     if (!mid) return;
     setEnroll(prev => ({ ...prev, [f.id]: [...(prev[f.id] ?? []), mid] }));
+    setStatus(prev => ({ ...prev, [f.id]: { ...(prev[f.id] ?? {}), [mid]: "active" } }));
     startT(() => { void enrollMembers(f.id, [mid]); });
   }
   function removeMember(f: Formation, mid: string) {
     setEnroll(prev => ({ ...prev, [f.id]: (prev[f.id] ?? []).filter(x => x !== mid) }));
     startT(() => { void unenrollMember(f.id, mid); });
+  }
+  /** Valide une demande d'inscription (staff ou formateur). nextSession = prochaine session (récurrent). */
+  function validate(f: Formation, mid: string, nextSession: boolean) {
+    setStatus(prev => ({ ...prev, [f.id]: { ...(prev[f.id] ?? {}), [mid]: "active" } }));
+    startT(() => { void validateEnrollment(f.id, mid, { nextSession }); });
   }
   function remove(f: Formation) {
     if (!confirm(`Supprimer la formation « ${f.title} » ?`)) return;
@@ -322,60 +330,97 @@ export default function FormationsClient({
                   </label>
                 </div>
 
-                {/* Membres inscrits + progression (jours effectués / à faire) */}
-                <div>
-                  <label className={labelCls}>Membres inscrits ({enrolled.length})</label>
-                  {enrolled.length === 0 ? (
-                    <span className="text-sm text-[#767683]">Aucun membre inscrit.</span>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {enrolled.map(mid => {
-                        const st = attendance[f.id]?.[mid];
-                        const done = completed[f.id]?.[mid] ?? 0;
-                        const total = f.total_days ?? null;
-                        const pct = total && total > 0 ? Math.round((done / total) * 100) : 0;
-                        const canEditProgress = canWrite || f.formateur_member_id === currentUserId;
-                        return (
-                          <div key={mid} className="flex items-center gap-2 bg-[#f6f6fb] border border-[#eceef7] rounded-lg px-3 py-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-semibold text-[#191c1d] truncate">{memberName(mid)}</span>
-                                {st && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_CLS[st]}`}>{STATUS_LABEL[st]}</span>}
-                              </div>
-                              {total ? (
-                                <div className="mt-1 flex items-center gap-2">
-                                  <div className="h-1.5 flex-1 rounded-full bg-[#e2e2ee] overflow-hidden">
-                                    <div className="h-full rounded-full bg-[#000666]" style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <span className="text-[11px] font-bold text-[#000666] whitespace-nowrap">{done}/{total} j</span>
-                                </div>
-                              ) : (
-                                <div className="text-[11px] text-[#767683] mt-0.5">{done} jour(s) effectué(s)</div>
-                              )}
-                            </div>
-                            {canEditProgress && (
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button onClick={() => setDaysDone(f, mid, done - 1)} disabled={done <= 0}
-                                  title="Retirer un jour" className="w-6 h-6 rounded-md border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-40 flex items-center justify-center">
-                                  <span className="material-symbols-outlined text-[16px]">remove</span>
-                                </button>
-                                <button onClick={() => setDaysDone(f, mid, done + 1)} disabled={total != null && done >= total}
-                                  title="Valider un jour effectué" className="w-6 h-6 rounded-md bg-[#000666] text-white hover:bg-[#1a237e] disabled:opacity-40 flex items-center justify-center">
-                                  <span className="material-symbols-outlined text-[16px]">add</span>
-                                </button>
-                              </div>
-                            )}
-                            {canWrite && (
-                              <button onClick={() => removeMember(f, mid)} title="Retirer de la formation" className="text-[#767683] hover:text-[#ba1a1a] flex-shrink-0">
-                                <span className="material-symbols-outlined text-[18px]">close</span>
+                {/* File d'attente de validation (demandes libres des membres) */}
+                {(() => {
+                  const canValidate = canWrite || f.formateur_member_id === currentUserId;
+                  const pending = enrolled.filter(mid => (status[f.id]?.[mid] ?? "active") === "pending");
+                  if (pending.length === 0 || !canValidate) return null;
+                  return (
+                    <div className="border border-[#fde68a] bg-[#fffbeb] rounded-lg p-3">
+                      <label className={`${labelCls} !text-[#b45309]`}>⏳ Demandes à valider ({pending.length})</label>
+                      <div className="flex flex-col gap-2">
+                        {pending.map(mid => (
+                          <div key={mid} className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-[#191c1d] flex-1 min-w-[120px] truncate">{memberName(mid)}</span>
+                            <button onClick={() => validate(f, mid, false)}
+                              className="px-2.5 py-1 rounded-md bg-[#000666] text-white text-[11px] font-semibold hover:bg-[#1a237e] transition-colors">
+                              Valider {f.recurring ? "(session en cours)" : ""}
+                            </button>
+                            {f.recurring && (
+                              <button onClick={() => validate(f, mid, true)}
+                                className="px-2.5 py-1 rounded-md border border-[#000666] text-[#000666] text-[11px] font-semibold hover:bg-[#eef1ff] transition-colors">
+                                → Prochaine session
                               </button>
                             )}
+                            <button onClick={() => removeMember(f, mid)} title="Refuser / retirer" className="text-[#767683] hover:text-[#ba1a1a]">
+                              <span className="material-symbols-outlined text-[18px]">close</span>
+                            </button>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
+
+                {/* Membres inscrits (validés) + progression (jours effectués / à faire) */}
+                {(() => {
+                  const active = enrolled.filter(mid => (status[f.id]?.[mid] ?? "active") === "active");
+                  return (
+                    <div>
+                      <label className={labelCls}>Membres inscrits ({active.length})</label>
+                      {active.length === 0 ? (
+                        <span className="text-sm text-[#767683]">Aucun membre inscrit validé.</span>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {active.map(mid => {
+                            const st = attendance[f.id]?.[mid];
+                            const done = completed[f.id]?.[mid] ?? 0;
+                            const total = f.total_days ?? null;
+                            const pct = total && total > 0 ? Math.round((done / total) * 100) : 0;
+                            const canEditProgress = canWrite || f.formateur_member_id === currentUserId;
+                            return (
+                              <div key={mid} className="flex items-center gap-2 bg-[#f6f6fb] border border-[#eceef7] rounded-lg px-3 py-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-semibold text-[#191c1d] truncate">{memberName(mid)}</span>
+                                    {st && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_CLS[st]}`}>{STATUS_LABEL[st]}</span>}
+                                  </div>
+                                  {total ? (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <div className="h-1.5 flex-1 rounded-full bg-[#e2e2ee] overflow-hidden">
+                                        <div className="h-full rounded-full bg-[#000666]" style={{ width: `${pct}%` }} />
+                                      </div>
+                                      <span className="text-[11px] font-bold text-[#000666] whitespace-nowrap">{done}/{total} j</span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-[11px] text-[#767683] mt-0.5">{done} jour(s) effectué(s)</div>
+                                  )}
+                                </div>
+                                {canEditProgress && (
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <button onClick={() => setDaysDone(f, mid, done - 1)} disabled={done <= 0}
+                                      title="Retirer un jour" className="w-6 h-6 rounded-md border border-[#c6c5d4] text-[#454652] hover:border-[#000666] disabled:opacity-40 flex items-center justify-center">
+                                      <span className="material-symbols-outlined text-[16px]">remove</span>
+                                    </button>
+                                    <button onClick={() => setDaysDone(f, mid, done + 1)} disabled={total != null && done >= total}
+                                      title="Valider un jour effectué" className="w-6 h-6 rounded-md bg-[#000666] text-white hover:bg-[#1a237e] disabled:opacity-40 flex items-center justify-center">
+                                      <span className="material-symbols-outlined text-[16px]">add</span>
+                                    </button>
+                                  </div>
+                                )}
+                                {canWrite && (
+                                  <button onClick={() => removeMember(f, mid)} title="Retirer de la formation" className="text-[#767683] hover:text-[#ba1a1a] flex-shrink-0">
+                                    <span className="material-symbols-outlined text-[18px]">close</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Affecter un membre */}
                 {canWrite && (

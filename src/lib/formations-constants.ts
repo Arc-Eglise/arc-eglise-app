@@ -31,12 +31,17 @@ export interface Formation {
   location: string | null;
   created_at: string;
 }
+export const ENROLLMENT_STATUSES = ["pending", "active"] as const;
+export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];
+
 export interface FormationEnrollment {
   id: string;
   formation_id: string;
   member_id: string;
   enrolled_at: string;
   days_completed: number;
+  status: EnrollmentStatus;
+  start_from_date: string | null;
 }
 export interface FormationAttendance {
   formation_id: string;

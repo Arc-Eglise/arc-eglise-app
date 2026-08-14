@@ -20,8 +20,9 @@ export default async function FormationsPage() {
     .eq("id", user.id)
     .single();
   const meGroups = (me?.groups as string[] | null) ?? [];
-  const hasCrmAccess =
-    ["admin", "pasteur"].includes(me?.role ?? "") || meGroups.includes("suivi") || meGroups.includes("support");
+  // Onglet CRM : accès réservé — Pasteur / fonction Support / membres ayant accès
+  // au CRM (admin + fonction Suivi). Règle unique = droits.peutVoirCRM.
+  const hasCrmAccess = droits.peutVoirCRM(me ?? {});
   if (!hasCrmAccess) redirect("/espace-membres");
   const canWrite = ["admin", "pasteur"].includes(me?.role ?? "") || meGroups.includes("suivi");
 
@@ -41,6 +42,7 @@ export default async function FormationsPage() {
   const formations: Formation[] = fdata?.formations ?? [];
   const enrollments: Record<string, string[]> = fdata?.enrollments ?? {};
   const completed = fdata?.completed ?? {};
+  const enrollStatus = fdata?.status ?? {};
   const attendance = fdata?.attendance ?? {};
 
   const managedGroups = ((me as { managed_groups?: string[] } | null)?.managed_groups ?? []);
@@ -66,6 +68,7 @@ export default async function FormationsPage() {
           initialFormations={formations}
           initialEnrollments={enrollments}
           initialCompleted={completed}
+          initialStatus={enrollStatus}
           initialAttendance={attendance}
           members={members}
           canWrite={canWrite}

@@ -6,7 +6,7 @@ import { notifyUser } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 import {
   FORMATION_STATUSES, WEEKDAYS, computeSessionDates,
-  type Formation, type FormationStatus, type FormationAttendance,
+  type Formation, type FormationStatus, type FormationAttendance, type EnrollmentStatus,
 } from "@/lib/formations-constants";
 
 const PATH = "/espace-membres/crm/formations";
@@ -30,7 +30,7 @@ export async function listFormations() {
 
   const [{ data: formations, error }, { data: enrollments }, { data: attendance }] = await Promise.all([
     supabase.from("formations").select("*").order("start_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
-    supabase.from("formation_enrollments").select("formation_id, member_id, days_completed"),
+    supabase.from("formation_enrollments").select("formation_id, member_id, days_completed, status, start_from_date"),
     supabase.from("formation_attendance").select("formation_id, member_id, status"),
   ]);
   if (error) return { error: error.message };
@@ -38,16 +38,19 @@ export async function listFormations() {
   const byFormation: Record<string, string[]> = {};
   // progression : formation_id → { member_id → jours effectués }
   const completedByFormation: Record<string, Record<string, number>> = {};
-  for (const e of (enrollments ?? []) as { formation_id: string; member_id: string; days_completed: number }[]) {
+  // statut d'inscription : formation_id → { member_id → 'pending' | 'active' }
+  const enrollStatus: Record<string, Record<string, EnrollmentStatus>> = {};
+  for (const e of (enrollments ?? []) as { formation_id: string; member_id: string; days_completed: number; status: EnrollmentStatus }[]) {
     (byFormation[e.formation_id] ??= []).push(e.member_id);
     (completedByFormation[e.formation_id] ??= {})[e.member_id] = e.days_completed ?? 0;
+    (enrollStatus[e.formation_id] ??= {})[e.member_id] = e.status ?? "active";
   }
   // attendance : formation_id → { member_id → status }
   const attByFormation: Record<string, Record<string, FormationStatus>> = {};
   for (const a of (attendance ?? []) as FormationAttendance[]) {
     (attByFormation[a.formation_id] ??= {})[a.member_id] = a.status;
   }
-  return { data: { formations: (formations ?? []) as Formation[], enrollments: byFormation, completed: completedByFormation, attendance: attByFormation } };
+  return { data: { formations: (formations ?? []) as Formation[], enrollments: byFormation, completed: completedByFormation, status: enrollStatus, attendance: attByFormation } };
 }
 
 export async function createFormation(input: {
@@ -149,11 +152,11 @@ export async function enrollMembers(formationId: string, memberIds: string[]) {
 
   const admin = createAdminClient();
 
-  // Inscriptions (ignore les doublons via upsert sur la contrainte unique)
+  // Inscriptions directes par le staff = déjà validées (« active »).
   const { error: insErr } = await admin
     .from("formation_enrollments")
     .upsert(
-      memberIds.map((mid) => ({ formation_id: formationId, member_id: mid })),
+      memberIds.map((mid) => ({ formation_id: formationId, member_id: mid, status: "active", validated_by: user.id, validated_at: new Date().toISOString() })),
       { onConflict: "formation_id,member_id", ignoreDuplicates: true },
     );
   if (insErr) return { error: insErr.message };
@@ -210,14 +213,20 @@ export async function listMyFormations() {
   if (!user) return { error: "Non authentifié" as const };
 
   const { data: enr } = await supabase
-    .from("formation_enrollments").select("formation_id, days_completed").eq("member_id", user.id);
+    .from("formation_enrollments").select("formation_id, days_completed, status, start_from_date").eq("member_id", user.id);
   const ids = (enr ?? []).map(e => e.formation_id as string);
   if (ids.length === 0) {
-    return { data: { formations: [] as Formation[], myStatus: {} as Record<string, FormationStatus>, myCompleted: {} as Record<string, number> } };
+    return { data: { formations: [] as Formation[], myStatus: {} as Record<string, FormationStatus>, myCompleted: {} as Record<string, number>, myEnrollStatus: {} as Record<string, EnrollmentStatus>, myStartFrom: {} as Record<string, string | null> } };
   }
 
   const myCompleted: Record<string, number> = {};
-  for (const e of (enr ?? []) as { formation_id: string; days_completed: number }[]) myCompleted[e.formation_id] = e.days_completed ?? 0;
+  const myEnrollStatus: Record<string, EnrollmentStatus> = {};
+  const myStartFrom: Record<string, string | null> = {};
+  for (const e of (enr ?? []) as { formation_id: string; days_completed: number; status: EnrollmentStatus; start_from_date: string | null }[]) {
+    myCompleted[e.formation_id] = e.days_completed ?? 0;
+    myEnrollStatus[e.formation_id] = e.status ?? "active";
+    myStartFrom[e.formation_id] = e.start_from_date ?? null;
+  }
 
   const [{ data: formations }, { data: att }] = await Promise.all([
     supabase.from("formations").select("*").in("id", ids),
@@ -225,7 +234,7 @@ export async function listMyFormations() {
   ]);
   const myStatus: Record<string, FormationStatus> = {};
   for (const a of (att ?? []) as { formation_id: string; status: FormationStatus }[]) myStatus[a.formation_id] = a.status;
-  return { data: { formations: (formations ?? []) as Formation[], myStatus, myCompleted } };
+  return { data: { formations: (formations ?? []) as Formation[], myStatus, myCompleted, myEnrollStatus, myStartFrom } };
 }
 
 /** Événement synthétique de séance de formation (pour « Prochains événements »). */
@@ -246,9 +255,12 @@ export async function getMyUpcomingFormationSessions(userId: string, limit = 6):
   const supabase = createClient();
   const today = new Date().toISOString().slice(0, 10);
 
+  // Inscriptions ACTIVES uniquement (les demandes « pending » n'ont pas de séance)
   const { data: enr } = await supabase
-    .from("formation_enrollments").select("formation_id").eq("member_id", userId);
-  const enrolledIds = new Set((enr ?? []).map(e => e.formation_id as string));
+    .from("formation_enrollments").select("formation_id, start_from_date").eq("member_id", userId).eq("status", "active");
+  const startFrom = new Map<string, string | null>();
+  for (const e of (enr ?? []) as { formation_id: string; start_from_date: string | null }[]) startFrom.set(e.formation_id, e.start_from_date);
+  const enrolledIds = new Set(startFrom.keys());
 
   // Formations où l'utilisateur est inscrit OU formateur interne
   const { data: taught } = await supabase.from("formations").select("*").eq("formateur_member_id", userId);
@@ -261,7 +273,10 @@ export async function getMyUpcomingFormationSessions(userId: string, limit = 6):
 
   const out: FormationSessionEvent[] = [];
   for (const f of Array.from(byId.values())) {
-    const next = computeSessionDates(f, { from: today });
+    // Un élève rattaché à la « prochaine session » ne voit ses séances qu'à partir de start_from_date.
+    const sf = startFrom.get(f.id);
+    const from = sf && sf > today ? sf : today;
+    const next = computeSessionDates(f, { from });
     for (const date of next.slice(0, limit)) {
       out.push({
         id: `formation-${f.id}-${date}`,
@@ -369,4 +384,125 @@ export async function announceFormationAttendance(formationId: string, status: F
   revalidatePath("/espace-membres/presences");
   revalidatePath(PATH);
   return { success: true as const };
+}
+
+/**
+ * Catalogue des formations visible par TOUT membre (panneau « Activités »),
+ * avec le statut d'inscription du membre courant (pour proposer « S'inscrire »
+ * ou afficher « En attente » / « Inscrit »).
+ */
+export async function listAvailableFormations() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+
+  const [{ data: formations }, { data: myEnr }] = await Promise.all([
+    supabase.from("formations").select("*").order("start_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
+    supabase.from("formation_enrollments").select("formation_id, status").eq("member_id", user.id),
+  ]);
+  const myStatus: Record<string, EnrollmentStatus> = {};
+  for (const e of (myEnr ?? []) as { formation_id: string; status: EnrollmentStatus }[]) myStatus[e.formation_id] = e.status ?? "active";
+  return { data: { formations: (formations ?? []) as Formation[], myStatus } };
+}
+
+/**
+ * Un membre demande librement à s'inscrire à une formation → crée une demande
+ * « pending » (liste d'attente). Notifie le formateur interne + les pasteurs.
+ * L'étape pastorale n'est PAS modifiée tant que ce n'est pas validé.
+ */
+export async function requestSelfEnrollment(formationId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("formation_enrollments").select("status").eq("formation_id", formationId).eq("member_id", user.id).maybeSingle();
+  if (existing) {
+    return existing.status === "pending"
+      ? { error: "Ta demande est déjà en attente de validation." as const }
+      : { error: "Tu es déjà inscrit(e) à cette formation." as const };
+  }
+
+  const { error } = await admin
+    .from("formation_enrollments")
+    .insert({ formation_id: formationId, member_id: user.id, status: "pending" });
+  if (error) return { error: error.message };
+
+  // Notifie le formateur interne + les pasteurs (file de validation)
+  const [{ data: f }, { data: me }, { data: pasteurs }] = await Promise.all([
+    admin.from("formations").select("title, formateur_member_id").eq("id", formationId).maybeSingle(),
+    admin.from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle(),
+    admin.from("profiles").select("id").eq("role", "pasteur"),
+  ]);
+  const memberName = me ? [me.first_name, me.last_name].filter(Boolean).join(" ") || "Un membre" : "Un membre";
+  const recipients = new Set<string>();
+  for (const p of pasteurs ?? []) recipients.add(p.id as string);
+  if (f?.formateur_member_id) recipients.add(f.formateur_member_id as string);
+  recipients.delete(user.id);
+  await Promise.all(Array.from(recipients).map(uid => notifyUser({
+    userId: uid, type: "system",
+    title: "🎓 Demande d'inscription à valider",
+    body: `${memberName} souhaite s'inscrire à la formation « ${(f?.title as string) ?? ""} ».`,
+    link: "/espace-membres/crm/formations",
+  }).catch(() => {})));
+
+  revalidatePath(PATH);
+  revalidatePath("/espace-membres");
+  return { success: true as const };
+}
+
+/**
+ * Le formateur (ou le staff CRM) valide une demande d'inscription.
+ *   • opts.nextSession + formation RÉCURRENTE → rattache le membre à la
+ *     PROCHAINE session (start_from_date = prochaine date de séance) au lieu de
+ *     la session en cours.
+ * Passe le membre à l'étape pastorale « formation » et le notifie.
+ */
+export async function validateEnrollment(formationId: string, memberId: string, opts: { nextSession?: boolean } = {}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+
+  const admin = createAdminClient();
+  const { data: f } = await admin
+    .from("formations").select("*").eq("id", formationId).maybeSingle();
+  if (!f) return { error: "Formation introuvable" as const };
+
+  // Autorisation : staff CRM OU formateur interne
+  const { data: me } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const isStaff = ["admin", "pasteur"].includes(me?.role ?? "") || ((me?.groups as string[] | null) ?? []).includes("suivi");
+  if (!isStaff && (f.formateur_member_id as string | null) !== user.id) return { error: "Non autorisé" as const };
+
+  // Rattachement à la prochaine session (récurrente uniquement)
+  let startFrom: string | null = null;
+  if (opts.nextSession && f.recurring) {
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    startFrom = computeSessionDates(f as Formation, { from: tomorrow })[0] ?? null;
+  }
+
+  const { error } = await admin
+    .from("formation_enrollments")
+    .update({ status: "active", validated_by: user.id, validated_at: new Date().toISOString(), start_from_date: startFrom })
+    .eq("formation_id", formationId)
+    .eq("member_id", memberId);
+  if (error) return { error: error.message };
+
+  await admin.from("profiles").update({ pastoral_stage: "formation" }).eq("id", memberId);
+
+  const when = startFrom
+    ? ` Tu rejoins la prochaine session (à partir du ${new Date(startFrom + "T00:00:00").toLocaleDateString("fr-CH", { day: "numeric", month: "long" })}).`
+    : "";
+  await notifyUser({
+    userId: memberId, type: "system",
+    title: "🎓 Inscription validée",
+    body: `Ton inscription à la formation « ${(f.title as string) ?? ""} » a été validée.${when}`,
+    link: "/espace-membres/profil",
+  }).catch(() => {});
+
+  revalidatePath(PATH);
+  revalidatePath("/espace-membres/crm");
+  revalidatePath("/espace-membres/profil");
+  revalidatePath("/espace-membres");
+  return { success: true as const, startFrom };
 }

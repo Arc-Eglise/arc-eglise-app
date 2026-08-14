@@ -17,6 +17,7 @@ import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
 import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, messageFunction, type DmSummary } from "@/lib/actions/messagerie";
 import { createNote } from "@/lib/actions/notes";
 import { createTask } from "@/lib/actions/tasks";
+import { requestSelfEnrollment } from "@/lib/actions/formations";
 import type { NoteColor } from "@/lib/notes-taches/types";
 import { getMemberSettings, saveMemberSettings } from "@/lib/actions/member-settings";
 import { requestRoomReservation } from "@/lib/actions/reservations";
@@ -78,6 +79,7 @@ interface Prayer { id:string; user_id:string; title:string; description:string|n
 interface Member { id:string; first_name:string|null; last_name:string|null; email:string; role:string; validated:boolean; phone:string|null; groups:string[]|null; managed_groups:string[]|null; created_at:string; }
 
 interface MyFormation { id:string; title:string; daysCompleted:number; totalDays:number|null; nextDate:string|null; }
+interface AvailableFormation { id:string; title:string; location:string; schedule:string; recurring:boolean; myStatus:"pending"|"active"|null; }
 export interface EMClientProps {
   profile:        Profile|null;
   userId:         string;
@@ -87,6 +89,7 @@ export interface EMClientProps {
   prayerCount:    number;
   events:         Evt[];
   myFormations?:  MyFormation[];
+  availableFormations?: AvailableFormation[];
   youtubeChannelId: string;
   /** Rend l'espace membre en page dédiée plein écran sur un seul panneau
    *  (ex. "messagerie") : le chrome (en-têtes + barre latérale) est masqué. */
@@ -382,7 +385,7 @@ export default function EspaceMembresClient(props: EMClientProps) {
   );
 }
 
-function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, myFormations = [], youtubeChannelId, standalone }: EMClientProps) {
+function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides, visiteurs, prayerCount, events, myFormations = [], availableFormations = [], youtubeChannelId, standalone }: EMClientProps) {
   const { t, locale, setLocale } = useI18n();
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -394,6 +397,23 @@ function EspaceMembresClientInner({ profile, userId, totalUsers, membresValides,
     return p && VALID_PANELS.includes(p) ? p : "accueil";
   });
   const [toast, setToast]     = useState<string|null>(null);
+
+  /* Formations — statut d'inscription du membre (catalogue Activités) */
+  const [formStatus, setFormStatus] = useState<Record<string, "pending"|"active"|null>>(
+    () => Object.fromEntries(availableFormations.map(f => [f.id, f.myStatus])),
+  );
+  const [formBusy, setFormBusy] = useState<string|null>(null);
+  async function enrollSelf(fid: string) {
+    setFormBusy(fid);
+    const res = await requestSelfEnrollment(fid);
+    setFormBusy(null);
+    if (res && "success" in res) {
+      setFormStatus(prev => ({ ...prev, [fid]: "pending" }));
+      setToast("✅ Demande d'inscription envoyée — en attente de validation.");
+    } else if (res && "error" in res) {
+      setToast(res.error);
+    }
+  }
 
   /* Mobile */
   const [showDrawer, setShowDrawer]     = useState(false);
@@ -4370,6 +4390,33 @@ const [showSalle, setShowSalle]       = useState(false);
                         <div style={{fontSize:11,color:"#8b91b0",marginTop:4}}>
                           Prochaine séance : {new Date(f.nextDate + "T00:00:00").toLocaleDateString("fr-CH",{weekday:"long",day:"numeric",month:"long"})}
                         </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {availableFormations.length > 0 && (
+              <div className="em-card" style={{marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:4,color:"#1e2464"}}>🎓 Formations disponibles</div>
+                <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Inscris-toi librement — ton inscription sera validée par le formateur.</div>
+                {availableFormations.map((f) => {
+                  const st = formStatus[f.id];
+                  return (
+                    <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #eceef7"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{f.title}{f.recurring && <span style={{fontSize:10,color:"#8b91b0",fontWeight:600}}> · récurrente</span>}</div>
+                        <div style={{fontSize:11,color:"#8b91b0"}}>📍 {f.location}{f.schedule ? ` · ${f.schedule}` : ""}</div>
+                      </div>
+                      {st === "active" ? (
+                        <span style={{fontSize:11,fontWeight:700,color:"#15803d",background:"#dcfce7",padding:"4px 10px",borderRadius:999,whiteSpace:"nowrap"}}>✓ Inscrit</span>
+                      ) : st === "pending" ? (
+                        <span style={{fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"4px 10px",borderRadius:999,whiteSpace:"nowrap"}}>⏳ En attente</span>
+                      ) : (
+                        <button className="em-btn em-btn-primary em-btn-sm" disabled={formBusy===f.id} onClick={() => enrollSelf(f.id)} style={{whiteSpace:"nowrap"}}>
+                          {formBusy===f.id ? "…" : "S'inscrire"}
+                        </button>
                       )}
                     </div>
                   );
