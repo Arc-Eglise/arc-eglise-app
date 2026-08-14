@@ -390,7 +390,7 @@
 .em-bubble { background: #fff; border: 1px solid #eef0f7; border-radius: 16px; padding: 11px 15px; max-width: 74%; font-size: 13.5px; line-height: 1.5; color: #22263f; box-shadow: 0 4px 20px rgba(26,35,126,0.05); }
 .em-msg.mine .em-bubble { background: #1e2464; color: #fff; border-color: #1e2464; }
 .em-msg-bar { padding: 11px 14px; border-top: 1px solid #eaedf6; display: flex; align-items: center; gap: 10px; }
-.em-msg-input { flex: 1; background: #f7f8fc; border: 1.5px solid rgba(30,36,100,.1); border-radius: 8px; padding: 8px 13px; font-size: 13.5px; color: #1a1d3a; outline: none; resize: none; font-family: var(--font-manrope); }
+.em-msg-input { flex: 1; background: #f8f9fa; border: 1.5px solid #c6c5d4; border-radius: 12px; padding: 10px 15px; font-size: 13.5px; color: #191c1d; outline: none; resize: none; font-family: var(--font-manrope); }
 .em-msg-input:focus { border-color: var(--B); background: #fff; }
 .em-cal-head { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
 .em-cal-dh { text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #8b91b0; padding: 5px 0; }
@@ -680,9 +680,9 @@
 
 /* Workspace header */
 .em-ws-name {
-  padding: 12px 14px 6px; font-weight: 700; font-size: 13px;
+  padding: 14px 14px 8px; font-weight: 700; font-size: 18px;
   color: #fff; display: flex; align-items: center; justify-content: space-between;
-  letter-spacing: .01em;
+  letter-spacing: -.01em; font-family: 'Playfair Display', 'Source Serif 4', Georgia, serif;
 }
 
 /* Channel search */
