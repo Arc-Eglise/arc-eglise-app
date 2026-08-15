@@ -2888,8 +2888,8 @@ const [showSalle, setShowSalle]       = useState(false);
                               <div style={{flex:1,minWidth:0}}>
                                 {!m.mine && (
                                   <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:4}}>
-                                    <span style={{fontSize:15,fontWeight:700,color:"#1a237e",fontFamily:'"Playfair Display", "Source Serif 4", Georgia, serif'}}>{m.from}</span>
-                                    <span style={{fontSize:11,color:"#8b91b0"}}>{m.time}</span>
+                                    <span style={{fontSize:20,lineHeight:1.15,fontWeight:600,color:"#1e2464",fontFamily:'"Playfair Display", "Source Serif 4", Georgia, serif'}}>{m.from}</span>
+                                    <span style={{fontSize:12,color:"#777681"}}>{m.time}</span>
                                   </div>
                                 )}
                                 {(!hasCard && m.text) || (hasCard && m.text) ? (
