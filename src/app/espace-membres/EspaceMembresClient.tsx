@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getGroup } from "@/lib/groups";
 import { DAILY_VERSES, getAutoVerset, VERSE_THEMES, THEMED_VERSES, getThemedVerset } from "@/lib/verses";
 import { submitDoleance } from "@/lib/actions/doleances";
-import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered, deletePrayerRequest } from "@/lib/actions/membres";
+import { updateMemberValidation, savePermissionsMatrix, updateMemberGroups, savePlatformCards, assignGroupManager, revokeGroupManager, addMemberToGroup, removeMemberFromGroup, submitPrayerRequest, prayForRequest, markPrayerAnswered, deletePrayerRequest, rsvpEvent } from "@/lib/actions/membres";
 import { setMemberRole as setMemberRoleAction, blockMember } from "@/lib/actions/crm";
 import { saveVitrinePhoto, updateSiteSettings, submitMemberTestimonial, savePlatformCardMedia, saveCitation, deleteCitationAction, setActiveCitation, saveYoutubeChannelId } from "@/lib/actions/cms";
 import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerClient";
@@ -1060,6 +1060,28 @@ const [showSalle, setShowSalle]       = useState(false);
   type ActivityRow = { id:string; icon:string; text:string; time:string };
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [actLoading, setActLoading] = useState(false);
+  // Inscription aux événements depuis « Activités » (RSVP)
+  const [myRsvp, setMyRsvp] = useState<Record<string, "going"|"maybe"|"declined">>({});
+  const [rsvpBusy, setRsvpBusy] = useState<string|null>(null);
+  async function loadMyRsvps() {
+    if (events.length === 0) return;
+    const { data } = await supabase
+      .from("event_rsvp")
+      .select("event_id, status")
+      .eq("user_id", userId)
+      .in("event_id", events.map(e => e.id));
+    const map: Record<string, "going"|"maybe"|"declined"> = {};
+    for (const r of (data ?? []) as { event_id: string; status: "going"|"maybe"|"declined" }[]) map[r.event_id] = r.status;
+    setMyRsvp(map);
+  }
+  async function toggleRsvp(eventId: string) {
+    const already = myRsvp[eventId] === "going";
+    setRsvpBusy(eventId);
+    setMyRsvp(prev => { const n = { ...prev }; if (already) delete n[eventId]; else n[eventId] = "going"; return n; });
+    await rsvpEvent(eventId, already ? null : "going");
+    setRsvpBusy(null);
+    setToast(already ? "Inscription annulée" : "✓ Inscription enregistrée");
+  }
 
   /* Présences (panneau) */
   type PresRow = { id:string; event_id:string; events:{ title:string; date:string }|null; created_at:string };
@@ -1284,6 +1306,7 @@ const [showSalle, setShowSalle]       = useState(false);
 
   useEffect(() => {
     if (panel === "activites" && activities.length === 0 && !actLoading) loadActivities();
+    if (panel === "activites") loadMyRsvps();
   }, [panel]);
 
   useEffect(() => {
@@ -4432,6 +4455,39 @@ const [showSalle, setShowSalle]       = useState(false);
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Événements à venir — inscription directe (RSVP) */}
+            {events.length > 0 && (
+              <div className="em-card" style={{marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:4,color:"#1e2464"}}>📅 Événements à venir</div>
+                <div style={{fontSize:12,color:"#8b91b0",marginBottom:12}}>Inscris-toi directement, sans chercher ailleurs.</div>
+                {events.map((ev) => {
+                  const going = myRsvp[ev.id] === "going";
+                  const dateLabel = new Date(ev.date + "T00:00:00").toLocaleDateString("fr-CH",{weekday:"short",day:"numeric",month:"short"});
+                  return (
+                    <div key={ev.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #eceef7"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600,color:"#1a1d3a"}}>{ev.title}</div>
+                        <div style={{fontSize:11,color:"#8b91b0"}}>📅 {dateLabel}{ev.time_start ? ` · ${ev.time_start.slice(0,5)}` : ""}{ev.location ? ` · 📍 ${ev.location}` : ""}</div>
+                      </div>
+                      {going ? (
+                        <button className="em-btn em-btn-sm" disabled={rsvpBusy===ev.id} onClick={()=>toggleRsvp(ev.id)}
+                          style={{whiteSpace:"nowrap",background:"#dcfce7",color:"#15803d",fontWeight:700,border:"1px solid #bbf7d0"}}>
+                          ✓ Je participe
+                        </button>
+                      ) : (
+                        <button className="em-btn em-btn-primary em-btn-sm" disabled={rsvpBusy===ev.id} onClick={()=>toggleRsvp(ev.id)} style={{whiteSpace:"nowrap"}}>
+                          {rsvpBusy===ev.id ? "…" : "J'y vais"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                <div style={{marginTop:10}}>
+                  <a className="em-qa" href="/espace-membres/agenda" style={{textDecoration:"none",fontSize:12,color:"#1e2464"}}>Voir tout l&apos;agenda →</a>
+                </div>
               </div>
             )}
 
