@@ -197,6 +197,24 @@ export default async function CrmPage({
         <p className="text-[18px] text-[#454652] mt-2">{all.length} membres · vue d&apos;ensemble de la communauté</p>
       </div>
 
+      {/* Onglets d'accès rapide aux sous-pages CRM */}
+      <div className="flex flex-wrap items-center gap-2 mb-8">
+        {[
+          { href: "/espace-membres/crm", label: "Annuaire", icon: "👥", active: true },
+          { href: "/espace-membres/crm/tableau-de-bord", label: "Tableau de bord", icon: "📈" },
+          { href: "/espace-membres/crm/formations", label: "Formations", icon: "🎓" },
+          { href: "/espace-membres/crm/taches", label: "Tâches", icon: "✅" },
+          { href: "/espace-membres/crm/desengagement", label: "Désengagement", icon: "📊" },
+          ...(canFinance ? [{ href: "/espace-membres/crm/dons", label: "Dons & finances", icon: "💶" }] : []),
+        ].map(tab => (
+          <Link key={tab.href} href={tab.href}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+              tab.active ? "bg-[#000666] text-white" : "bg-white border border-[#c6c5d4]/60 text-[#000666] hover:bg-[#edeeef]"}`}>
+            <span>{tab.icon}</span> {tab.label}
+          </Link>
+        ))}
+      </div>
+
       {/* Stats — cartes maquette (label + grand nombre serif + icône) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
