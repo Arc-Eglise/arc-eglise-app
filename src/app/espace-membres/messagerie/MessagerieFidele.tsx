@@ -10,7 +10,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
-import { listMyConversations, type DmSummary } from "@/lib/actions/messagerie";
+import {
+  listMyConversations, getOrCreateConversation, createGroupConversation,
+  messageFunction, searchMyMessages, type DmSummary,
+} from "@/lib/actions/messagerie";
+
+type MemberLite = { id: string; first_name: string | null; last_name: string | null };
+// 13 fonctions ARC (slug → libellé) pour « écrire à une fonction »
+const FUNCTIONS: { slug: string; label: string }[] = [
+  { slug: "pasteur", label: "Pasteur" }, { slug: "chorale", label: "Chorale" },
+  { slug: "media", label: "Équipe Média" }, { slug: "social", label: "Social" },
+  { slug: "hospitalite", label: "Hospitalité" }, { slug: "sanitaire", label: "Sanitaire" },
+  { slug: "finance", label: "Finance" }, { slug: "support", label: "Support" },
+  { slug: "jeunesse", label: "Jeunesse" }, { slug: "femmes", label: "Femmes" },
+  { slug: "ecodim", label: "Écodim" }, { slug: "suivi", label: "Suivi d'âmes" },
+  { slug: "communication", label: "Communication" },
+];
 
 const ICON = "material-symbols-outlined";
 const QUICK_EMOJIS = ["🙏", "❤️", "🙌", "😊", "🔥", "✅"];
@@ -51,6 +66,17 @@ export default function MessagerieFidele({
   const [hover, setHover] = useState<string | null>(null);
   const [emojiFor, setEmojiFor] = useState<string | null>(null);
   const [attachBusy, setAttachBusy] = useState(false);
+  // Nouveau message
+  const [newOpen, setNewOpen] = useState(false);
+  const [newTab, setNewTab] = useState<"dm" | "group" | "fonction">("dm");
+  const [members, setMembers] = useState<MemberLite[]>([]);
+  const [mSearch, setMSearch] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [groupSel, setGroupSel] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  // Recherche de messages
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<{ conversationId: string; label: string; isGroup: boolean; excerpt: string; date: string }[] | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const supabase = createBrowserClient(
@@ -94,6 +120,54 @@ export default function MessagerieFidele({
     setDraft("");
   }
 
+  async function openNew() {
+    setNewOpen(true);
+    if (members.length === 0) {
+      const { data } = await supabase.from("profiles")
+        .select("id, first_name, last_name").eq("validated", true).order("first_name").limit(500);
+      setMembers(((data ?? []) as MemberLite[]).filter(m => m.id !== currentUserId));
+    }
+  }
+  async function refreshDms() { setDmList(await listMyConversations().catch(() => [])); }
+  async function startDm(id: string) {
+    setBusy(true);
+    const res = await getOrCreateConversation(id);
+    setBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      await refreshDms(); setSel({ kind: "dm", key: res.conversationId, label: memberName(id) });
+      setNewOpen(false);
+    }
+  }
+  async function makeGroup() {
+    if (!groupName.trim() || groupSel.length < 2) return;
+    setBusy(true);
+    const res = await createGroupConversation(groupName.trim(), groupSel);
+    setBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      await refreshDms(); setSel({ kind: "dm", key: res.conversationId, label: groupName.trim() });
+      setNewOpen(false); setGroupName(""); setGroupSel([]);
+    }
+  }
+  async function openFunction(slug: string, label: string) {
+    setBusy(true);
+    const res = await messageFunction(slug, label);
+    setBusy(false);
+    if ("conversationId" in res && res.conversationId) {
+      await refreshDms(); setSel({ kind: "dm", key: res.conversationId, label });
+      setNewOpen(false);
+    }
+  }
+  function memberName(id: string) {
+    const m = members.find(x => x.id === id);
+    return m ? ([m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre") : "Conversation";
+  }
+  async function runSearch() {
+    const q = search.trim();
+    if (!q) { setResults(null); return; }
+    const hits = await searchMyMessages(q).catch(() => []);
+    setResults(hits);
+  }
+
   const initials = (s: string) => s.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "•";
 
   // ── Regroupe les messages par jour pour les séparateurs de date ──
@@ -115,7 +189,7 @@ export default function MessagerieFidele({
           <div className="font-bold text-lg" style={{ fontFamily: '"Playfair Display", serif' }}>ARC Église</div>
         </div>
         <div className="p-4">
-          <button className="w-full bg-white py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm" style={{ color: "#1a237e" }}>
+          <button onClick={openNew} className="w-full bg-white py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm" style={{ color: "#1a237e" }}>
             <span className={ICON} style={{ fontSize: 20 }}>edit</span> Nouveau message
           </button>
         </div>
@@ -141,7 +215,9 @@ export default function MessagerieFidele({
           <h2 className="text-2xl mb-3" style={{ fontFamily: '"Playfair Display", serif', color: "#060b50", fontWeight: 600 }}>Conversations</h2>
           <div className="relative">
             <span className={ICON} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#464650", fontSize: 20 }}>search</span>
-            <input placeholder="Rechercher un message" className="w-full rounded-full py-2 pl-10 pr-4 text-sm outline-none transition-all" style={{ background: "#edeef1", border: "1px solid #c7c5d2", color: "#191c1e" }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") runSearch(); if (e.key === "Escape") { setSearch(""); setResults(null); } }}
+              placeholder="Rechercher un message" className="w-full rounded-full py-2 pl-10 pr-4 text-sm outline-none transition-all" style={{ background: "#edeef1", border: "1px solid #c7c5d2", color: "#191c1e" }} />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto py-4">
@@ -169,7 +245,7 @@ export default function MessagerieFidele({
           {/* Messages directs */}
           <div className="px-6 mt-6">
             <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3 flex items-center justify-between" style={{ color: "#464650" }}>
-              Messages directs <button className="hover:opacity-70"><span className={ICON} style={{ fontSize: 18 }}>add</span></button>
+              Messages directs <button onClick={openNew} className="hover:opacity-70"><span className={ICON} style={{ fontSize: 18 }}>add</span></button>
             </h3>
             <ul className="flex flex-col gap-1">
               {dmList.length === 0 && <li className="text-xs px-3 py-2" style={{ color: "#777681" }}>Aucune conversation.</li>}
@@ -364,6 +440,88 @@ export default function MessagerieFidele({
             </div>
           </div>
         </aside>
+      )}
+
+      {/* ── Résultats de recherche (overlay) ── */}
+      {results && (
+        <div className="fixed inset-0 z-40 flex items-start justify-center pt-24" onClick={() => setResults(null)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl p-5 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg" style={{ fontFamily: '"Playfair Display", serif', color: "#060b50" }}>Résultats — « {search} »</h3>
+              <button onClick={() => setResults(null)}><span className={ICON} style={{ color: "#464650" }}>close</span></button>
+            </div>
+            {results.length === 0 ? <p className="text-sm" style={{ color: "#777681" }}>Aucun message trouvé.</p> : results.map((r, i) => (
+              <button key={i} onClick={() => { setSel({ kind: "dm", key: r.conversationId, label: r.label }); setResults(null); setSearch(""); }}
+                className="w-full text-left p-3 rounded-lg mb-1 hover:bg-[#f2f3f6] transition-colors">
+                <div className="text-sm font-semibold" style={{ color: "#060b50" }}>{r.label}{r.isGroup ? " (groupe)" : ""}</div>
+                <div className="text-sm truncate" style={{ color: "#464650" }}>{r.excerpt}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Nouveau message ── */}
+      {newOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4" onClick={() => setNewOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl" style={{ fontFamily: '"Playfair Display", serif', color: "#060b50" }}>Nouveau message</h3>
+              <button onClick={() => setNewOpen(false)}><span className={ICON} style={{ color: "#464650" }}>close</span></button>
+            </div>
+            <div className="flex gap-1 mb-4 rounded-full p-1" style={{ background: "#edeef1" }}>
+              {([["dm", "Membre"], ["group", "Groupe"], ["fonction", "Fonction"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setNewTab(k)} className="flex-1 py-1.5 rounded-full text-xs font-bold transition-colors"
+                  style={newTab === k ? { background: "#1e2464", color: "#fff" } : { color: "#464650" }}>{l}</button>
+              ))}
+            </div>
+
+            {newTab === "fonction" ? (
+              <div className="grid grid-cols-2 gap-2 overflow-y-auto">
+                {FUNCTIONS.map(f => (
+                  <button key={f.slug} disabled={busy} onClick={() => openFunction(f.slug, f.label)}
+                    className="p-3 rounded-lg text-sm text-left hover:bg-[#f2f3f6] transition-colors" style={{ border: "1px solid #c7c5d2", color: "#191c1e" }}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                {newTab === "group" && (
+                  <input value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Nom du groupe…"
+                    className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={{ border: "1px solid #c7c5d2" }} />
+                )}
+                <input value={mSearch} onChange={e => setMSearch(e.target.value)} placeholder="Rechercher un membre…"
+                  className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none" style={{ border: "1px solid #c7c5d2" }} />
+                <div className="flex-1 overflow-y-auto flex flex-col gap-1">
+                  {members.filter(m => memberName(m.id).toLowerCase().includes(mSearch.toLowerCase())).map(m => {
+                    const nm = [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
+                    const checked = groupSel.includes(m.id);
+                    return (
+                      <button key={m.id} disabled={busy}
+                        onClick={() => newTab === "dm" ? startDm(m.id) : setGroupSel(prev => checked ? prev.filter(i => i !== m.id) : [...prev, m.id])}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#f2f3f6] transition-colors text-left">
+                        {newTab === "group" && (
+                          <span className="w-4 h-4 rounded flex items-center justify-center text-[10px]" style={{ border: checked ? "none" : "1.5px solid #c7c5d2", background: checked ? "#1e2464" : "transparent", color: "#fff" }}>{checked ? "✓" : ""}</span>
+                        )}
+                        <span className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "#e0e0ff", color: "#585a7f" }}>{(m.first_name?.[0] ?? "?").toUpperCase()}</span>
+                        <span className="text-sm truncate">{nm}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {newTab === "group" && (
+                  <button onClick={makeGroup} disabled={busy || !groupName.trim() || groupSel.length < 2}
+                    className="mt-3 w-full py-2.5 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: "#1e2464" }}>
+                    {busy ? "Création…" : `Créer le groupe${groupSel.length ? ` (${groupSel.length})` : ""}`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
