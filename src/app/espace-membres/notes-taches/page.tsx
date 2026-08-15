@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import NotesTachesClient from "./NotesTachesClient";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
 import { droits } from "@/lib/droits";
 import { DONS_ENABLED } from "@/lib/features";
 import type { NoteRow, TaskRow, TagRow } from "@/lib/notes-taches/types";
@@ -67,10 +68,12 @@ export default async function NotesTachesPage({
     .select("role, groups, managed_groups, first_name, last_name, email, avatar_url")
     .eq("id", user.id)
     .single();
-  const { count: membresValides } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("validated", true);
+  const [{ count: membresValides }, { count: rpTotal }, { count: rpVisiteurs }, { count: rpPrayer }] = await Promise.all([
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("validated", true),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("prayer_requests").select("id", { count: "exact", head: true }).eq("is_answered", false),
+  ]);
 
   const role = profile?.role ?? "visiteur";
   const groups: string[] = profile?.groups ?? [];
@@ -123,7 +126,8 @@ export default async function NotesTachesPage({
   return (
     <>
     <MemberSidebar perms={perms} user={sidebarUser} membresValides={membresValides ?? 0} />
-    <div className="min-[821px]:ml-[220px]">
+    <MemberRightPanel membresValides={membresValides ?? 0} visiteurs={rpVisiteurs ?? 0} totalUsers={rpTotal ?? 0} prayerCount={rpPrayer ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px]">
     <div className="max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       {/* En-tête — portage maquette Stitch (Notes et Tâches v3.4_1) */}
       <header className="mb-12">

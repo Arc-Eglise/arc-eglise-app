@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
 import { droits } from "@/lib/droits";
 import { DONS_ENABLED } from "@/lib/features";
 import { listFormations } from "@/lib/actions/formations";
@@ -63,7 +64,11 @@ export default async function FormationsPage() {
   return (
     <>
       <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={members.length} />
-      <div className="min-[821px]:ml-[220px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+      <MemberRightPanel membresValides={members.length}
+        visiteurs={(await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("validated", false)).count ?? 0}
+        totalUsers={(await supabase.from("profiles").select("id", { count: "exact", head: true })).count ?? 0}
+        prayerCount={(await supabase.from("prayer_requests").select("id", { count: "exact", head: true }).eq("is_answered", false)).count ?? 0} />
+      <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
         <FormationsClient
           initialFormations={formations}
           initialEnrollments={enrollments}

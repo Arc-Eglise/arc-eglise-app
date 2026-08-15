@@ -6,6 +6,7 @@ import HrBoard from "./HrBoard";
 import DeclareAbsence from "./DeclareAbsence";
 import ExportCsvButton from "./ExportCsvButton";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
 import MyFormations from "./MyFormations";
 import { droits } from "@/lib/droits";
 import { DONS_ENABLED } from "@/lib/features";
@@ -166,10 +167,17 @@ export default async function PresencesPage({
     avatarUrl: (me?.avatar_url as string | null) ?? null,
   };
 
+  const [{ count: rpTotal }, { count: rpVisiteurs }, { count: rpPrayer }] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false),
+  ]);
+
   return (
     <>
     <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={totalMembers} />
-    <div className="min-[821px]:ml-[220px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+    <MemberRightPanel membresValides={totalMembers} visiteurs={rpVisiteurs ?? 0} totalUsers={rpTotal ?? 0} prayerCount={rpPrayer ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       {/* En-tête — portage maquette Stitch (Présences v3.4_2) */}
       <div className="flex flex-col md:flex-row md:items-end justify-between flex-wrap gap-6 mb-10">
         <div>

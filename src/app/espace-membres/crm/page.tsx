@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import GroupBadge from "@/components/GroupBadge";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
 import { droits } from "@/lib/droits";
 import { DONS_ENABLED } from "@/lib/features";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
@@ -184,7 +185,9 @@ export default async function CrmPage({
   return (
     <>
     <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={validated.length} />
-    <div className="min-[821px]:ml-[220px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+    <MemberRightPanel membresValides={validated.length} visiteurs={pending.length} totalUsers={all.length}
+      prayerCount={(await supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false)).count ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
 
       {/* En-tête — portage maquette Stitch (CRM) */}
       <div className="mb-10">
