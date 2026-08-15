@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
 import { droits } from "@/lib/droits";
 import { DONS_ENABLED } from "@/lib/features";
 import { createGrievance, updateGrievanceStatus, deleteGrievance, rateGrievance } from "@/lib/actions/membres";
@@ -48,9 +49,13 @@ export default async function DoleancesPage() {
   const isAdmin = profile?.role === "admin" || profile?.role === "pasteur";
   const meGroups = (profile?.groups as string[] | null) ?? [];
 
-  // Nombre de membres validés (badge sidebar)
-  const { count: totalMembers } = await supabase
-    .from("profiles").select("*", { count: "exact", head: true }).eq("validated", true);
+  // Stats communauté (sidebar + panneau droit)
+  const [{ count: totalMembers }, { count: totalUsers }, { count: visiteurs }, { count: prayerCount }] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false),
+  ]);
 
   const sidebarPerms = {
     canAdmin: isAdmin || meGroups.includes("communication") || meGroups.includes("support"),
@@ -103,7 +108,8 @@ export default async function DoleancesPage() {
   return (
     <>
     <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={totalMembers ?? 0} />
-    <div className="min-[821px]:ml-[220px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+    <MemberRightPanel membresValides={totalMembers ?? 0} visiteurs={visiteurs ?? 0} totalUsers={totalUsers ?? 0} prayerCount={prayerCount ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       <div className="mb-8">
         <h1 className="text-[40px] md:text-[48px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Doléances</h1>
         <p className="text-[#454652] mt-1">
