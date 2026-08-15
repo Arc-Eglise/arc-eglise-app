@@ -2884,9 +2884,14 @@ const [showSalle, setShowSalle]       = useState(false);
                             onMouseEnter={()=>setMsgHover(m.id)}
                             onMouseLeave={()=>{setMsgHover(null);}}>
                             <div className={`em-msg${m.mine?" mine":""}`}>
-                              {!m.mine && <div className="em-av" style={{width:30,height:30,fontSize:11,background:"#1e2464"}}>{m.from[0]}</div>}
+                              {!m.mine && <div className="em-av" style={{width:38,height:38,fontSize:14,fontWeight:700,background:"#1a237e",flexShrink:0}}>{m.from[0]}</div>}
                               <div style={{flex:1,minWidth:0}}>
-                                {!m.mine && <div style={{fontSize:11,fontWeight:600,color:"#1e2464",marginBottom:2}}>{m.from}</div>}
+                                {!m.mine && (
+                                  <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:4}}>
+                                    <span style={{fontSize:15,fontWeight:700,color:"#1a237e",fontFamily:'"Playfair Display", "Source Serif 4", Georgia, serif'}}>{m.from}</span>
+                                    <span style={{fontSize:11,color:"#8b91b0"}}>{m.time}</span>
+                                  </div>
+                                )}
                                 {(!hasCard && m.text) || (hasCard && m.text) ? (
                                   <div className="em-bubble em-reading-zone em-reading-text">
                                     {isPinned && <span style={{fontSize:10,marginRight:4,opacity:.5}}>📌</span>}
