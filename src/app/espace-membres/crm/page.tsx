@@ -48,6 +48,8 @@ export default async function CrmPage({
     meGroupsCrm.includes("suivi") ||
     meGroupsCrm.includes("support");
   if (!hasCrmAccess) redirect("/espace-membres");
+  // Miroir des gardes des sous-pages : tableau-de-bord/taches/desengagement = admin|pasteur|suivi
+  const isPastoralTeam = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("suivi");
 
   const q          = searchParams?.q?.trim().toLowerCase() ?? "";
   const stage      = searchParams?.stage ?? "";
@@ -201,10 +203,10 @@ export default async function CrmPage({
       <div className="flex flex-wrap items-center gap-2 mb-8">
         {[
           { href: "/espace-membres/crm", label: "Annuaire", icon: "👥", active: true },
-          { href: "/espace-membres/crm/tableau-de-bord", label: "Tableau de bord", icon: "📈" },
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/tableau-de-bord", label: "Tableau de bord", icon: "📈" }] : []),
           { href: "/espace-membres/crm/formations", label: "Formations", icon: "🎓" },
-          { href: "/espace-membres/crm/taches", label: "Tâches", icon: "✅" },
-          { href: "/espace-membres/crm/desengagement", label: "Désengagement", icon: "📊" },
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/taches", label: "Tâches", icon: "✅" }] : []),
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/desengagement", label: "Désengagement", icon: "📊" }] : []),
           ...(canFinance ? [{ href: "/espace-membres/crm/dons", label: "Dons & finances", icon: "💶" }] : []),
         ].map(tab => (
           <Link key={tab.href} href={tab.href}
