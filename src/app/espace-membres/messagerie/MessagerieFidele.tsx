@@ -8,11 +8,12 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { createBrowserClient } from "@supabase/ssr";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
 import { listMyConversations, type DmSummary } from "@/lib/actions/messagerie";
 
 const ICON = "material-symbols-outlined";
+const QUICK_EMOJIS = ["🙏", "❤️", "🙌", "😊", "🔥", "✅"];
 
 // Canaux publics (clé realtime = libellé). Fidèle à la liste maquette.
 const CHANNELS: { key: string; label: string }[] = [
@@ -47,9 +48,32 @@ export default function MessagerieFidele({
   const [dmList, setDmList] = useState<DmSummary[]>([]);
   const [draft, setDraft] = useState("");
   const [showDetails, setShowDetails] = useState(true);
+  const [hover, setHover] = useState<string | null>(null);
+  const [emojiFor, setEmojiFor] = useState<string | null>(null);
+  const [attachBusy, setAttachBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+
   useEffect(() => { listMyConversations().then(setDmList).catch(() => {}); }, []);
+
+  // Pièce jointe réelle : upload Storage puis envoi (même bucket que l'ancien code).
+  async function uploadAndSend(file: File) {
+    setAttachBusy(true);
+    try {
+      const path = `${currentUserId}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("message-attachments")
+        .upload(path, file, { contentType: file.type || undefined, upsert: false });
+      if (!error) {
+        const { data: pub } = supabase.storage.from("message-attachments").getPublicUrl(path);
+        await chan.send(draft.trim(), { url: pub.publicUrl, type: file.type || "", name: file.name });
+        setDraft("");
+      }
+    } finally { setAttachBusy(false); }
+  }
 
   const chan = useChannelMessages({
     channelKey: sel.key,
@@ -207,30 +231,69 @@ export default function MessagerieFidele({
                     <span className="relative px-4 text-[11px] uppercase tracking-widest" style={{ background: "#f8f9fc", color: "#464650" }}>{dayLabel(m.createdAt)}</span>
                   </div>
                 )}
-                <div className={`flex gap-4 max-w-3xl ${m.mine ? "ml-auto flex-row-reverse" : ""}`}>
+                <div className={`flex gap-4 max-w-3xl ${m.mine ? "ml-auto flex-row-reverse" : ""}`}
+                  onMouseEnter={() => setHover(m.id)} onMouseLeave={() => { setHover(null); setEmojiFor(null); }}>
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm shrink-0 mt-1"
                     style={{ background: m.mine ? "#1e2464" : "#d2d4ff", color: m.mine ? "#fff" : "#585a7f" }}>
                     {m.mine ? "Moi" : initials(m.from)}
                   </div>
-                  <div className={`flex flex-col gap-1 ${m.mine ? "items-end" : ""}`}>
+                  <div className={`flex flex-col gap-1 min-w-0 ${m.mine ? "items-end" : ""}`}>
                     <div className={`flex items-baseline gap-2 ${m.mine ? "flex-row-reverse" : ""}`}>
                       <span style={{ fontFamily: '"Playfair Display", serif', fontSize: 20, lineHeight: 1.15, color: "#060b50" }}>{m.from}</span>
                       <span className="text-xs" style={{ color: "#464650" }}>{m.time}</span>
                     </div>
-                    <div className="px-4 py-3 shadow-sm leading-relaxed text-[15px]"
-                      style={m.mine
-                        ? { background: "#1e2464", color: "#fff", borderRadius: 18, borderTopRightRadius: 4, maxWidth: "100%" }
-                        : { background: "#fff", color: "#191c1e", border: "1px solid rgba(199,197,210,.4)", borderRadius: 18, borderTopLeftRadius: 4 }}>
-                      {m.pinned && <span style={{ marginRight: 6, opacity: .6 }}>📌</span>}
-                      {m.text}
+                    <div className="relative">
+                      {(m.text || !m.attachmentUrl) && (
+                        <div className="px-4 py-3 shadow-sm leading-relaxed text-[15px]"
+                          style={m.mine
+                            ? { background: "#1e2464", color: "#fff", borderRadius: 18, borderTopRightRadius: 4 }
+                            : { background: "#fff", color: "#191c1e", border: "1px solid rgba(199,197,210,.4)", borderRadius: 18, borderTopLeftRadius: 4 }}>
+                          {m.pinned && <span style={{ marginRight: 6, opacity: .6 }}>📌</span>}
+                          {m.text || <span style={{ opacity: .6 }}>—</span>}
+                        </div>
+                      )}
+                      {/* Actions au survol : réagir / épingler / supprimer */}
+                      {hover === m.id && !m.id.startsWith("tmp-") && (
+                        <div className={`absolute -top-4 ${m.mine ? "left-0" : "right-0"} flex items-center gap-0.5 bg-white rounded-full shadow-md border px-1 py-0.5`} style={{ borderColor: "rgba(199,197,210,.5)", zIndex: 5 }}>
+                          {QUICK_EMOJIS.slice(0, 3).map(e => (
+                            <button key={e} onClick={() => chan.react(m.id, e)} className="text-sm px-1 hover:scale-110 transition-transform">{e}</button>
+                          ))}
+                          <button onClick={() => setEmojiFor(emojiFor === m.id ? null : m.id)} title="Réagir" className="px-1"><span className={ICON} style={{ fontSize: 16, color: "#464650" }}>add_reaction</span></button>
+                          <button onClick={() => chan.togglePin(m.id)} title={m.pinned ? "Désépingler" : "Épingler"} className="px-1"><span className={ICON} style={{ fontSize: 16, color: m.pinned ? "#1e2464" : "#464650" }}>push_pin</span></button>
+                          {m.mine && <button onClick={() => chan.remove(m.id)} title="Supprimer" className="px-1"><span className={ICON} style={{ fontSize: 16, color: "#ba1a1a" }}>delete</span></button>}
+                        </div>
+                      )}
+                      {emojiFor === m.id && (
+                        <div className={`absolute top-8 ${m.mine ? "left-0" : "right-0"} flex gap-1 bg-white rounded-xl shadow-lg border p-2`} style={{ borderColor: "rgba(199,197,210,.5)", zIndex: 6 }}>
+                          {QUICK_EMOJIS.map(e => <button key={e} onClick={() => { chan.react(m.id, e); setEmojiFor(null); }} className="text-lg hover:scale-125 transition-transform">{e}</button>)}
+                        </div>
+                      )}
                     </div>
+                    {/* Pièce jointe */}
+                    {m.attachmentUrl && (
+                      m.attachmentType?.startsWith("image/") ? (
+                        <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={m.attachmentUrl} alt={m.attachmentName ?? "image"} style={{ maxWidth: 240, maxHeight: 220, borderRadius: 14, border: "1px solid rgba(199,197,210,.5)" }} />
+                        </a>
+                      ) : (
+                        <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" download className="flex items-center gap-3 p-3 rounded-lg mt-1 shadow-sm max-w-xs" style={{ background: "#fff", border: "1px solid #c7c5d2" }}>
+                          <span className={ICON} style={{ fontSize: 28, color: "#ba1a1a" }}>description</span>
+                          <span className="text-sm truncate flex-1" style={{ color: "#191c1e" }}>{m.attachmentName ?? "fichier"}</span>
+                          <span className={ICON} style={{ fontSize: 18, color: "#777681" }}>download</span>
+                        </a>
+                      )
+                    )}
                     {rxns && Object.keys(rxns).length > 0 && (
-                      <div className="flex items-center gap-1 mt-1">
-                        {Object.entries(rxns).map(([e, n]) => (
-                          <button key={e} onClick={() => chan.react(m.id, e)} className="px-2 py-1 rounded-full text-xs border shadow-sm flex items-center gap-1" style={{ background: "#edeef1", borderColor: "rgba(199,197,210,.5)" }}>
-                            {e} <span className="font-bold">{n}</span>
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {Object.entries(rxns).map(([e, n]) => {
+                          const mine = (chan.myReactions[m.id] ?? []).includes(e);
+                          return (
+                            <button key={e} onClick={() => chan.react(m.id, e)} className="px-2 py-1 rounded-full text-xs border shadow-sm flex items-center gap-1" style={{ background: mine ? "#e0e0ff" : "#edeef1", borderColor: mine ? "#1e2464" : "rgba(199,197,210,.5)" }}>
+                              {e} <span className="font-bold">{n}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -250,9 +313,13 @@ export default function MessagerieFidele({
               className="w-full bg-transparent border-none resize-none focus:outline-none text-[15px] p-3" style={{ minHeight: 48, color: "#191c1e" }} />
             <div className="flex items-center justify-between px-2 pb-2">
               <div className="flex items-center gap-1" style={{ color: "#464650" }}>
-                <button className="p-2 rounded-full hover:bg-black/5"><span className={ICON}>attach_file</span></button>
-                <button className="p-2 rounded-full hover:bg-black/5"><span className={ICON}>format_bold</span></button>
-                <button className="p-2 rounded-full hover:bg-black/5"><span className={ICON}>mood</span></button>
+                <label className="p-2 rounded-full hover:bg-black/5 cursor-pointer" title="Joindre un fichier">
+                  <span className={ICON}>{attachBusy ? "hourglass_top" : "attach_file"}</span>
+                  <input type="file" className="hidden" disabled={attachBusy}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadAndSend(f); e.currentTarget.value = ""; }} />
+                </label>
+                <button className="p-2 rounded-full hover:bg-black/5" title="Gras" onClick={() => setDraft(d => d + "**gras**")}><span className={ICON}>format_bold</span></button>
+                <button className="p-2 rounded-full hover:bg-black/5" title="Emoji" onClick={() => setDraft(d => d + "😊")}><span className={ICON}>mood</span></button>
               </div>
               <button onClick={submit} className="p-2 rounded-full hover:opacity-90 shadow-sm flex items-center justify-center" style={{ background: "#1e2464", color: "#fff" }}>
                 <span className={ICON} style={{ fontVariationSettings: "'FILL' 1" }}>send</span>
