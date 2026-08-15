@@ -2742,7 +2742,7 @@ const [showSalle, setShowSalle]       = useState(false);
                 <div className="em-ch-sec" style={{marginTop:4,display:"flex",alignItems:"center",justifyContent:"space-between",paddingRight:8}}>
                   <span>{t("msg.directMessages")}</span>
                   <button title={t("msg.newMessageTitle")}
-                    style={{border:"none",background:"none",color:"rgba(255,255,255,.55)",fontSize:15,cursor:"pointer",lineHeight:1,padding:"0 2px"}}
+                    style={{border:"none",background:"none",color:"#1a237e",fontSize:18,fontWeight:700,cursor:"pointer",lineHeight:1,padding:"0 2px"}}
                     onClick={()=>{ if(members.length===0) loadMembers(); setShowNewDm(v=>!v); }}>＋</button>
                 </div>
                 {/* Sélecteur : nouveau message direct OU nouveau groupe */}
