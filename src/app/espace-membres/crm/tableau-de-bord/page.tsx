@@ -2,7 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 import { computeSla, isResolvedStatus } from "@/lib/crm/support";
 
@@ -104,9 +106,13 @@ export default async function CrmDashboardPage() {
 
   const INT_LABELS: Record<string, string> = { appel: "📞 Appels", visite: "🏠 Visites", email: "✉️ Emails", whatsapp: "💬 WhatsApp", sms: "📱 SMS", rencontre: "🤝 Rencontres", autre: "• Autres" };
 
+  const shell = await getMemberShellData(user.id);
+
   return (
-    <div className="max-w-4xl">
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       <h1 className="text-[36px] md:text-[44px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Tableau de bord pastoral</h1>
       <p className="text-[#454652] mt-1 mb-8">Vue d&apos;ensemble de la vie de la communauté.</p>
 
@@ -187,5 +193,6 @@ export default async function CrmDashboardPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

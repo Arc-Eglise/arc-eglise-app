@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +79,13 @@ export default async function DonsPage() {
     { label: "Don moyen", val: money(avg, currency), icon: "📊" },
   ];
 
+  const shell = await getMemberShellData(user.id);
+
   return (
-    <div className="max-w-4xl">
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       <div className="mb-8">
         <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Dons &amp; Finances</h1>
         <p className="text-[#454652] mt-1">Suivi des offrandes reçues (données Stripe).</p>
@@ -159,5 +165,6 @@ export default async function DonsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

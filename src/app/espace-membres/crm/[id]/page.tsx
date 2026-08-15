@@ -3,7 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage, addMemberInteraction, deleteMemberInteraction, createPastoralTask, updateTaskStatus, deletePastoralTask } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
@@ -237,10 +239,14 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
   const currentStage = STAGE_MAP[(member.pastoral_stage as string | null) ?? "visiteur"] ?? STAGE_MAP["visiteur"];
 
+  const shell = await getMemberShellData(user.id);
+
   return (
-    <div className="max-w-4xl">
-      {/* Back */}
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1 text-sm text-[#000666] hover:underline mb-4">← CRM Pastoral</Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
 
@@ -780,5 +786,6 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
         </div>
       </div>
     </div>
+    </>
   );
 }

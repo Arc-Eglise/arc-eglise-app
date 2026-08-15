@@ -3,7 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 import { computeEngagement, ENGAGEMENT_META, AT_RISK_STATUSES, type EngagementStatus } from "@/lib/crm/engagement";
 
 export const dynamic = "force-dynamic";
@@ -79,10 +81,13 @@ export default async function DesengagementPage() {
   const counts: Record<EngagementStatus, number> = { engage: 0, a_surveiller: 0, decrochage: 0, inactif: 0 };
   for (const m of scored) counts[m.status]++;
 
-  return (
-    <div className="max-w-3xl">
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+  const shell = await getMemberShellData(user.id);
 
+  return (
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
       <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Alertes de désengagement</h1>
       <p className="text-[#454652] mt-1 mb-6">Membres à recontacter en priorité, du plus à risque au moins à risque.</p>
 
@@ -130,5 +135,6 @@ export default async function DesengagementPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
