@@ -14,6 +14,7 @@ import { EventsManagerClient } from "@/app/espace-membres/agenda/EventsManagerCl
 import { ThemeOverridePicker } from "@/components/home/ThemeOverridePicker";
 import { useReadingPrefs } from "@/contexts/ReadingPrefsContext";
 import { useChannelMessages } from "@/components/messagerie/useChannelMessages";
+import MessagerieFidele from "./messagerie/MessagerieFidele";
 import { listMyConversations, getOrCreateConversation, createGroupConversation, contactPastor, searchMyMessages, messageFunction, type DmSummary } from "@/lib/actions/messagerie";
 import { createNote } from "@/lib/actions/notes";
 import { createTask } from "@/lib/actions/tasks";
@@ -2711,7 +2712,12 @@ const [showSalle, setShowSalle]       = useState(false);
 
           {/* ── MESSAGERIE ──────────────────────────────────── */}
           <div className={`em-panel${panel==="messagerie"?" active":""}`} style={{padding:0,overflow:"hidden"}}>
-            <div className="em-chat" style={{height:"100%"}}>
+            {/* Messagerie fidèle à la maquette v3.4_1, embarquée dans le shell (vraie sidebar) */}
+            {panel==="messagerie" && (
+              <MessagerieFidele embedded currentUserId={userId} displayName={[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Moi"} />
+            )}
+            {/* Ancienne messagerie conservée (masquée) — sécurité, aucun handler retiré */}
+            <div className="em-chat" style={{height:"100%",display:"none"}}>
 
               {/* ── Left: channels sidebar ── */}
               <div className={`em-channels${mobChanOpen?" mob-open":""}`}>

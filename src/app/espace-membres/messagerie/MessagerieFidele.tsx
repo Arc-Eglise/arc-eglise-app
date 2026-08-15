@@ -55,8 +55,8 @@ const NAV = [
 ];
 
 export default function MessagerieFidele({
-  currentUserId, displayName,
-}: { currentUserId: string; displayName: string }) {
+  currentUserId, displayName, embedded = false,
+}: { currentUserId: string; displayName: string; embedded?: boolean }) {
   const [sel, setSel] = useState<{ kind: "channel" | "dm"; key: string; label: string }>(
     { kind: "channel", key: CHANNELS[0].key, label: CHANNELS[0].label }
   );
@@ -218,34 +218,38 @@ export default function MessagerieFidele({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#f8f9fc", color: "#191c1e", fontFamily: '"DM Sans", system-ui, sans-serif' }}>
+    <div className={embedded ? "flex overflow-hidden rounded-xl border" : "flex h-screen overflow-hidden"}
+      style={{ background: "#f8f9fc", color: "#191c1e", fontFamily: '"DM Sans", system-ui, sans-serif',
+        ...(embedded ? { height: "calc(100vh - 100px)", borderColor: "#c7c5d2" } : {}) }}>
 
-      {/* ── Nav latérale (maquette) ── */}
-      <nav className="w-64 shrink-0 flex flex-col text-white" style={{ background: "#1a237e" }}>
-        <div className="p-6 border-b border-white/10">
-          <a href="/espace-membres" className="flex items-center gap-1 text-sm text-white/80 hover:text-white transition-colors mb-3 font-medium">← Espace membre</a>
-          <div className="font-bold text-lg" style={{ fontFamily: '"Playfair Display", serif' }}>ARC Église</div>
-        </div>
-        <div className="p-4">
-          <button onClick={openNew} className="w-full bg-white py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm" style={{ color: "#1a237e" }}>
-            <span className={ICON} style={{ fontSize: 20 }}>edit</span> Nouveau message
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-1">
-          {NAV.map(n => (
-            <a key={n.label} href={n.href}
-              className={`flex items-center gap-3 px-6 py-3 rounded-r-full mr-2 transition-all ${n.active ? "bg-white/20 text-white font-bold border-r-4 border-white" : "text-white/80 hover:bg-white/10"}`}>
-              <span className={ICON} style={{ fontSize: 22, fontVariationSettings: n.active ? "'FILL' 1" : undefined }}>{n.icon}</span>
-              <span className="text-sm">{n.label}</span>
+      {/* ── Nav latérale (maquette) — masquée en embarqué : la vraie sidebar de l'espace membre est déjà présente ── */}
+      {!embedded && (
+        <nav className="w-64 shrink-0 flex flex-col text-white" style={{ background: "#1a237e" }}>
+          <div className="p-6 border-b border-white/10">
+            <a href="/espace-membres" className="flex items-center gap-1 text-sm text-white/80 hover:text-white transition-colors mb-3 font-medium">← Espace membre</a>
+            <div className="font-bold text-lg" style={{ fontFamily: '"Playfair Display", serif' }}>ARC Église</div>
+          </div>
+          <div className="p-4">
+            <button onClick={openNew} className="w-full bg-white py-3 rounded-full text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-sm" style={{ color: "#1a237e" }}>
+              <span className={ICON} style={{ fontSize: 20 }}>edit</span> Nouveau message
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-1">
+            {NAV.map(n => (
+              <a key={n.label} href={n.href}
+                className={`flex items-center gap-3 px-6 py-3 rounded-r-full mr-2 transition-all ${n.active ? "bg-white/20 text-white font-bold border-r-4 border-white" : "text-white/80 hover:bg-white/10"}`}>
+                <span className={ICON} style={{ fontSize: 22, fontVariationSettings: n.active ? "'FILL' 1" : undefined }}>{n.icon}</span>
+                <span className="text-sm">{n.label}</span>
+              </a>
+            ))}
+          </div>
+          <div className="p-2 border-t border-white/10">
+            <a href="/espace-membres/profil" className="flex items-center gap-3 px-6 py-3 rounded-r-full mr-2 text-white/80 hover:bg-white/10 transition-all">
+              <span className={ICON} style={{ fontSize: 22 }}>settings</span><span className="text-sm">Paramètres</span>
             </a>
-          ))}
-        </div>
-        <div className="p-2 border-t border-white/10">
-          <a href="/espace-membres/profil" className="flex items-center gap-3 px-6 py-3 rounded-r-full mr-2 text-white/80 hover:bg-white/10 transition-all">
-            <span className={ICON} style={{ fontSize: 22 }}>settings</span><span className="text-sm">Paramètres</span>
-          </a>
-        </div>
-      </nav>
+          </div>
+        </nav>
+      )}
 
       {/* ── Colonne Conversations ── */}
       <aside className="w-80 shrink-0 border-r flex flex-col" style={{ borderColor: "#c7c5d2", background: "#f8f9fc" }}>
