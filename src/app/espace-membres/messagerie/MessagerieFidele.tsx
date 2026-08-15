@@ -74,6 +74,12 @@ export default function MessagerieFidele({
   const [groupName, setGroupName] = useState("");
   const [groupSel, setGroupSel] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // Canal ARC IA (assistant) — flux réel via /api/messagerie/arc-ia
+  const [aiMsgs, setAiMsgs] = useState<{ id: string; from: string; text: string; mine: boolean; time: string }[]>([
+    { id: "ai-hi", from: "ARC IA", text: `Bonjour ${displayName} 👋 Je suis ARC IA, ton assistant. Comment puis-je t'aider ?`, mine: false, time: "" },
+  ]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const isAI = sel.kind === "channel" && sel.key === "arc-ia";
   // Recherche de messages
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ conversationId: string; label: string; isGroup: boolean; excerpt: string; date: string }[] | null>(null);
@@ -106,16 +112,48 @@ export default function MessagerieFidele({
     channelName: sel.label,
     currentUserId,
     conversationId: sel.kind === "dm" ? sel.key : null,
-    enabled: true,
+    enabled: sel.kind === "dm" || (sel.kind === "channel" && sel.key !== "arc-ia"),
   });
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chan.messages.length]);
+  // Liste affichée : messages IA (canal ARC IA) ou messages réels du canal/DM.
+  type Shown = { id: string; from: string; text: string; mine: boolean; time: string; createdAt: string; pinned: boolean; attachmentUrl: string | null; attachmentType: string | null; attachmentName: string | null };
+  const shown: Shown[] = isAI
+    ? aiMsgs.map(m => ({ ...m, createdAt: new Date().toISOString(), pinned: false, attachmentUrl: null, attachmentType: null, attachmentName: null }))
+    : chan.messages.map(m => ({ id: m.id, from: m.from, text: m.text, mine: m.mine, time: m.time, createdAt: m.createdAt, pinned: m.pinned, attachmentUrl: m.attachmentUrl ?? null, attachmentType: m.attachmentType ?? null, attachmentName: m.attachmentName ?? null }));
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [shown.length]);
 
   const pinned = useMemo(() => chan.messages.filter(m => m.pinned), [chan.messages]);
+
+  async function sendAI(text: string) {
+    const msg = text.trim();
+    if (!msg || aiBusy) return;
+    const now = new Date().toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" });
+    const aiId = "ai-" + Date.now();
+    const history = aiMsgs.filter(m => m.id !== "ai-hi").slice(-8).map(m => ({ role: m.mine ? "user" : "assistant", content: m.text }));
+    setAiMsgs(prev => [...prev, { id: "u-" + Date.now(), from: "Moi", text: msg, mine: true, time: now }, { id: aiId, from: "ARC IA", text: "", mine: false, time: now }]);
+    setDraft(""); setAiBusy(true);
+    try {
+      const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg, history }) });
+      const reader = res.body?.getReader(); const dec = new TextDecoder();
+      let buf = "", acc = "";
+      while (reader) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n"); buf = lines.pop() ?? "";
+        for (const line of lines) {
+          const t2 = line.trim(); if (!t2.startsWith("data:")) continue;
+          try { const ev = JSON.parse(t2.slice(5).trim()); if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMsgs(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); } if (ev.type === "end") reader.cancel().catch(() => {}); } catch {}
+        }
+      }
+    } catch { setAiMsgs(prev => prev.map(m => m.id === aiId ? { ...m, text: "Service ARC IA momentanément indisponible." } : m)); }
+    finally { setAiBusy(false); }
+  }
 
   function submit() {
     const t = draft.trim();
     if (!t) return;
+    if (isAI) { sendAI(t); return; }
     chan.send(t);
     setDraft("");
   }
@@ -221,6 +259,15 @@ export default function MessagerieFidele({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto py-4">
+          {/* Assistant ARC IA */}
+          <div className="px-6 mb-6">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "#464650" }}>Assistant</h3>
+            <button onClick={() => setSel({ kind: "channel", key: "arc-ia", label: "ARC IA" })}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left"
+              style={isAI ? { background: "#1e2464", color: "#fff", fontWeight: 700 } : { color: "#191c1e" }}>
+              <span style={{ fontSize: 18 }}>🤖</span><span className="text-sm">ARC IA</span>
+            </button>
+          </div>
           {/* Canaux */}
           <div className="px-6">
             <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3 flex items-center justify-between" style={{ color: "#464650" }}>
@@ -273,11 +320,13 @@ export default function MessagerieFidele({
         {/* En-tête */}
         <header className="h-20 px-6 border-b flex items-center justify-between shrink-0" style={{ borderColor: "#c7c5d2", background: "rgba(248,249,252,.8)", backdropFilter: "blur(8px)" }}>
           <div className="flex items-center gap-3 min-w-0">
-            <span className={ICON} style={{ fontSize: 28, color: "#1e2464" }}>{sel.kind === "channel" ? "tag" : "person"}</span>
+            {isAI ? <span style={{ fontSize: 26 }}>🤖</span> : <span className={ICON} style={{ fontSize: 28, color: "#1e2464" }}>{sel.kind === "channel" ? "tag" : "person"}</span>}
             <div className="min-w-0">
               <h2 className="text-xl truncate" style={{ fontFamily: '"Playfair Display", serif', color: "#060b50" }}>{sel.label}</h2>
               <div className="flex items-center gap-2 text-xs" style={{ color: "#464650" }}>
-                <span className="flex items-center gap-1"><span className={ICON} style={{ fontSize: 14 }}>group</span> {sel.kind === "channel" ? "Canal de fonction" : "Message direct"}</span>
+                <span className="flex items-center gap-1">
+                  {isAI ? "Assistant pastoral" : (<><span className={ICON} style={{ fontSize: 14 }}>group</span> {sel.kind === "channel" ? "Canal de fonction" : "Message direct"}</>)}
+                </span>
               </div>
             </div>
           </div>
@@ -291,14 +340,14 @@ export default function MessagerieFidele({
 
         {/* Historique */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-          {chan.loading && <div className="text-center text-sm" style={{ color: "#777681" }}>Chargement…</div>}
-          {!chan.loading && chan.messages.length === 0 && (
+          {!isAI && chan.loading && <div className="text-center text-sm" style={{ color: "#777681" }}>Chargement…</div>}
+          {!isAI && !chan.loading && shown.length === 0 && (
             <div className="text-center text-sm" style={{ color: "#777681" }}>Aucun message. Écris le premier 👋</div>
           )}
-          {chan.messages.map((m, i) => {
-            const prev = chan.messages[i - 1];
-            const showDay = !prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt);
-            const rxns = chan.reactions[m.id];
+          {shown.map((m, i) => {
+            const prev = shown[i - 1];
+            const showDay = !isAI && (!prev || dayLabel(prev.createdAt) !== dayLabel(m.createdAt));
+            const rxns = isAI ? undefined : chan.reactions[m.id];
             return (
               <div key={m.id} className="flex flex-col gap-6">
                 {showDay && (
@@ -329,7 +378,7 @@ export default function MessagerieFidele({
                         </div>
                       )}
                       {/* Actions au survol : réagir / épingler / supprimer */}
-                      {hover === m.id && !m.id.startsWith("tmp-") && (
+                      {!isAI && hover === m.id && !m.id.startsWith("tmp-") && (
                         <div className={`absolute -top-4 ${m.mine ? "left-0" : "right-0"} flex items-center gap-0.5 bg-white rounded-full shadow-md border px-1 py-0.5`} style={{ borderColor: "rgba(199,197,210,.5)", zIndex: 5 }}>
                           {QUICK_EMOJIS.slice(0, 3).map(e => (
                             <button key={e} onClick={() => chan.react(m.id, e)} className="text-sm px-1 hover:scale-110 transition-transform">{e}</button>
@@ -339,7 +388,7 @@ export default function MessagerieFidele({
                           {m.mine && <button onClick={() => chan.remove(m.id)} title="Supprimer" className="px-1"><span className={ICON} style={{ fontSize: 16, color: "#ba1a1a" }}>delete</span></button>}
                         </div>
                       )}
-                      {emojiFor === m.id && (
+                      {!isAI && emojiFor === m.id && (
                         <div className={`absolute top-8 ${m.mine ? "left-0" : "right-0"} flex gap-1 bg-white rounded-xl shadow-lg border p-2`} style={{ borderColor: "rgba(199,197,210,.5)", zIndex: 6 }}>
                           {QUICK_EMOJIS.map(e => <button key={e} onClick={() => { chan.react(m.id, e); setEmojiFor(null); }} className="text-lg hover:scale-125 transition-transform">{e}</button>)}
                         </div>
