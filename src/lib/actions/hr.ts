@@ -198,9 +198,15 @@ export async function declareAbsence(input: {
     }
     if (declarerEmail) recipients.delete(declarerEmail); // pas d'auto-notification
 
+    // Garde-fou de test (preview) : si HR_EMAIL_TEST_TO est défini, TOUS les emails
+    // de déclaration RH sont redirigés vers cette seule adresse — évite d'emailer le
+    // vrai pasteur/les vrais groupes pendant un test. Sans effet en prod (var absente).
+    const testTo = process.env.HR_EMAIL_TEST_TO?.trim();
+    const finalRecipients = testTo ? [testTo] : Array.from(recipients);
+
     const fmt = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("fr-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     await Promise.allSettled(
-      Array.from(recipients).map(to =>
+      finalRecipients.map(to =>
         sendHrDeclarationEmail({
           to,
           memberName: declarerName,
