@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, MessageSquare, Calendar, PlayCircle, BookOpen, BookMarked,
   Users, ClipboardCheck, Bell, Inbox, HandCoins, UserCheck, BarChart3,
-  Settings, Mail, type LucideIcon,
+  Settings, Mail, Library, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -54,6 +54,7 @@ export default function MemberSidebar({
       { id: "messagerie",   lbl: "Messagerie",      Icon: MessageSquare, href: P("messagerie") },
       { id: "agenda",       lbl: "Agenda",          Icon: Calendar,      href: P("agenda") },
       { id: "streaming",    lbl: "Streaming",       Icon: PlayCircle,    href: P("streaming"), live: true },
+      { id: "mediatheque",  lbl: "Médiathèque",     Icon: Library,       href: "/espace-membres/mediatheque" },
       { id: "priere",       lbl: "Prière & Bible",  Icon: BookOpen,      href: P("priere") },
       { id: "notes-taches", lbl: "Notes & Tâches",  Icon: BookMarked,    href: "/espace-membres/notes-taches" },
     ]},
