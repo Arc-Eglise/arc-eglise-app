@@ -47,6 +47,26 @@ export async function listHrAttendance(date: string) {
   return { data: (data ?? []) as HrRecord[] };
 }
 
+/**
+ * Lignes RH sur une plage de dates [from, to] (bornes incluses, format YYYY-MM-DD).
+ * Alimente le rapport d'heures. Les droits sont ceux de la RLS `hr_attendance`
+ * (encadrement = toute l'équipe ; membre = ses propres lignes) : on ne filtre pas
+ * ici, le client Supabase applique automatiquement les policies.
+ */
+export async function listHrAttendanceRange(from: string, to: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" as const };
+  const { data, error } = await supabase
+    .from("hr_attendance")
+    .select("*")
+    .gte("date", from)
+    .lte("date", to)
+    .order("date", { ascending: true });
+  if (error) return { error: error.message };
+  return { data: (data ?? []) as HrRecord[] };
+}
+
 /** Enregistre / met à jour le statut RH d'un membre pour une date. */
 export async function upsertHrAttendance(input: {
   member_id: string;

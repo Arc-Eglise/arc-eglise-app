@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import PresencesTable from "./PresencesTable";
 import HrBoard from "./HrBoard";
+import HrReport from "./HrReport";
 import DeclareAbsence from "./DeclareAbsence";
 import ExportCsvButton from "./ExportCsvButton";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
@@ -16,7 +17,7 @@ import type { HrRecord, HrDeclaration } from "@/lib/actions/hr";
 export default async function PresencesPage({
   searchParams,
 }: {
-  searchParams: { offset?: string; tab?: string; hrdate?: string };
+  searchParams: { offset?: string; tab?: string; hrdate?: string; rapmonth?: string };
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -40,11 +41,16 @@ export default async function PresencesPage({
   // Statistiques de présence RH = réservées aux fonctions Pasteur et Support (+ admin superuser)
   const canSeeStats = me?.role === "pasteur" || meGroupsList.includes("support") || me?.role === "admin";
 
-  // Onglet actif : « evenements » (présence aux cultes, défaut) ou « rh »
-  const tab = searchParams?.tab === "rh" && canSeeRh ? "rh" : "evenements";
+  // Onglet actif : « evenements » (présence aux cultes, défaut) | « rh » | « rapports »
+  const rawTab = searchParams?.tab;
+  const tab = (rawTab === "rh" || rawTab === "rapports") && canSeeRh ? rawTab : "evenements";
   const hrDate = /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.hrdate ?? "")
     ? searchParams!.hrdate!
     : new Date().toISOString().split("T")[0];
+  // Mois sélectionné pour le rapport d'heures (YYYY-MM), défaut = mois courant
+  const rapMonth = /^\d{4}-\d{2}$/.test(searchParams?.rapmonth ?? "")
+    ? searchParams!.rapmonth!
+    : new Date().toISOString().slice(0, 7);
 
   // Récupérer les événements passés (+ aujourd'hui) — paginés par 5
   const offsetVal = Math.max(0, parseInt(searchParams.offset ?? "0", 10));
@@ -87,6 +93,15 @@ export default async function PresencesPage({
   // Données RH du jour (onglet RH) — source réelle Supabase, vide si aucune saisie
   const hrRecords: HrRecord[] = tab === "rh"
     ? (((await supabase.from("hr_attendance").select("*").eq("date", hrDate)).data ?? []) as HrRecord[])
+    : [];
+
+  // Rapport d'heures (onglet « rapports ») : lignes RH sur 6 mois glissants
+  // jusqu'au mois sélectionné. RLS applique les droits (encadrement = tout).
+  const [rapYear, rapMon] = rapMonth.split("-").map(Number);
+  const rapTo = new Date(Date.UTC(rapYear, rapMon, 0)).toISOString().split("T")[0];        // dernier jour du mois
+  const rapFrom = new Date(Date.UTC(rapYear, rapMon - 6, 1)).toISOString().split("T")[0];   // 1er jour, 5 mois avant
+  const hrRangeRecords: HrRecord[] = tab === "rapports"
+    ? (((await supabase.from("hr_attendance").select("*").gte("date", rapFrom).lte("date", rapTo).order("date", { ascending: true })).data ?? []) as HrRecord[])
     : [];
 
   // Déclarations RH du membre courant (self-service) — source réelle Supabase
@@ -217,9 +232,23 @@ export default async function PresencesPage({
             RH
           </Link>
         )}
+        {canSeeRh && (
+          <Link
+            href="/espace-membres/presences?tab=rapports"
+            className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${tab === "rapports" ? "bg-[#000666] text-white" : "text-[#454652] hover:text-[#000666]"}`}
+          >
+            Rapports d&apos;heures
+          </Link>
+        )}
       </div>
 
-      {tab === "rh" ? (
+      {tab === "rapports" ? (
+        <HrReport
+          month={rapMonth}
+          records={hrRangeRecords}
+          members={members.map(m => ({ id: m.id, first_name: m.first_name, last_name: m.last_name, groups: m.groups ?? [] }))}
+        />
+      ) : tab === "rh" ? (
         <>
           {/* Déclarations des membres (self-service) — vue encadrement, lecture seule */}
           <div className="bg-white border border-[#c6c5d4] rounded-xl p-4 shadow-sm mb-5">
