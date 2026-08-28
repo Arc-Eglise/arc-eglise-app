@@ -136,14 +136,18 @@ export default function MessagerieFidele({
     try {
       const res = await fetch("/api/messagerie/arc-ia", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg, history }) });
       const reader = res.body?.getReader(); const dec = new TextDecoder();
-      let buf = "", acc = "";
-      while (reader) {
+      let buf = "", acc = "", ended = false;
+      while (reader && !ended) {
         const { done, value } = await reader.read(); if (done) break;
         buf += dec.decode(value, { stream: true });
         const lines = buf.split("\n"); buf = lines.pop() ?? "";
         for (const line of lines) {
           const t2 = line.trim(); if (!t2.startsWith("data:")) continue;
-          try { const ev = JSON.parse(t2.slice(5).trim()); if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMsgs(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); } if (ev.type === "end") reader.cancel().catch(() => {}); } catch {}
+          try {
+            const ev = JSON.parse(t2.slice(5).trim());
+            if (ev.type === "chunk" && ev.content) { acc += ev.content; setAiMsgs(prev => prev.map(m => m.id === aiId ? { ...m, text: acc } : m)); }
+            if (ev.type === "end") { ended = true; break; } // on laisse le serveur fermer le flux (pas de reader.cancel → évite « WritableStream is closed »)
+          } catch {}
         }
       }
     } catch { setAiMsgs(prev => prev.map(m => m.id === aiId ? { ...m, text: "Service ARC IA momentanément indisponible." } : m)); }
