@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendHrDeclarationEmail } from "@/lib/email";
 import {
-  HR_STATUSES, HR_DECLARABLE_TYPES,
+  HR_STATUSES, HR_DECLARABLE_TYPES, needsValidation,
   type HrStatus, type HrDeclarationType,
 } from "@/lib/hr-constants";
 
@@ -15,6 +15,11 @@ export interface HrRecord {
   status: HrStatus;
   arrival_time: string | null;
   departure_time: string | null;
+  depart_date: string | null;      // date de départ (statuts hors présent)
+  retour_date: string | null;      // date de retour
+  validation_status: "pending" | "approved" | "rejected" | null;
+  validated_by: string | null;
+  validated_at: string | null;
   note: string | null;
   recorded_by: string | null;
   created_at: string;
@@ -74,18 +79,30 @@ export async function upsertHrAttendance(input: {
   status: HrStatus;
   arrival_time?: string | null;
   departure_time?: string | null;
+  depart_date?: string | null;
+  retour_date?: string | null;
   note?: string | null;
 }) {
   const { supabase, user, ok } = await requireEncadrement();
   if (!user || !ok) return { error: "Accès refusé" as const };
   if (!HR_STATUSES.includes(input.status)) return { error: "Statut invalide" as const };
 
+  const isPresent = input.status === "present";
+  const mustValidate = needsValidation(input.status);
+
   const row = {
     member_id: input.member_id,
     date: input.date,
     status: input.status,
-    arrival_time: input.arrival_time || null,
-    departure_time: input.departure_time || null,
+    // Présent → heures de travail ; autres statuts → période Départ/Retour
+    arrival_time:   isPresent ? (input.arrival_time || null) : null,
+    departure_time: isPresent ? (input.departure_time || null) : null,
+    depart_date:    isPresent ? null : (input.depart_date || null),
+    retour_date:    isPresent ? null : (input.retour_date || null),
+    // Congé/Vacances → repassent « en attente » à chaque saisie/modification
+    validation_status: mustValidate ? "pending" : null,
+    validated_by: mustValidate ? null : null,
+    validated_at: mustValidate ? null : null,
     note: input.note || null,
     recorded_by: user.id,
     updated_at: new Date().toISOString(),
@@ -113,6 +130,44 @@ export async function deleteHrAttendance(member_id: string, date: string) {
   return { ok: true as const };
 }
 
+/** Fonction PASTEUR (ou admin superuser) — seuls habilités à valider congé/vacances. */
+async function requirePasteur() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null, ok: false as const };
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const ok = ["admin", "pasteur"].includes((me?.role as string) ?? "");
+  return { supabase, user, ok };
+}
+
+/** Le pasteur valide / refuse un congé ou une vacance saisi dans le tableau RH. */
+export async function validateHrAttendance(id: string, decision: "approved" | "rejected") {
+  const { supabase, user, ok } = await requirePasteur();
+  if (!user || !ok) return { error: "Réservé au pasteur" as const };
+  const { data, error } = await supabase
+    .from("hr_attendance")
+    .update({ validation_status: decision, validated_by: user.id, validated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) return { error: error.message };
+  return { data: data as HrRecord };
+}
+
+/** Le pasteur valide / refuse une déclaration self-service (congé/vacances). */
+export async function validateDeclaration(id: string, decision: "approved" | "rejected") {
+  const { supabase, user, ok } = await requirePasteur();
+  if (!user || !ok) return { error: "Réservé au pasteur" as const };
+  const { data, error } = await supabase
+    .from("hr_declarations")
+    .update({ validation_status: decision, validated_by: user.id, validated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) return { error: error.message };
+  return { data: data as HrDeclaration };
+}
+
 // ─── Déclarations self-service (membre) ──────────────────────────────────────
 
 const TYPE_LABEL: Record<HrDeclarationType, string> = {
@@ -127,6 +182,9 @@ export interface HrDeclaration {
   start_date: string;
   return_date: string;
   note: string | null;
+  validation_status: "pending" | "approved" | "rejected" | null;
+  validated_by: string | null;
+  validated_at: string | null;
   created_at: string;
 }
 
@@ -164,6 +222,7 @@ export async function declareAbsence(input: {
   if (input.return_date < input.start_date) return { error: "La date de retour doit suivre la date de début" as const };
 
   // Le membre déclare pour lui-même (RLS : member_id = auth.uid())
+  // Congé/Vacances → « en attente » de validation par le pasteur.
   const { data: decl, error } = await supabase
     .from("hr_declarations")
     .insert({
@@ -172,6 +231,7 @@ export async function declareAbsence(input: {
       start_date: input.start_date,
       return_date: input.return_date,
       note: input.note || null,
+      validation_status: needsValidation(input.type) ? "pending" : null,
     })
     .select("*")
     .single();

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { declareAbsence, deleteDeclaration, type HrDeclaration } from "@/lib/actions/hr";
-import { HR_DECLARABLE_TYPES, type HrDeclarationType } from "@/lib/hr-constants";
+import { HR_DECLARABLE_TYPES, needsValidation, VALIDATION_META, HR_STATUS_HELP, type HrDeclarationType, type ValidationStatus } from "@/lib/hr-constants";
 
 const TYPE_LABEL: Record<HrDeclarationType, string> = {
   retard: "Retard", absent: "Absence", conge: "Congé",
@@ -85,8 +85,13 @@ export default function DeclareAbsence({ initialDeclarations }: { initialDeclara
                   {TYPE_LABEL[d.type]}
                 </span>
                 <span className="text-sm text-[#000666]">
-                  Du <strong>{fmt(d.start_date)}</strong> au <strong>{fmt(d.return_date)}</strong>
+                  Départ <strong>{fmt(d.start_date)}</strong> · retour <strong>{fmt(d.return_date)}</strong>
                 </span>
+                {needsValidation(d.type) && (() => {
+                  const vs = (d.validation_status ?? "pending") as ValidationStatus;
+                  const vm = VALIDATION_META[vs];
+                  return <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: vm.color, background: vm.bg }}>{vm.label}</span>;
+                })()}
                 {d.note && <span className="text-xs text-[#767683] truncate hidden sm:block">— {d.note}</span>}
                 <button onClick={() => remove(d.id)} title="Supprimer" className="ml-auto text-[#767683] hover:text-red-500 text-sm">✕</button>
               </div>
@@ -111,10 +116,15 @@ export default function DeclareAbsence({ initialDeclarations }: { initialDeclara
             >
               {HR_DECLARABLE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
             </select>
+            {HR_STATUS_HELP[type as keyof typeof HR_STATUS_HELP] && (
+              <p className="-mt-2 mb-4 text-[11px] text-[#b45309] bg-[#fef3c7] border border-[#fde68a] rounded-lg px-3 py-2">
+                ⏳ {HR_STATUS_HELP[type as keyof typeof HR_STATUS_HELP]}
+              </p>
+            )}
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Date de début</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#000666] mb-1.5">Date de départ</label>
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]" />
               </div>

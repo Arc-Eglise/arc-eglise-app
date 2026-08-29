@@ -4,6 +4,7 @@ import Link from "next/link";
 import PresencesTable from "./PresencesTable";
 import HrBoard from "./HrBoard";
 import HrReport from "./HrReport";
+import DeclarationsReview from "./DeclarationsReview";
 import DeclareAbsence from "./DeclareAbsence";
 import ExportCsvButton from "./ExportCsvButton";
 import MemberSidebar from "@/components/espace-membres/MemberSidebar";
@@ -253,22 +254,10 @@ export default async function PresencesPage({
           {/* Déclarations des membres (self-service) — vue encadrement, lecture seule */}
           <div className="bg-white border border-[#c6c5d4] rounded-xl p-4 shadow-sm mb-5">
             <div className="font-serif text-lg text-[#000666] mb-3">Déclarations des membres</div>
-            {allDeclarations.length === 0 ? (
-              <p className="text-sm text-arc-text3">Aucune déclaration pour le moment.</p>
-            ) : (
-              <div className="divide-y divide-arc-border/60">
-                {allDeclarations.map(d => (
-                  <div key={d.id} className="flex items-center gap-3 py-2.5 flex-wrap">
-                    <span className="text-sm font-semibold text-[#000666] min-w-[140px]">{memberName(d.member_id)}</span>
-                    <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-arc-blueBg text-arc-blue">{DECL_LABEL[d.type] ?? d.type}</span>
-                    <span className="text-xs text-arc-text2">
-                      du {new Date(d.start_date + "T00:00:00").toLocaleDateString("fr-CH", { day: "numeric", month: "short" })} au {new Date(d.return_date + "T00:00:00").toLocaleDateString("fr-CH", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
-                    {d.note && <span className="text-xs text-arc-text3 truncate">— {d.note}</span>}
-                  </div>
-                ))}
-              </div>
-            )}
+            <DeclarationsReview
+              canValidate={isAdmin}
+              declarations={allDeclarations.map(d => ({ ...d, memberName: memberName(d.member_id), typeLabel: DECL_LABEL[d.type] ?? d.type }))}
+            />
           </div>
           <HrBoard
             members={(isEncadrement
@@ -278,6 +267,7 @@ export default async function PresencesPage({
             date={hrDate}
             initialRecords={hrRecords}
             readOnly={!isEncadrement}
+            canValidate={isAdmin}
           />
         </>
       ) : (
