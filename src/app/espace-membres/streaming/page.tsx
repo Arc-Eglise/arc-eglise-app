@@ -113,7 +113,7 @@ export default async function StreamingPage() {
             title={mainVideo.title}
             className={`rounded-2xl overflow-hidden bg-black aspect-video mb-4${isLive ? " ring-2 ring-red-500 ring-offset-2" : ""}`}
           />
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
+          <div className="bg-white border border-arc-border rounded-xl p-5 shadow-sm">
             <h2 className="font-serif text-xl font-bold text-arc-navy mb-1">{mainVideo.title}</h2>
             <div className="text-sm text-arc-text3">{mainVideo.subtitle}</div>
             {mainVideo.excerpt && <p className="text-sm text-arc-text2 mt-3 leading-relaxed">{mainVideo.excerpt}</p>}
@@ -130,7 +130,7 @@ export default async function StreamingPage() {
       {/* Schedule */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {schedule.map(item => (
-          <div key={item.title} className="bg-white border border-arc-border rounded-2xl p-4 flex gap-3 items-start">
+          <div key={item.title} className="bg-white border border-arc-border rounded-xl p-4 shadow-sm flex gap-3 items-start">
             <div className="text-2xl flex-shrink-0">{item.icon}</div>
             <div>
               <div className="font-bold text-arc-navy text-sm">{item.title}</div>
@@ -142,9 +142,9 @@ export default async function StreamingPage() {
 
       {/* Video list */}
       {videoList.length > 0 && (
-        <div className="bg-white border border-arc-border rounded-2xl overflow-hidden">
+        <div className="bg-white border border-arc-border rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-3 border-b border-arc-border flex items-center justify-between">
-            <h2 className="font-bold text-sm text-arc-navy">Vidéos récentes</h2>
+            <h2 className="font-serif text-lg text-arc-navy">Vidéos récentes</h2>
             {ytConfigured && (
               <span className="text-[10px] text-arc-text3 font-medium uppercase tracking-wide">YouTube API</span>
             )}

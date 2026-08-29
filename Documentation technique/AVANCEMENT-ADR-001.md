@@ -155,4 +155,25 @@
 
 ---
 
+---
+
+## Refonte visuelle (reskin) — branche `feat/refonte-visuelle` — 10/08/2026
+
+Tâche **indépendante d'ADR-001** (le socle arc-core/api-v1 n'a **pas** été touché). Reskin charte « Sacred Modernity » (Navy #1E2464 + Or, Playfair/Cormorant + Inter/DM Sans) d'après maquettes Stitch `stitch_arc_eglise_website_refresh/`, **sans perte de fonctionnalité** (données réelles Supabase, gardes de permission existantes préservées, aucune donnée en dur).
+
+| Étape | Livré | Commit |
+|---|---|---|
+| Phase A — Inventaire | `RESKIN-inventaire.md` | `31aaa5c` |
+| Page 1 — Connexion | logo Google SVG, panneau navy, œil SVG | `f6c2b44` |
+| Pages 2-4 — Notes & Tâches / Présences / CRM | panneau « Mode Édition », cartes éditoriales, cartes KPI | `52908fd` |
+| **Fonctionnalité RH** (autorisée par Joe) | onglet RH (pointage encadrement) + déclarations self-service membre (calendrier début→retour + email pasteur & groupes) ; tables `hr_attendance` + `hr_declarations` | `52908fd` |
+| **Page Dons & Finances** | reporting lecture seule sur table `donations` (admin/pasteur/finance) | `52908fd` |
+| Page 5 — Messagerie | vraie page `/espace-membres/messagerie` (mode standalone plein écran, ARC IA intact) | `c50c7b7` |
+| Médiathèque | polish charte | `c50c7b7` |
+
+**⚠️ Migration SQL à exécuter en base** : `supabase/add-hr-attendance.sql` (tables RH + RLS).
+**⚠️ Branche non poussée / non fusionnée** : `feat/refonte-visuelle` (4+ commits locaux). À tester en navigateur (messagerie/realtime + RH non vérifiables hors ligne) avant tout merge/déploiement.
+
+---
+
 *Dernière mise à jour : 21/07/2026 — Session ADR-001 A2 TERMINÉ — Chantier A complet, déploiement sur main à valider*

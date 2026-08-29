@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { droits } from "@/lib/droits";
+import { DONS_ENABLED } from "@/lib/features";
 import { createGrievance, updateGrievanceStatus, deleteGrievance, rateGrievance } from "@/lib/actions/membres";
 import { priorityMeta, isResolvedStatus, PRIORITIES } from "@/lib/crm/support";
 
@@ -39,11 +42,36 @@ export default async function DoleancesPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, validated")
+    .select("role, validated, groups, managed_groups, first_name, last_name, email, avatar_url")
     .eq("id", user.id)
     .single();
 
   const isAdmin = profile?.role === "admin" || profile?.role === "pasteur";
+  const meGroups = (profile?.groups as string[] | null) ?? [];
+
+  // Stats communauté (sidebar + panneau droit)
+  const [{ count: totalMembers }, { count: totalUsers }, { count: visiteurs }, { count: prayerCount }] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", true),
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("validated", false),
+    supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false),
+  ]);
+
+  const sidebarPerms = {
+    canAdmin: isAdmin || meGroups.includes("communication") || meGroups.includes("support"),
+    peutVoirCRM: droits.peutVoirCRM(profile ?? {}),
+    isManager: (((profile as { managed_groups?: string[] } | null)?.managed_groups?.length) ?? 0) > 0,
+    donsEnabled: DONS_ENABLED,
+    hasGroups: meGroups.length > 0,
+  };
+  const sidebarUser = {
+    displayName: profile
+      ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || (profile.email ?? "Membre")
+      : "Membre",
+    initiale: (profile?.first_name?.[0] ?? profile?.email?.[0] ?? "?").toUpperCase(),
+    role: profile?.role ?? "membre",
+    avatarUrl: (profile?.avatar_url as string | null) ?? null,
+  };
 
   const { data: rawGrievances } = await supabase
     .from("grievances")
@@ -78,11 +106,13 @@ export default async function DoleancesPage() {
   const displayGrievances = isAdmin ? grievances : myGrievances;
 
   return (
-    <div>
-      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">Doléances</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">
+    <>
+    <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={totalMembers ?? 0} />
+    <MemberRightPanel membresValides={totalMembers ?? 0} visiteurs={visiteurs ?? 0} totalUsers={totalUsers ?? 0} prayerCount={prayerCount ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+      <div className="mb-8">
+        <h1 className="text-[40px] md:text-[48px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Doléances</h1>
+        <p className="text-[#454652] mt-1">
           {isAdmin
             ? `${grievances.length} soumission(s) · ${pendingCount} en attente`
             : `${myGrievances.length} soumission(s)`}
@@ -300,5 +330,6 @@ export default async function DoleancesPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

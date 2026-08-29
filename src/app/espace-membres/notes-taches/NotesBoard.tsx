@@ -132,134 +132,170 @@ export default function NotesBoard({
 
   return (
     <div>
-      {/* Barre du haut */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      {/* Barre du haut (recherche = filtre réel existant) */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Rechercher dans mes notes…"
-          className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy"
+          className="flex-1 min-w-[200px] px-4 py-2 rounded-lg border border-[#c6c5d4] bg-white text-sm outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] transition-colors"
         />
         <button
           onClick={openCreate}
-          className="px-4 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
+          className="px-4 py-2 rounded-lg bg-[#000666] text-white text-xs font-semibold uppercase tracking-wider hover:bg-[#1a237e] transition-colors inline-flex items-center gap-1"
         >
-          + Nouvelle note
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          Nouvelle note
         </button>
       </div>
 
-      {/* Formulaire (création / édition) */}
+      {/* Panneau latéral « Mode Édition » (création / édition) — charte Sacred Modernity */}
       {isForm && (
-        <div className="mb-5 rounded-2xl border border-arc-border bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-arc-navy">{creating ? "Nouvelle note" : "Modifier la note"}</h3>
-            <button onClick={closeForm} className="text-arc-text3 hover:text-arc-navy text-lg">✕</button>
-          </div>
-          <input
-            value={draft.title}
-            onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-            placeholder="Titre (facultatif)"
-            maxLength={200}
-            className="w-full px-3 py-2 mb-2 rounded-lg border border-arc-border text-sm font-semibold outline-none focus:border-arc-navy"
-          />
-          <input
-            value={draft.reference}
-            onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))}
-            placeholder="Référence biblique (ex. Jean 3:16) — facultatif"
-            maxLength={100}
-            className="w-full px-3 py-2 mb-2 rounded-lg border border-arc-border text-xs font-mono outline-none focus:border-arc-navy"
-          />
-          {/* Barre de mise en forme */}
-          <div className="flex items-center gap-1 mb-2">
-            <FmtBtn label="G" title="Gras"      onClick={() => wrap("**")} className="font-bold" />
-            <FmtBtn label="I" title="Italique"  onClick={() => wrap("*")}  className="italic" />
-            <FmtBtn label="S" title="Souligné"  onClick={() => wrap("__")} className="underline" />
-            <FmtBtn label="B" title="Barré"     onClick={() => wrap("~~")} className="line-through" />
-            <FmtBtn label="•"  title="Liste"     onClick={() => prefixLine("- ")} />
-          </div>
-          <textarea
-            ref={bodyRef}
-            value={draft.body}
-            onChange={e => setDraft(d => ({ ...d, body: e.target.value }))}
-            placeholder="Ta note…"
-            maxLength={10000}
-            rows={5}
-            className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-y"
-          />
-          {/* Couleurs */}
-          <div className="flex items-center gap-2 mt-3">
-            {NOTE_COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => setDraft(d => ({ ...d, color: c }))}
-                title={c}
-                className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-arc-navy" : "border-white"}`}
-                style={{ background: colorOf(c).dot }}
-              />
-            ))}
-            <div className="ml-auto flex gap-2">
-              <button onClick={closeForm} className="px-4 py-2 rounded-lg border border-arc-border text-sm text-arc-text2 hover:border-arc-navy">Annuler</button>
-              <button onClick={creating ? saveCreate : saveEdit} className="px-5 py-2 rounded-lg bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2">Enregistrer</button>
+        <>
+          <div className="fixed inset-0 z-40 bg-[#191c1d]/20 backdrop-blur-sm" onClick={closeForm} />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[#f8f9fa] shadow-2xl flex flex-col border-l border-[#c6c5d4]">
+            {/* En-tête */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#c6c5d4]">
+              <h3 className="text-2xl text-[#000666]" style={{ fontFamily: '"Playfair Display", serif', fontWeight: 600 }}>Mode Édition</h3>
+              <div className="flex items-center gap-2">
+                {!creating && editing && (
+                  <button
+                    onClick={() => { const n = notes.find(x => x.id === editing); if (n) setSharing(n); }}
+                    title="Partager" aria-label="Partager la note"
+                    className="w-8 h-8 rounded-lg text-[#454652] hover:text-[#000666] hover:bg-[#edeeef] flex items-center justify-center transition-colors"
+                  ><span className="material-symbols-outlined text-[20px]">share</span></button>
+                )}
+                <button onClick={closeForm} aria-label="Fermer" className="w-8 h-8 rounded-lg text-[#454652] hover:text-[#000666] hover:bg-[#edeeef] flex items-center justify-center transition-colors"><span className="material-symbols-outlined text-[20px]">close</span></button>
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Corps */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Titre</label>
+              <input
+                value={draft.title}
+                onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+                placeholder="Titre (facultatif)"
+                maxLength={200}
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-sm font-semibold outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
+              />
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Référence biblique</label>
+              <input
+                value={draft.reference}
+                onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))}
+                placeholder="ex. Jean 3:16 — facultatif"
+                maxLength={100}
+                className="w-full px-3 py-2.5 mb-4 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-xs font-mono outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666]"
+              />
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mb-1.5">Contenu</label>
+              {/* Barre de mise en forme */}
+              <div className="flex items-center gap-1 mb-2">
+                <FmtBtn label="G" title="Gras"      onClick={() => wrap("**")} className="font-bold" />
+                <FmtBtn label="I" title="Italique"  onClick={() => wrap("*")}  className="italic" />
+                <FmtBtn label="S" title="Souligné"  onClick={() => wrap("__")} className="underline" />
+                <FmtBtn label="B" title="Barré"     onClick={() => wrap("~~")} className="line-through" />
+                <FmtBtn label="•"  title="Liste"     onClick={() => prefixLine("- ")} />
+              </div>
+              <textarea
+                ref={bodyRef}
+                value={draft.body}
+                onChange={e => setDraft(d => ({ ...d, body: e.target.value }))}
+                placeholder="Ta note…"
+                maxLength={10000}
+                rows={10}
+                className="w-full px-3 py-2.5 rounded-lg border border-[#c6c5d4] bg-[#f3f4f5] text-sm outline-none focus:border-[#000666] focus:ring-1 focus:ring-[#000666] resize-y"
+              />
+              {/* Couleurs */}
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#454652] mt-4 mb-2">Couleur</label>
+              <div className="flex items-center gap-2">
+                {NOTE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setDraft(d => ({ ...d, color: c }))}
+                    title={c}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${draft.color === c ? "scale-110 border-[#000666]" : "border-white"}`}
+                    style={{ background: colorOf(c).dot }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Pied */}
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-[#c6c5d4]">
+              <button onClick={creating ? saveCreate : saveEdit} className="flex-1 py-3 rounded-lg bg-[#000666] text-white text-xs font-semibold uppercase tracking-wider hover:bg-[#1a237e] transition-colors shadow-sm">Enregistrer</button>
+              <button onClick={closeForm} className="flex-1 py-3 rounded-lg text-xs font-semibold uppercase tracking-wider text-[#454652] hover:text-[#000666] transition-colors">Annuler</button>
+            </div>
+          </aside>
+        </>
       )}
 
-      {/* Grille de notes */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-arc-text3">
-          <div className="text-5xl mb-3">🗒️</div>
-          <div className="font-semibold text-arc-navy mb-1">Aucune note</div>
-          <div className="text-sm">{search ? "Aucun résultat pour cette recherche." : "Crée ton premier pense-bête ci-dessus."}</div>
-        </div>
-      ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
+      {/* Grille de notes — reproduction maquette Stitch */}
+      {(
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filtered.map(n => {
-            const col = colorOf(n.color);
+            const dateLabel = new Date(n.updated_at).toLocaleDateString("fr-CH", { day: "2-digit", month: "short" });
             return (
-              <div
+              <article
                 key={n.id}
-                className="group relative rounded-2xl p-4 flex flex-col min-h-[140px] shadow-sm transition-shadow hover:shadow-md"
-                style={{ background: col.bg, border: `1px solid ${col.border}` }}
+                onClick={() => openEdit(n)}
+                className="bg-white rounded-xl p-6 shadow-[0_4px_20px_rgba(26,35,126,0.05)] border border-transparent hover:border-[#c6c5d4] transition-all cursor-pointer group flex flex-col min-h-[190px]"
               >
-                {/* Actions flottantes */}
-                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => togglePin(n)} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-sm">{n.is_pinned ? "📌" : "📍"}</button>
-                  <button onClick={() => setSharing(n)} title="Partager" className="text-sm">📤</button>
-                  <button onClick={() => openEdit(n)} title="Modifier" className="text-sm">✏️</button>
-                  <button onClick={() => remove(n)} title="Supprimer" className="text-sm">🗑️</button>
+                {/* Ligne méta : catégorie + date + actions (Material Symbols) */}
+                <div className="flex justify-between items-start mb-4 gap-2">
+                  <span className="bg-[#edeeef] text-[#191c1d] px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 min-w-0">
+                    {n.is_pinned && <span className="material-symbols-outlined text-[14px] text-[#775a19]">push_pin</span>}
+                    <span className="truncate">{n.reference ? n.reference : "Note"}</span>
+                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[#454652] text-sm">{dateLabel}</span>
+                    <button onClick={(e) => { e.stopPropagation(); togglePin(n); }} title={n.is_pinned ? "Désépingler" : "Épingler"} className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">push_pin</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); setSharing(n); }} title="Partager" className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">share</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(n); }} title="Éditer" className="text-[#454652] hover:text-[#1a237e] transition-colors flex"><span className="material-symbols-outlined text-[18px]">edit</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); remove(n); }} title="Supprimer" className="text-[#454652] hover:text-[#ba1a1a] transition-colors flex"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                  </div>
                 </div>
-                {n.is_pinned && <div className="absolute top-2 left-3 text-xs">📌</div>}
 
-                {n.title && <div className="font-bold text-arc-navy text-sm mb-1 pr-14 mt-1">{n.title}</div>}
-                {n.reference && <div className="text-[10px] font-mono text-arc-navy/70 mb-1">📖 {n.reference}</div>}
+                {n.title && (
+                  <h3 className="text-[20px] leading-[28px] text-[#1a237e] mb-3 group-hover:text-[#775a19] transition-colors" style={{ fontFamily: '"Playfair Display", serif', fontWeight: 600 }}>
+                    {n.title}
+                  </h3>
+                )}
                 <div
-                  className="text-[13px] text-arc-navy/90 leading-snug flex-1 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ul]:pl-4"
+                  className="text-[#454652] text-[15px] leading-[24px] flex-1 line-clamp-4 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ul]:pl-4"
                   dangerouslySetInnerHTML={{ __html: renderRich(n.body) }}
                 />
-                {/* Étiquettes */}
-                <div className="mt-2">
+
+                {/* Étiquettes + couleur rapide */}
+                <div className="mt-4 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                   <TagBar
                     kind="note" resourceId={n.id} allTags={allTags}
                     tagIds={tagMap[n.id] ?? []}
                     onChange={(ids) => setTagMap(m => ({ ...m, [n.id]: ids }))}
                     onCreated={onTagCreated}
                   />
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    {NOTE_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => changeColor(n, c)}
+                        title={c}
+                        className={`w-3.5 h-3.5 rounded-full border ${n.color === c ? "border-[#1a237e]" : "border-[#c6c5d4]"}`}
+                        style={{ background: colorOf(c).dot }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                {/* Sélecteur couleur rapide */}
-                <div className="flex items-center gap-1 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {NOTE_COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => changeColor(n, c)}
-                      title={c}
-                      className="w-3.5 h-3.5 rounded-full border border-white/70"
-                      style={{ background: colorOf(c).dot }}
-                    />
-                  ))}
-                </div>
-              </div>
+              </article>
             );
           })}
+
+          {/* Tuile « Créer une note » (bento, style maquette) */}
+          <button
+            onClick={openCreate}
+            className="bg-[#f3f4f5] rounded-xl p-6 border-2 border-dashed border-[#c6c5d4] hover:border-[#1a237e] hover:bg-[#edeeef] transition-all flex flex-col items-center justify-center text-[#454652] hover:text-[#1a237e] min-h-[190px]"
+          >
+            <span className="material-symbols-outlined text-[32px] mb-2">add_circle</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Créer une note</span>
+          </button>
         </div>
       )}
 
@@ -281,7 +317,7 @@ function FmtBtn({ label, title, onClick, className = "" }: {
   return (
     <button
       type="button" onClick={onClick} title={title}
-      className={`w-8 h-8 rounded-md border border-arc-border text-sm text-arc-text2 hover:border-arc-navy hover:text-arc-navy transition-colors ${className}`}
+      className={`w-8 h-8 rounded-md border border-[#c6c5d4] text-sm text-[#454652] hover:border-[#000666] hover:text-[#000666] transition-colors ${className}`}
     >
       {label}
     </button>

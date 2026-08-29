@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getMailboxLabel, FUNCTION_MAILBOXES, CONTACT_MAILBOX, isGrievanceEmail } from "@/lib/mail/mailbox-config";
 import Icon from "@/components/ui/Icon";
 import CaptureNoteButton from "@/components/notes/CaptureNoteButton";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 
 type GMsg = {
   id: string;
@@ -35,6 +36,7 @@ interface MailPanelProps {
 }
 
 export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
+  const { t } = useI18n();
   const [selectedBox, setSelectedBox] = useState<string | null>(null);
   const [messages,    setMessages]    = useState<GMsg[]>([]);
   const [msgLoading,  setMsgLoading]  = useState(false);
@@ -154,7 +156,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       setReplyText("");
       setReplyCc("");
       setReplyOpen(false);
-      showToast("✅ Réponse envoyée");
+      showToast(t("mail.replySent"));
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : "Erreur"}`);
     } finally {
@@ -174,7 +176,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur");
       setFwdTo(""); setFwdText(""); setFwdOpen(false);
-      showToast("✅ Message transféré");
+      showToast(t("mail.forwarded"));
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : "Erreur"}`);
     } finally {
@@ -197,7 +199,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erreur");
       setNewTo(""); setNewCc(""); setNewSubject(""); setNewBody(""); setNewOpen(false);
-      showToast("✅ Message envoyé");
+      showToast(t("mail.sent"));
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : "Erreur"}`);
     } finally {
@@ -209,7 +211,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
     return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,color:"#8890aa",fontSize:14,textAlign:"center",gap:8,flexDirection:"column"}}>
         <div style={{fontSize:32}}>📭</div>
-        <div>Aucune boîte de messagerie disponible.<br/>Contactez un administrateur pour accéder aux boîtes de votre fonction.</div>
+        <div>{t("mail.noMailbox")}<br/>{t("mail.noMailboxHint")}</div>
       </div>
     );
   }
@@ -234,14 +236,14 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       {/* ── En-tête ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
         <div>
-          <div style={{fontSize:16,fontWeight:800,color:navy,fontFamily:"Playfair Display,serif",display:"flex",alignItems:"center",gap:8}}><Icon name="mail" size={22} /> Messagerie interne</div>
-          <div style={{fontSize:12,color:blue,marginTop:2}}>Boîtes Microsoft 365 · arc-eglise.ch</div>
+          <div style={{fontSize:16,fontWeight:800,color:navy,fontFamily:"Playfair Display,serif",display:"flex",alignItems:"center",gap:8}}><Icon name="mail" size={22} /> {t("mail.title")}</div>
+          <div style={{fontSize:12,color:blue,marginTop:2}}>{t("mail.subtitle")}</div>
         </div>
         <button
           onClick={()=>setNewOpen(true)}
           style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",background:navy,color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}
         >
-          ✏️ Nouveau message
+          {t("mail.newMessage")}
         </button>
       </div>
 
@@ -249,7 +251,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       <div style={{display:isMobile?"flex":"none",gap:0,background:bg,borderRadius:10,padding:3,marginBottom:10,border:`1px solid ${border}`}} className="mail-mobile-nav">
         {(["boxes","list","reader"] as const).map(v => (
           <button key={v} onClick={()=>setMobileView(v)} style={{flex:1,padding:"6px 8px",borderRadius:8,border:"none",background:mobileView===v?white:transparent,color:mobileView===v?navy:blue,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>
-            {v==="boxes"?"📂 Boîtes":v==="list"?"📋 Messages":"📖 Lecture"}
+            {v==="boxes"?t("mail.tabBoxes"):v==="list"?t("mail.tabList"):t("mail.tabReader")}
           </button>
         ))}
       </div>
@@ -260,7 +262,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
         {/* ── COLONNE GAUCHE : Boîtes ── */}
         <div style={{width:isMobile?"100%":200,minWidth:isMobile?0:160,borderRight:isMobile?"none":`1px solid ${border}`,background:bg,display:isMobile?(mobileView==="boxes"?"flex":"none"):"flex",flexDirection:"column"}}>
           <div style={{padding:"12px 14px",fontSize:11,fontWeight:800,color:blue,textTransform:"uppercase",letterSpacing:".06em",borderBottom:`1px solid ${border}`}}>
-            Boîtes
+            {t("mail.boxes")}
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
             {authorizedMailboxes.map(box => (
@@ -293,16 +295,16 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               <button
                 onClick={() => loadMessages(selectedBox)}
                 style={{border:"none",background:"none",cursor:"pointer",color:blue,fontSize:13}}
-                title="Actualiser"
+                title={t("mail.refresh")}
               >⟳</button>
             )}
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
             {msgLoading && (
-              <div style={{padding:20,textAlign:"center",color:blue,fontSize:13}}>Chargement…</div>
+              <div style={{padding:20,textAlign:"center",color:blue,fontSize:13}}>{t("common.loading")}</div>
             )}
             {!msgLoading && messages.length === 0 && (
-              <div style={{padding:20,textAlign:"center",color:"#aaa",fontSize:13}}>Aucun message</div>
+              <div style={{padding:20,textAlign:"center",color:"#aaa",fontSize:13}}>{t("mail.noMessage")}</div>
             )}
             {!msgLoading && messages.map(msg => (
               <button
@@ -324,10 +326,10 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
                   {!msg.isRead && <span style={{width:6,height:6,borderRadius:"50%",background:navy,display:"inline-block",flexShrink:0}} />}
                   {isGrievanceEmail(msg.subject) && (
-                    <span style={{fontSize:9,padding:"1px 5px",borderRadius:4,background:"#fff3cd",color:"#856404",fontWeight:700,border:"1px solid #ffc107",flexShrink:0}}>Doléance</span>
+                    <span style={{fontSize:9,padding:"1px 5px",borderRadius:4,background:"#fff3cd",color:"#856404",fontWeight:700,border:"1px solid #ffc107",flexShrink:0}}>{t("mail.grievance")}</span>
                   )}
                   <span style={{fontSize:11,color:"#5a6080",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontWeight: msg.isRead?400:600}}>
-                    {msg.subject || "(sans objet)"}
+                    {msg.subject || t("mail.noSubject")}
                   </span>
                 </div>
                 <div style={{fontSize:10,color:"#aaa",marginTop:2,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>
@@ -343,7 +345,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
           {!selected && (
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#aaa",flexDirection:"column",gap:10}}>
               <div style={{fontSize:40}}>✉️</div>
-              <div style={{fontSize:13}}>Sélectionnez un message</div>
+              <div style={{fontSize:13}}>{t("mail.selectMessage")}</div>
             </div>
           )}
           {selected && (
@@ -351,14 +353,14 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               {/* En-tête message */}
               <div style={{padding:"14px 18px",borderBottom:`1px solid ${border}`,background:bg}}>
                 <div style={{fontWeight:800,color:navy,fontSize:15,marginBottom:6,lineHeight:1.3}}>
-                  {detail?.subject || selected.subject || "(sans objet)"}
+                  {detail?.subject || selected.subject || t("mail.noSubject")}
                   {isGrievanceEmail(detail?.subject ?? selected.subject) && (
-                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:"#fff3cd",color:"#856404",fontWeight:700,border:"1px solid #ffc107",marginLeft:8,verticalAlign:"middle"}}>Doléance</span>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:"#fff3cd",color:"#856404",fontWeight:700,border:"1px solid #ffc107",marginLeft:8,verticalAlign:"middle"}}>{t("mail.grievance")}</span>
                   )}
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",fontSize:12}}>
                   <div style={{color:"#5a6080"}}>
-                    De : <strong style={{color:navy}}>{(detail??selected).from.emailAddress.name || (detail??selected).from.emailAddress.address}</strong>
+                    {t("mail.fromLabel")} <strong style={{color:navy}}>{(detail??selected).from.emailAddress.name || (detail??selected).from.emailAddress.address}</strong>
                     {" "}<span style={{color:"#aaa"}}>{"<"}{(detail??selected).from.emailAddress.address}{">"}</span>
                   </div>
                   <div style={{color:"#aaa",marginLeft:"auto"}}>{fmt(selected.receivedDateTime)}</div>
@@ -378,18 +380,18 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                     setReplyOpen(r => !r);
                     setFwdOpen(false);
                   }} style={btnSm(navy)}>
-                    ↩ Répondre
+                    {t("mail.reply")}
                   </button>
                   <button onClick={() => { setFwdOpen(r=>!r); setReplyOpen(false); }} style={btnSm(blue)}>
-                    → Transférer
+                    {t("mail.forward")}
                   </button>
                   {selected.hasAttachments && (
-                    <span style={{fontSize:11,color:"#aaa",alignSelf:"center"}}>📎 Pièces jointes</span>
+                    <span style={{fontSize:11,color:"#aaa",alignSelf:"center"}}>{t("mail.attachments")}</span>
                   )}
                   <CaptureNoteButton
                     compact
                     input={() => {
-                      const subj = detail?.subject || selected.subject || "(sans objet)";
+                      const subj = detail?.subject || selected.subject || t("mail.noSubject");
                       const fromName = (detail ?? selected).from.emailAddress.name || (detail ?? selected).from.emailAddress.address;
                       return {
                         sourceKind: "mail" as const,
@@ -407,7 +409,7 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
 
               {/* Corps */}
               <div className="em-reading-zone" style={{flex:1,overflowY:"auto",padding:"18px"}}>
-                {detLoading && <div style={{color:blue,fontSize:13}}>Chargement du message…</div>}
+                {detLoading && <div style={{color:blue,fontSize:13}}>{t("mail.loadingMessage")}</div>}
                 {!detLoading && detail?.body && (
                   detail.body.contentType.toLowerCase() === "html"
                     ? <div className="em-reading-text" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.body.content) }} style={{lineHeight:1.65,color:"#2d3748",maxWidth:680}} />
@@ -421,10 +423,10 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               {/* Répondre */}
               {replyOpen && (
                 <div style={{borderTop:`1px solid ${border}`,padding:14,background:bg}}>
-                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:8}}>↩ Répondre</div>
+                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:8}}>{t("mail.reply")}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
                     <div>
-                      <label style={labelSt}>De</label>
+                      <label style={labelSt}>{t("mail.from")}</label>
                       <select value={replyFrom} onChange={e=>setReplyFrom(e.target.value)} style={inputSt}>
                         {authorizedMailboxes.map(b => (
                           <option key={b} value={b}>{getMailboxLabel(b)}</option>
@@ -432,22 +434,22 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
                       </select>
                     </div>
                     <div>
-                      <label style={labelSt}>À</label>
-                      <input type="text" value={replyToAddr} onChange={e=>setReplyToAddr(e.target.value)} placeholder="destinataire@exemple.com" style={inputSt} />
+                      <label style={labelSt}>{t("mail.to")}</label>
+                      <input type="text" value={replyToAddr} onChange={e=>setReplyToAddr(e.target.value)} placeholder={t("mail.recipientPlaceholder")} style={inputSt} />
                     </div>
                   </div>
-                  <label style={labelSt}>CC (facultatif — séparer par des virgules)</label>
-                  <input type="text" value={replyCc} onChange={e=>setReplyCc(e.target.value)} placeholder="copie@exemple.com, autreBoite@arc-eglise.ch" style={{...inputSt,marginBottom:6}} />
+                  <label style={labelSt}>{t("mail.ccLabel")}</label>
+                  <input type="text" value={replyCc} onChange={e=>setReplyCc(e.target.value)} placeholder={t("mail.ccPlaceholder")} style={{...inputSt,marginBottom:6}} />
                   <textarea
                     rows={4} value={replyText} onChange={e=>setReplyText(e.target.value)}
-                    placeholder="Votre réponse…"
+                    placeholder={t("mail.replyPlaceholder")}
                     style={{width:"100%",borderRadius:8,border:`1px solid ${border}`,padding:"8px 10px",fontSize:13,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}
                   />
                   <div style={{display:"flex",gap:8,marginTop:8}}>
                     <button onClick={sendReply} disabled={replySending||!replyText.trim()} style={btnPrimary(replySending)}>
-                      {replySending?"Envoi…":"Envoyer"}
+                      {replySending?t("mail.sending"):t("mail.send")}
                     </button>
-                    <button onClick={()=>{setReplyOpen(false);setReplyText("");setReplyCc("");}} style={btnGhost()}>Annuler</button>
+                    <button onClick={()=>{setReplyOpen(false);setReplyText("");setReplyCc("");}} style={btnGhost()}>{t("common.cancel")}</button>
                   </div>
                 </div>
               )}
@@ -455,26 +457,26 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
               {/* Transférer */}
               {fwdOpen && (
                 <div style={{borderTop:`1px solid ${border}`,padding:14,background:bg}}>
-                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:6}}>→ Transférer vers une boîte ARC</div>
+                  <div style={{fontSize:12,fontWeight:700,color:navy,marginBottom:6}}>{t("mail.forwardTo")}</div>
                   <select
                     value={fwdTo} onChange={e=>setFwdTo(e.target.value)}
                     style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${border}`,fontSize:13,marginBottom:8,fontFamily:"inherit",outline:"none"}}
                   >
-                    <option value="">— Choisir une boîte —</option>
+                    <option value="">{t("mail.chooseBox")}</option>
                     {ALL_DESTINATIONS.filter(d => d !== selectedBox).map(d => (
                       <option key={d} value={d}>{getMailboxLabel(d)}</option>
                     ))}
                   </select>
                   <textarea
                     rows={2} value={fwdText} onChange={e=>setFwdText(e.target.value)}
-                    placeholder="Note de transfert (facultatif)"
+                    placeholder={t("mail.forwardNote")}
                     style={{width:"100%",borderRadius:8,border:`1px solid ${border}`,padding:"8px 10px",fontSize:13,resize:"none",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}
                   />
                   <div style={{display:"flex",gap:8,marginTop:8}}>
                     <button onClick={sendForward} disabled={fwdSending||!fwdTo} style={btnPrimary(fwdSending)}>
-                      {fwdSending?"Transfert…":"Transférer"}
+                      {fwdSending?t("mail.forwarding"):t("mail.forwardBtn")}
                     </button>
-                    <button onClick={()=>{setFwdOpen(false);setFwdTo("");setFwdText("");}} style={btnGhost()}>Annuler</button>
+                    <button onClick={()=>{setFwdOpen(false);setFwdTo("");setFwdText("");}} style={btnGhost()}>{t("common.cancel")}</button>
                   </div>
                 </div>
               )}
@@ -487,30 +489,30 @@ export default function MailPanel({ authorizedMailboxes }: MailPanelProps) {
       {newOpen && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
           <div style={{background:"white",borderRadius:16,padding:24,width:"100%",maxWidth:480,boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
-            <div style={{fontWeight:800,color:navy,fontSize:15,marginBottom:16,fontFamily:"Playfair Display,serif"}}>✏️ Nouveau message</div>
+            <div style={{fontWeight:800,color:navy,fontSize:15,marginBottom:16,fontFamily:"Playfair Display,serif"}}>{t("mail.newMessage")}</div>
 
-            <label style={labelSt}>De (boîte expéditrice)</label>
+            <label style={labelSt}>{t("mail.fromBox")}</label>
             <select value={selectedBox??""} onChange={e=>setSelectedBox(e.target.value)} style={inputSt}>
               {authorizedMailboxes.map(b => <option key={b} value={b}>{getMailboxLabel(b)}</option>)}
             </select>
 
-            <label style={labelSt}>À (destinataire)</label>
-            <input type="email" value={newTo} onChange={e=>setNewTo(e.target.value)} placeholder="email@exemple.com" style={inputSt} />
+            <label style={labelSt}>{t("mail.toRecipient")}</label>
+            <input type="email" value={newTo} onChange={e=>setNewTo(e.target.value)} placeholder={t("mail.emailPlaceholder")} style={inputSt} />
 
-            <label style={labelSt}>CC (facultatif — séparer par des virgules)</label>
-            <input type="text" value={newCc} onChange={e=>setNewCc(e.target.value)} placeholder="copie@exemple.com, autreBoite@arc-eglise.ch" style={inputSt} />
+            <label style={labelSt}>{t("mail.ccLabel")}</label>
+            <input type="text" value={newCc} onChange={e=>setNewCc(e.target.value)} placeholder={t("mail.ccPlaceholder")} style={inputSt} />
 
-            <label style={labelSt}>Objet</label>
-            <input type="text" value={newSubject} onChange={e=>setNewSubject(e.target.value)} placeholder="Objet du message" style={inputSt} />
+            <label style={labelSt}>{t("mail.subject")}</label>
+            <input type="text" value={newSubject} onChange={e=>setNewSubject(e.target.value)} placeholder={t("mail.subjectPlaceholder")} style={inputSt} />
 
-            <label style={labelSt}>Message</label>
-            <textarea rows={5} value={newBody} onChange={e=>setNewBody(e.target.value)} placeholder="Votre message…"
+            <label style={labelSt}>{t("mail.message")}</label>
+            <textarea rows={5} value={newBody} onChange={e=>setNewBody(e.target.value)} placeholder={t("mail.messagePlaceholder")}
               style={{...inputSt,resize:"vertical" as const,height:120}} />
 
             <div style={{display:"flex",gap:8,marginTop:12,justifyContent:"flex-end"}}>
-              <button onClick={()=>{setNewOpen(false);setNewTo("");setNewCc("");setNewSubject("");setNewBody("");}} style={btnGhost()}>Annuler</button>
+              <button onClick={()=>{setNewOpen(false);setNewTo("");setNewCc("");setNewSubject("");setNewBody("");}} style={btnGhost()}>{t("common.cancel")}</button>
               <button onClick={sendNew} disabled={newSending||!newTo||!newSubject||!newBody} style={btnPrimary(newSending)}>
-                {newSending?"Envoi…":"Envoyer"}
+                {newSending?t("mail.sending"):t("mail.send")}
               </button>
             </div>
           </div>

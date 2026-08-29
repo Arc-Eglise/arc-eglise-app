@@ -8,11 +8,13 @@ export async function middleware(request: NextRequest) {
 
   // ── Redirect any non-canonical domain → arc-eglise.ch (301) ─────────────
   // Couvre : *.vercel.app, www.arc-eglise.ch, et tout autre alias futur.
-  // Exceptions : localhost et *.localhost pour le développement local.
+  // Exceptions : localhost/*.localhost (dev) et déploiements Preview Vercel
+  // (pour pouvoir tester une PR sur son URL *.vercel.app sans être renvoyé en prod).
   const isLocal = host === "localhost" || host.endsWith(".localhost");
   const isCanonical = host === CANONICAL;
+  const isPreview = process.env.VERCEL_ENV === "preview";
 
-  if (!isLocal && !isCanonical) {
+  if (!isLocal && !isCanonical && !isPreview) {
     const url = request.nextUrl.clone();
     url.protocol = "https:";
     url.host = CANONICAL;

@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import GroupBadge from "@/components/GroupBadge";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { droits } from "@/lib/droits";
+import { DONS_ENABLED } from "@/lib/features";
 import { computeEngagement, ENGAGEMENT_META, type EngagementStatus } from "@/lib/crm/engagement";
 
 const TAG_COLORS = [
@@ -34,13 +37,19 @@ export default async function CrmPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion");
 
-  const { data: me } = await supabase.from("profiles").select("role, groups").eq("id", user.id).single();
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role, groups, managed_groups, first_name, last_name, email, avatar_url")
+    .eq("id", user.id)
+    .single();
   const meGroupsCrm = (me?.groups as string[] | null) ?? [];
   const hasCrmAccess =
     ["admin", "pasteur"].includes(me?.role ?? "") ||
     meGroupsCrm.includes("suivi") ||
     meGroupsCrm.includes("support");
   if (!hasCrmAccess) redirect("/espace-membres");
+  // Miroir des gardes des sous-pages : tableau-de-bord/taches/desengagement = admin|pasteur|suivi
+  const isPastoralTeam = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("suivi");
 
   const q          = searchParams?.q?.trim().toLowerCase() ?? "";
   const stage      = searchParams?.stage ?? "";
@@ -154,36 +163,81 @@ export default async function CrmPage({
 
   // Communication ciblée (Phase 6) — réservée admin/pasteur/communication
   const canSend = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("communication");
+  const canFinance = ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("finance");
   const commUrl = seg({}).replace("/espace-membres/crm", "/espace-membres/crm/communication");
   const byRole  = all.reduce((acc, m) => { acc[m.role] = (acc[m.role] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
-  return (
-    <div>
-      <BackButton href="/espace-membres" label="Espace membres" className="mb-5" />
+  const managedGroups = ((me as { managed_groups?: string[] } | null)?.managed_groups ?? []);
+  const sidebarPerms = {
+    canAdmin: ["admin", "pasteur"].includes(me?.role ?? "") || meGroupsCrm.includes("communication") || meGroupsCrm.includes("support"),
+    peutVoirCRM: droits.peutVoirCRM(me ?? {}),
+    isManager: managedGroups.length > 0,
+    donsEnabled: DONS_ENABLED,
+    hasGroups: meGroupsCrm.length > 0,
+  };
+  const sidebarUser = {
+    displayName: me
+      ? `${me.first_name ?? ""} ${me.last_name ?? ""}`.trim() || (me.email ?? "Membre")
+      : "Membre",
+    initiale: (me?.first_name?.[0] ?? me?.email?.[0] ?? "?").toUpperCase(),
+    role: me?.role ?? "membre",
+    avatarUrl: (me?.avatar_url as string | null) ?? null,
+  };
 
-      <div className="mb-6">
-        <h1 className="font-serif text-3xl font-bold text-arc-navy">CRM Pastoral</h1>
-        <p className="text-sm text-arc-text2 mt-0.5">{all.length} membres enregistrés</p>
+  return (
+    <>
+    <MemberSidebar perms={sidebarPerms} user={sidebarUser} membresValides={validated.length} />
+    <MemberRightPanel membresValides={validated.length} visiteurs={pending.length} totalUsers={all.length}
+      prayerCount={(await supabase.from("prayer_requests").select("*", { count: "exact", head: true }).eq("is_answered", false)).count ?? 0} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+
+      {/* En-tête — portage maquette Stitch (CRM) */}
+      <div className="mb-10">
+        <h1 className="text-[40px] md:text-[48px] md:leading-[56px] md:tracking-[-0.02em] leading-tight font-bold text-[#000666]" style={{ fontFamily: '"Playfair Display", serif' }}>
+          CRM Pastoral
+        </h1>
+        <p className="text-[18px] text-[#454652] mt-2">{all.length} membres · vue d&apos;ensemble de la communauté</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      {/* Onglets d'accès rapide aux sous-pages CRM */}
+      <div className="flex flex-wrap items-center gap-2 mb-8">
         {[
-          { label: "Total",      val: all.length,         color: "text-arc-navy"  },
-          { label: "Validés",    val: validated.length,   color: "text-green-600" },
-          { label: "En attente", val: pending.length,     color: "text-amber-600" },
-          { label: "Membres",    val: byRole.membre ?? 0, color: "text-arc-blue"  },
+          { href: "/espace-membres/crm", label: "Annuaire", icon: "👥", active: true },
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/tableau-de-bord", label: "Tableau de bord", icon: "📈" }] : []),
+          { href: "/espace-membres/crm/formations", label: "Formations", icon: "🎓" },
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/taches", label: "Tâches", icon: "✅" }] : []),
+          ...(isPastoralTeam ? [{ href: "/espace-membres/crm/desengagement", label: "Désengagement", icon: "📊" }] : []),
+          ...(canFinance ? [{ href: "/espace-membres/crm/dons", label: "Dons & finances", icon: "💶" }] : []),
+        ].map(tab => (
+          <Link key={tab.href} href={tab.href}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+              tab.active ? "bg-[#000666] text-white" : "bg-white border border-[#c6c5d4]/60 text-[#000666] hover:bg-[#edeeef]"}`}>
+            <span>{tab.icon}</span> {tab.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Stats — cartes maquette (label + grand nombre serif + icône) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "Total membres", val: all.length,         color: "text-[#1a237e]", icon: "group" },
+          { label: "Validés",       val: validated.length,   color: "text-green-700", icon: "verified" },
+          { label: "En attente",    val: pending.length,     color: "text-amber-600", icon: "hourglass_empty" },
+          { label: "Rôle membre",   val: byRole.membre ?? 0, color: "text-[#4c56af]", icon: "badge" },
         ].map(s => (
-          <div key={s.label} className="bg-white border border-arc-border rounded-2xl p-4 text-center">
-            <div className={`text-3xl font-bold font-serif ${s.color}`}>{s.val}</div>
-            <div className="text-xs text-arc-text3 font-semibold mt-1">{s.label}</div>
+          <div key={s.label} className="bg-white border border-[#e6e9f4] rounded-xl p-5 shadow-[0_4px_20px_rgba(26,35,126,0.05)]">
+            <div className="flex items-start justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#767683]">{s.label}</span>
+              <span className="material-symbols-outlined text-[20px] text-[#8690ee]" aria-hidden="true">{s.icon}</span>
+            </div>
+            <div className={`text-[32px] font-bold mt-2 ${s.color}`} style={{ fontFamily: '"Playfair Display", serif' }}>{s.val}</div>
           </div>
         ))}
       </div>
 
       {/* Pipeline pastoral */}
-      <div className="bg-white border border-arc-border rounded-2xl p-4 mb-5">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue mb-3">Pipeline de suivi pastoral</div>
+      <div className="bg-white border border-[#c6c5d4] rounded-2xl p-4 mb-5">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-[#000666] mb-3">Pipeline de suivi pastoral</div>
         <div className="grid grid-cols-5 gap-2">
           {STAGES.map(s => {
             const count = stageCounts[s.key] ?? 0;
@@ -192,11 +246,11 @@ export default async function CrmPage({
               <a
                 key={s.key}
                 href={seg({ stage: isActive ? "" : s.key })}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center ${isActive ? s.color + " ring-2 ring-offset-1 ring-arc-navy/20" : "border-arc-border hover:border-arc-navy/30 hover:bg-arc-bg"}`}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center ${isActive ? s.color + " ring-2 ring-offset-1 ring-[#000666]/20" : "border-[#c6c5d4] hover:border-[#000666]/30 hover:bg-[#f3f4f5]"}`}
               >
                 <div className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
-                <div className="font-bold text-xl text-arc-navy">{count}</div>
-                <div className="text-[10px] font-semibold text-arc-text3 leading-tight">{s.label}</div>
+                <div className="font-bold text-xl text-[#000666]">{count}</div>
+                <div className="text-[10px] font-semibold text-[#767683] leading-tight">{s.label}</div>
               </a>
             );
           })}
@@ -204,30 +258,32 @@ export default async function CrmPage({
       </div>
 
       {/* Segmentation dynamique (Phase 5) */}
-      <div className="bg-white border border-arc-border rounded-2xl p-4 mb-5 space-y-3">
+      <div className="bg-white border border-[#c6c5d4] rounded-2xl p-4 mb-5 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-arc-blue">Segments & filtres</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[#000666]">Segments & filtres</div>
           <div className="flex items-center gap-3">
             {canSend && (
-              <Link href={commUrl} className="text-[11px] font-semibold text-white bg-arc-navy hover:bg-arc-navy2 px-2.5 py-1 rounded-full transition-colors">
+              <Link href={commUrl} className="text-[11px] font-semibold text-white bg-[#000666] hover:bg-[#1a237e] px-2.5 py-1 rounded-full transition-colors">
                 ✉️ Contacter ce segment
               </Link>
             )}
-            <Link href="/espace-membres/crm/tableau-de-bord" className="text-[11px] font-semibold text-arc-blue hover:underline">📈 Tableau de bord</Link>
-            <Link href="/espace-membres/crm/taches" className="text-[11px] font-semibold text-arc-blue hover:underline">✅ Tâches</Link>
-            <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-arc-blue hover:underline">📊 Alertes désengagement →</Link>
+            <Link href="/espace-membres/crm/tableau-de-bord" className="text-[11px] font-semibold text-[#000666] hover:underline">📈 Tableau de bord</Link>
+            <Link href="/espace-membres/crm/taches" className="text-[11px] font-semibold text-[#000666] hover:underline">✅ Tâches</Link>
+            <Link href="/espace-membres/crm/formations" className="text-[11px] font-semibold text-[#000666] hover:underline">🎓 Formations</Link>
+            <Link href="/espace-membres/crm/desengagement" className="text-[11px] font-semibold text-[#000666] hover:underline">📊 Alertes désengagement →</Link>
+            {canFinance && <Link href="/espace-membres/crm/dons" className="text-[11px] font-semibold text-[#000666] hover:underline">💶 Dons &amp; finances</Link>}
           </div>
         </div>
 
         {/* Engagement */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Engagement</span>
+          <span className="text-[11px] font-semibold text-[#767683] w-16 flex-shrink-0">Engagement</span>
           {(Object.keys(ENGAGEMENT_META) as EngagementStatus[]).map(st => {
             const meta = ENGAGEMENT_META[st];
             const active = engagement === st;
             return (
               <a key={st} href={seg({ engagement: active ? "" : st })}
-                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${active ? meta.cls + " ring-2 ring-offset-1 ring-arc-navy/20" : "border-arc-border text-arc-text3 hover:border-arc-navy/40"}`}>
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${active ? meta.cls + " ring-2 ring-offset-1 ring-[#000666]/20" : "border-[#c6c5d4] text-[#767683] hover:border-[#000666]/40"}`}>
                 {meta.emoji} {meta.label}
               </a>
             );
@@ -237,12 +293,12 @@ export default async function CrmPage({
         {/* Fonctions */}
         {allGroups.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Fonction</span>
+            <span className="text-[11px] font-semibold text-[#767683] w-16 flex-shrink-0">Fonction</span>
             {allGroups.map(g => {
               const active = group === g;
               return (
                 <a key={g} href={seg({ group: active ? "" : g })}
-                  className={`rounded-full transition-all ${active ? "ring-2 ring-offset-1 ring-arc-navy/30" : "opacity-80 hover:opacity-100"}`}>
+                  className={`rounded-full transition-all ${active ? "ring-2 ring-offset-1 ring-[#000666]/30" : "opacity-80 hover:opacity-100"}`}>
                   <GroupBadge name={g} size="sm" />
                 </a>
               );
@@ -253,12 +309,12 @@ export default async function CrmPage({
         {/* Tags */}
         {allTags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold text-arc-text3 w-16 flex-shrink-0">Tags</span>
+            <span className="text-[11px] font-semibold text-[#767683] w-16 flex-shrink-0">Tags</span>
             {allTags.map((t, i) => {
               const active = tag === t;
               return (
                 <a key={t} href={seg({ tag: active ? "" : t })}
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all ${TAG_COLORS[i % TAG_COLORS.length]} ${active ? "ring-2 ring-offset-1 ring-arc-navy/30" : "opacity-80 hover:opacity-100"}`}>
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all ${TAG_COLORS[i % TAG_COLORS.length]} ${active ? "ring-2 ring-offset-1 ring-[#000666]/30" : "opacity-80 hover:opacity-100"}`}>
                   {t}
                 </a>
               );
@@ -296,10 +352,10 @@ export default async function CrmPage({
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-arc-navy text-sm">{name}</div>
-                    <div className="text-xs text-arc-text3 truncate">{r.content}</div>
+                    <div className="font-semibold text-[#000666] text-sm">{name}</div>
+                    <div className="text-xs text-[#767683] truncate">{r.content}</div>
                   </div>
-                  <span className="text-arc-text3 text-sm flex-shrink-0">→</span>
+                  <span className="text-[#767683] text-sm flex-shrink-0">→</span>
                 </Link>
               );
             })}
@@ -318,18 +374,18 @@ export default async function CrmPage({
           type="text"
           defaultValue={q}
           placeholder="Rechercher par nom ou tag…"
-          className="flex-1 px-4 py-2.5 rounded-xl border border-arc-border text-sm outline-none focus:border-arc-navy transition-colors bg-white"
+          className="flex-1 px-4 py-2.5 rounded-xl border border-[#c6c5d4] text-sm outline-none focus:border-[#000666] transition-colors bg-white"
         />
         <button
           type="submit"
-          className="px-4 py-2.5 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors"
+          className="px-4 py-2.5 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors"
         >
           Rechercher
         </button>
         {hasFilter && (
           <a
             href="/espace-membres/crm"
-            className="px-4 py-2.5 rounded-xl border border-arc-border text-sm text-arc-text3 hover:border-arc-navy hover:text-arc-navy transition-colors"
+            className="px-4 py-2.5 rounded-xl border border-[#c6c5d4] text-sm text-[#767683] hover:border-[#000666] hover:text-[#000666] transition-colors"
           >
             ✕ Effacer
           </a>
@@ -337,19 +393,19 @@ export default async function CrmPage({
       </form>
 
       {hasFilter && (
-        <div className="mb-3 text-sm text-arc-text3">
+        <div className="mb-3 text-sm text-[#767683]">
           {filtered.length} résultat{filtered.length !== 1 ? "s" : ""}
-          {stage      && <span> · Étape : <strong className="text-arc-navy">{STAGE_MAP[stage]?.label ?? stage}</strong></span>}
-          {engagement && <span> · Engagement : <strong className="text-arc-navy">{ENGAGEMENT_META[engagement as EngagementStatus]?.label ?? engagement}</strong></span>}
-          {group      && <span> · Fonction : <strong className="text-arc-navy">{group}</strong></span>}
-          {tag        && <span> · Tag : <strong className="text-arc-navy">{tag}</strong></span>}
-          {q          && <span> · Recherche : <strong className="text-arc-navy">{q}</strong></span>}
+          {stage      && <span> · Étape : <strong className="text-[#000666]">{STAGE_MAP[stage]?.label ?? stage}</strong></span>}
+          {engagement && <span> · Engagement : <strong className="text-[#000666]">{ENGAGEMENT_META[engagement as EngagementStatus]?.label ?? engagement}</strong></span>}
+          {group      && <span> · Fonction : <strong className="text-[#000666]">{group}</strong></span>}
+          {tag        && <span> · Tag : <strong className="text-[#000666]">{tag}</strong></span>}
+          {q          && <span> · Recherche : <strong className="text-[#000666]">{q}</strong></span>}
         </div>
       )}
 
       {/* Kanban pastoral — vue maquette (colonnes par étape) */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-arc-blue">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-[#000666]">
           Pipeline pastoral · {filtered.length} membre{filtered.length !== 1 ? "s" : ""}
         </h2>
         {filteredPending.length > 0 && (
@@ -357,7 +413,7 @@ export default async function CrmPage({
         )}
       </div>
       {filtered.length === 0 ? (
-        <div className="bg-white border border-arc-border rounded-2xl py-10 text-center text-arc-text3 text-sm">
+        <div className="bg-white border border-[#c6c5d4] rounded-2xl py-10 text-center text-[#767683] text-sm">
           Aucun membre trouvé.
         </div>
       ) : (
@@ -370,12 +426,12 @@ export default async function CrmPage({
                   <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
-                      <span className="text-xs font-bold text-arc-text2">{s.label}</span>
+                      <span className="text-xs font-bold text-[#454652]">{s.label}</span>
                     </div>
-                    <span className="text-[11px] text-arc-text3">{col.length}</span>
+                    <span className="text-[11px] text-[#767683]">{col.length}</span>
                   </div>
                   {col.length === 0
-                    ? <div className="text-[11px] text-arc-text3 text-center py-5">—</div>
+                    ? <div className="text-[11px] text-[#767683] text-center py-5">—</div>
                     : col.map(m => (
                         <KanbanCard key={m.id} member={m} noteCount={noteMap[m.id] ?? 0} engStatus={engMap.get(m.id as string)} />
                       ))}
@@ -386,6 +442,7 @@ export default async function CrmPage({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -408,15 +465,15 @@ function KanbanCard({ member: m, noteCount, engStatus }: {
   return (
     <Link
       href={`/espace-membres/crm/${m.id}`}
-      className="bg-white border border-arc-border rounded-xl p-3 flex flex-col gap-2 hover:border-arc-navy/40 hover:shadow-sm transition-all group"
+      className="bg-white border border-[#c6c5d4] rounded-xl p-3 flex flex-col gap-2 hover:border-[#000666]/40 hover:shadow-sm transition-all group"
     >
       <div className="flex items-center gap-2.5">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${m.validated ? "bg-arc-navy" : "bg-amber-100"}`}>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${m.validated ? "bg-[#000666]" : "bg-amber-100"}`}>
           {m.avatar_url
             ? <Image src={m.avatar_url} alt={fullName} width={32} height={32} className="w-full h-full object-cover" />
             : <span className={`font-bold text-[11px] ${m.validated ? "text-white" : "text-amber-700"}`}>{initiale}</span>}
         </div>
-        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-arc-text truncate group-hover:text-arc-navy transition-colors">{fullName}</span>
+        <span className="flex-1 min-w-0 text-[12.5px] font-medium text-[#191c1d] truncate group-hover:text-[#000666] transition-colors">{fullName}</span>
         {eng && <span title={`Engagement : ${eng.label}`} className={`w-2 h-2 rounded-full flex-shrink-0 ${eng.dot}`} aria-hidden />}
       </div>
       {(!m.validated || (m.groups ?? []).length > 0 || noteCount > 0) && (
@@ -425,7 +482,7 @@ function KanbanCard({ member: m, noteCount, engStatus }: {
           {(m.groups ?? []).slice(0, 2).map((g) => (
             <GroupBadge key={g} name={g} size="sm" showLabel={false} />
           ))}
-          {noteCount > 0 && <span className="text-[10px] text-arc-text3">📝 {noteCount}</span>}
+          {noteCount > 0 && <span className="text-[10px] text-[#767683]">📝 {noteCount}</span>}
         </div>
       )}
       {tags.length > 0 && (

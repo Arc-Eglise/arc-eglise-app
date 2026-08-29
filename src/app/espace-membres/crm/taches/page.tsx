@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 import { updateTaskStatus, deletePastoralTask } from "@/lib/actions/membres";
 
 const PRIO_META: Record<string, { label: string; cls: string }> = {
@@ -90,15 +92,18 @@ export default async function MesTachesPage() {
     );
   }
 
-  return (
-    <div className="max-w-3xl">
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+  const shell = await getMemberShellData(user.id);
 
-      <h1 className="text-xl font-bold text-arc-navy mb-1">🗓️ Mes tâches de suivi</h1>
-      <p className="text-sm text-arc-text3 mb-6">Les tâches pastorales qui te sont assignées.</p>
+  return (
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+      <h1 className="text-[32px] md:text-[40px] leading-tight font-bold text-[#000666] tracking-tight" style={{ fontFamily: '"Playfair Display", serif' }}>Mes tâches de suivi</h1>
+      <p className="text-[#454652] mt-1 mb-8">Les tâches pastorales qui te sont assignées.</p>
 
       <section className="mb-8">
-        <h2 className="font-bold text-arc-navy mb-3">À faire ({todo.length})</h2>
+        <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">À faire ({todo.length})</h2>
         <div className="space-y-2">
           {todo.length === 0 ? <p className="text-sm text-arc-text3">Aucune tâche en cours. 🎉</p> : todo.map(renderTask)}
         </div>
@@ -113,5 +118,6 @@ export default async function MesTachesPage() {
         </section>
       )}
     </div>
+    </>
   );
 }

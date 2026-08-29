@@ -1,0 +1,286 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { upsertHrAttendance, deleteHrAttendance, validateHrAttendance, type HrRecord } from "@/lib/actions/hr";
+import { HR_STATUSES, needsValidation, VALIDATION_META, type HrStatus, type ValidationStatus } from "@/lib/hr-constants";
+
+interface Member {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  groups: string[];
+}
+
+interface Props {
+  members: Member[];
+  date: string;                 // YYYY-MM-DD
+  initialRecords: HrRecord[];
+  readOnly?: boolean;           // manager de groupe : voit mais ne modifie pas
+  canValidate?: boolean;        // fonction pasteur : peut approuver/refuser congé & vacances
+}
+
+const STATUS_META: Record<HrStatus, { label: string; color: string; bg: string }> = {
+  present:  { label: "Présent",    color: "#15803d", bg: "#dcfce7" },
+  absent:   { label: "Absent",     color: "#dc2626", bg: "#fee2e2" },
+  conge:    { label: "Congé",      color: "#1e6bff", bg: "#dde9ff" },
+  vacances: { label: "Vacances",   color: "#0e7490", bg: "#cffafe" },
+  maladie:  { label: "Maladie",    color: "#c2410c", bg: "#ffedd5" },
+  distance: { label: "À distance", color: "#6d28d9", bg: "#ede9fe" },
+  retard:   { label: "Retard",     color: "#b45309", bg: "#fef3c7" },
+};
+
+export default function HrBoard({ members, date, initialRecords, readOnly = false, canValidate = false }: Props) {
+  const router = useRouter();
+  const [, startT] = useTransition();
+  const [search, setSearch] = useState("");
+
+  // member_id → record du jour (source réelle, vide au départ)
+  const [byMember, setByMember] = useState<Record<string, HrRecord>>(
+    () => Object.fromEntries(initialRecords.map(r => [r.member_id, r]))
+  );
+
+  function memberName(m: Member) {
+    return [m.first_name, m.last_name].filter(Boolean).join(" ") || "Membre";
+  }
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter(m => memberName(m).toLowerCase().includes(q));
+  }, [members, search]);
+
+  // Compteurs par statut — calculés sur les données réelles du jour
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const r of Object.values(byMember)) c[r.status] = (c[r.status] ?? 0) + 1;
+    return c;
+  }, [byMember]);
+  const renseignes = Object.keys(byMember).length;
+
+  function setDate(next: string) {
+    router.push(`/espace-membres/presences?tab=rh&hrdate=${next}`);
+  }
+
+  function patchLocal(memberId: string, rec: HrRecord | null) {
+    setByMember(prev => {
+      const next = { ...prev };
+      if (rec) next[memberId] = rec; else delete next[memberId];
+      return next;
+    });
+  }
+
+  async function save(member: Member, changes: Partial<HrRecord>) {
+    const cur = byMember[member.id];
+    const status = (changes.status ?? cur?.status ?? "present") as HrStatus;
+    const isPresent = status === "present";
+    const mustValidate = needsValidation(status);
+    const arrival_time   = isPresent ? (changes.arrival_time   ?? cur?.arrival_time   ?? null) : null;
+    const departure_time = isPresent ? (changes.departure_time ?? cur?.departure_time ?? null) : null;
+    const depart_date    = isPresent ? null : (changes.depart_date ?? cur?.depart_date ?? null);
+    const retour_date    = isPresent ? null : (changes.retour_date ?? cur?.retour_date ?? null);
+    // Optimiste (congé/vacances repassent « en attente » à chaque modification)
+    patchLocal(member.id, {
+      id: cur?.id ?? `tmp-${member.id}`,
+      member_id: member.id,
+      date, status, arrival_time, departure_time, depart_date, retour_date,
+      validation_status: mustValidate ? "pending" : null,
+      validated_by: null, validated_at: null,
+      note: changes.note ?? cur?.note ?? null,
+      recorded_by: cur?.recorded_by ?? null,
+      created_at: cur?.created_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    startT(async () => {
+      const res = await upsertHrAttendance({
+        member_id: member.id, date, status,
+        arrival_time, departure_time, depart_date, retour_date,
+        note: changes.note ?? cur?.note ?? null,
+      });
+      if ("data" in res && res.data) patchLocal(member.id, res.data);
+    });
+  }
+
+  async function reset(member: Member) {
+    patchLocal(member.id, null);
+    startT(async () => { await deleteHrAttendance(member.id, date); });
+  }
+
+  async function validate(rec: HrRecord, decision: "approved" | "rejected") {
+    patchLocal(rec.member_id, { ...rec, validation_status: decision });
+    startT(async () => {
+      const res = await validateHrAttendance(rec.id, decision);
+      if ("data" in res && res.data) patchLocal(rec.member_id, res.data);
+    });
+  }
+
+  return (
+    <div>
+      {/* Cartes de stats — données réelles du jour */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <StatCard label="Renseignés" value={`${renseignes} / ${members.length}`} tone="navy" />
+        <StatCard label="Présents"   value={counts.present ?? 0} tone="green" />
+        <StatCard label="Absents"    value={counts.absent ?? 0}  tone="red" />
+        <StatCard label="Congé / vacances" value={(counts.conge ?? 0) + (counts.vacances ?? 0)} tone="blue" />
+      </div>
+
+      {/* Barre d'outils : date + recherche */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="flex items-center gap-2 text-sm text-[#454652]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#000666]">Jour</span>
+          <input
+            type="date" value={date}
+            onChange={e => setDate(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]"
+          />
+        </label>
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher un nom…"
+          className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-[#c6c5d4] text-sm outline-none focus:border-[#000666]"
+        />
+      </div>
+
+      {/* Table RH */}
+      <div className="bg-white border border-[#c6c5d4] rounded-xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse" style={{ minWidth: 720 }}>
+            <thead>
+              <tr className="border-b border-[#c6c5d4] bg-[#f3f4f5] text-[11px] font-bold text-[#767683] uppercase tracking-wider">
+                <th className="px-4 py-3 text-left" style={{ minWidth: 180 }}>Membre</th>
+                <th className="px-3 py-3 text-left" style={{ minWidth: 150 }}>Statut</th>
+                <th className="px-3 py-3 text-left" title="Heure d'arrivée (présent) ou date de départ (absence/congé/vacances…)">Départ</th>
+                <th className="px-3 py-3 text-left" title="Heure de départ (présent) ou date de retour (absence/congé/vacances…)">Retour</th>
+                <th className="px-3 py-3 text-left" style={{ minWidth: 140 }}>Validation</th>
+                <th className="px-3 py-3 text-left" style={{ minWidth: 140 }}>Note</th>
+                <th className="px-3 py-3 text-center">—</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-[#767683] text-sm">Aucun membre.</td></tr>
+              ) : filtered.map((m, i) => {
+                const rec = byMember[m.id];
+                const dept = m.groups[0] ?? null;
+                const meta = rec ? STATUS_META[rec.status] : null;
+                return (
+                  <tr key={m.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f3f4f5]/40"}>
+                    <td className="px-4 py-2.5 border-b border-[#c6c5d4]/50">
+                      <div className="text-sm font-semibold text-[#000666]">{memberName(m)}</div>
+                      {dept && <div className="text-[11px] text-[#767683] capitalize">{dept}</div>}
+                    </td>
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      <div className="flex items-center gap-2">
+                        {meta && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.color }} />}
+                        {readOnly ? (
+                          <span className="text-xs font-semibold px-2 py-1 rounded-full" style={meta ? { color: meta.color, background: meta.bg } : { color: "#767683" }}>
+                            {meta ? meta.label : "— Non renseigné —"}
+                          </span>
+                        ) : (
+                          <select
+                            value={rec?.status ?? ""}
+                            onChange={e => e.target.value ? save(m, { status: e.target.value as HrStatus }) : reset(m)}
+                            className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666] bg-white"
+                            style={meta ? { color: meta.color, background: meta.bg } : undefined}
+                          >
+                            <option value="">— Non renseigné —</option>
+                            {HR_STATUSES.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </td>
+                    {(() => {
+                      const status = rec?.status;
+                      const isPresent = status === "present";
+                      const noStatus = !status;
+                      // Colonne 1 : heure d'arrivée (présent) OU date de départ (autres)
+                      // Colonne 2 : heure de départ (présent) OU date de retour (autres)
+                      return (
+                        <>
+                          <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                            {noStatus ? <span className="text-xs text-[#a3a3ad]">—</span>
+                              : isPresent ? (
+                                readOnly ? <span className="text-xs text-[#454652]">{rec?.arrival_time?.slice(0, 5) ?? "--:--"}</span>
+                                : <input type="time" value={rec?.arrival_time?.slice(0, 5) ?? ""} onChange={e => save(m, { arrival_time: e.target.value || null })}
+                                    className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]" />
+                              ) : (
+                                readOnly ? <span className="text-xs text-[#454652]">{rec?.depart_date ?? "—"}</span>
+                                : <input type="date" value={rec?.depart_date ?? ""} onChange={e => save(m, { depart_date: e.target.value || null })}
+                                    className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]" />
+                              )}
+                          </td>
+                          <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                            {noStatus ? <span className="text-xs text-[#a3a3ad]">—</span>
+                              : isPresent ? (
+                                readOnly ? <span className="text-xs text-[#454652]">{rec?.departure_time?.slice(0, 5) ?? "--:--"}</span>
+                                : <input type="time" value={rec?.departure_time?.slice(0, 5) ?? ""} onChange={e => save(m, { departure_time: e.target.value || null })}
+                                    className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]" />
+                              ) : (
+                                readOnly ? <span className="text-xs text-[#454652]">{rec?.retour_date ?? "—"}</span>
+                                : <input type="date" value={rec?.retour_date ?? ""} onChange={e => save(m, { retour_date: e.target.value || null })}
+                                    className="text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]" />
+                              )}
+                          </td>
+                        </>
+                      );
+                    })()}
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      {rec && needsValidation(rec.status) ? (
+                        (() => {
+                          const vs = (rec.validation_status ?? "pending") as ValidationStatus;
+                          const vmeta = VALIDATION_META[vs];
+                          return (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: vmeta.color, background: vmeta.bg }}>{vmeta.label}</span>
+                              {canValidate && vs !== "approved" && (
+                                <button onClick={() => validate(rec, "approved")} title="Approuver" className="text-green-600 hover:scale-110 text-sm">✓</button>
+                              )}
+                              {canValidate && vs !== "rejected" && (
+                                <button onClick={() => validate(rec, "rejected")} title="Refuser" className="text-red-500 hover:scale-110 text-sm">✕</button>
+                              )}
+                            </div>
+                          );
+                        })()
+                      ) : <span className="text-xs text-[#a3a3ad]">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50">
+                      {readOnly ? (
+                        <span className="text-xs text-[#454652]">{rec?.note ?? "—"}</span>
+                      ) : (
+                        <input
+                          defaultValue={rec?.note ?? ""}
+                          onBlur={e => { if ((e.target.value || null) !== (rec?.note ?? null)) save(m, { note: e.target.value || null }); }}
+                          placeholder="—"
+                          className="w-full text-xs rounded-md border border-[#c6c5d4] px-2 py-1.5 outline-none focus:border-[#000666]"
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 border-b border-[#c6c5d4]/50 text-center">
+                      {!readOnly && rec && (
+                        <button onClick={() => reset(m)} title="Réinitialiser" className="text-[#767683] hover:text-red-500 text-sm">✕</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-[#767683] mt-3">
+        Les données proviennent de Supabase (table <code>hr_attendance</code>). Un jour sans saisie reste vide.
+      </p>
+    </div>
+  );
+}
+
+function StatCard({ label, value, tone }: { label: string; value: string | number; tone: "navy" | "green" | "red" | "blue" }) {
+  const toneClass = tone === "green" ? "text-green-600" : tone === "red" ? "text-red-500" : tone === "blue" ? "text-[#000666]" : "text-[#000666]";
+  return (
+    <div className="bg-white border border-[#c6c5d4] rounded-xl p-5 shadow-sm">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-[#767683]">{label}</div>
+      <div className={`text-3xl font-bold font-serif mt-2 ${toneClass}`}>{value}</div>
+    </div>
+  );
+}

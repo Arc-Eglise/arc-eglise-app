@@ -3,7 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect, notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import BackButton from "@/components/ui/BackButton";
+import MemberSidebar from "@/components/espace-membres/MemberSidebar";
+import MemberRightPanel from "@/components/espace-membres/MemberRightPanel";
+import { getMemberShellData } from "@/components/espace-membres/shell-data";
 import { addMemberNote, deleteMemberNote, updateMemberValidation, updateMemberRole, updateMemberGroups, assignGroupManager, revokeGroupManager, updatePastoralStage, addMemberInteraction, deleteMemberInteraction, createPastoralTask, updateTaskStatus, deletePastoralTask } from "@/lib/actions/membres";
 import { DangerActionsPanel } from "@/components/crm/DangerActionsPanel";
 import { RoleSelectorClient } from "@/components/crm/RoleSelectorClient";
@@ -237,63 +239,85 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
   const currentStage = STAGE_MAP[(member.pastoral_stage as string | null) ?? "visiteur"] ?? STAGE_MAP["visiteur"];
 
+  const shell = await getMemberShellData(user.id);
+
   return (
-    <div className="max-w-4xl">
-      {/* Back */}
-      <BackButton href="/espace-membres/crm" label="CRM Pastoral" className="mb-4" />
+    <>
+    <MemberSidebar perms={shell.sidebarPerms} user={shell.sidebarUser} membresValides={shell.rp.membresValides} />
+    <MemberRightPanel {...shell.rp} />
+    <div className="min-[821px]:ml-[220px] min-[1280px]:mr-[264px] max-w-[1200px] px-4 md:px-6 pt-6 pb-24">
+      <Link href="/espace-membres/crm" className="inline-flex items-center gap-1 text-sm text-[#000666] hover:underline mb-4">← CRM Pastoral</Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
 
         {/* ── Colonne gauche ── */}
         <div className="space-y-5">
 
-          {/* Carte identité */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-arc-navy flex items-center justify-center overflow-hidden flex-shrink-0">
+          {/* Carte identité — portage maquette « Fiche Membre » (profil centré) */}
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl p-6 shadow-[0_4px_12px_rgba(26,35,126,0.05)] flex flex-col items-center text-center">
+            <div className="relative mb-4">
+              <div className="w-28 h-28 rounded-full bg-[#000666] flex items-center justify-center overflow-hidden border-4 border-[#f8f9fa]">
                 {member.avatar_url
-                  ? <Image src={member.avatar_url} alt={fullName} width={64} height={64} className="w-full h-full object-cover" />
-                  : <span className="font-serif text-2xl font-bold text-white">{initiale}</span>}
+                  ? <Image src={member.avatar_url} alt={fullName} width={112} height={112} className="w-full h-full object-cover" />
+                  : <span className="text-4xl font-bold text-white" style={{ fontFamily: '"Playfair Display", serif' }}>{initiale}</span>}
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="font-serif text-2xl font-bold text-arc-navy">{fullName}</h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${ROLE_STYLE[member.role] ?? "text-arc-text3 bg-gray-50 border-gray-200"}`}>
-                    {member.role}
-                  </span>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${member.validated ? "text-green-700 bg-green-50 border-green-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
-                    {member.validated ? "Validé" : "En attente"}
-                  </span>
-                  {isBanned && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full border bg-gray-100 text-gray-500 border-gray-200">
-                      🚫 Bloqué
-                    </span>
-                  )}
+              {member.validated && (
+                <div className="absolute bottom-0 right-0 bg-[#fed488] text-[#785a1a] rounded-full p-1 border-2 border-white flex">
+                  <span className="material-symbols-outlined text-[18px]">verified</span>
+                </div>
+              )}
+            </div>
+            <h1 className="text-[28px] leading-tight font-bold text-[#000666]" style={{ fontFamily: '"Playfair Display", serif' }}>{fullName}</h1>
+            <p className="text-sm text-[#454652] mt-1">Membre depuis {new Date(member.created_at).getFullYear()}</p>
+
+            <div className="flex flex-wrap justify-center gap-2 mt-3">
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${ROLE_STYLE[member.role] ?? "text-[#454652] bg-[#edeeef] border-[#c6c5d4]/40"}`}>{member.role}</span>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${member.validated ? "text-green-700 bg-green-50 border-green-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
+                {member.validated ? "Validé" : "En attente"}
+              </span>
+              {isBanned && <span className="text-xs font-bold px-3 py-1 rounded-full border bg-gray-100 text-gray-500 border-gray-200">🚫 Bloqué</span>}
+            </div>
+
+            {/* Contact / stats */}
+            <div className="w-full text-left flex flex-col gap-3 border-t border-[#c6c5d4]/30 pt-5 mt-5">
+              {member.email && (
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Email</label>
+                  <div className="text-sm text-[#191c1d] break-all">{member.email}</div>
+                </div>
+              )}
+              {member.country && (
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Pays</label>
+                  <div className="text-sm text-[#191c1d]">{member.country}</div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">Présences</label>
+                  <div className="text-sm font-semibold text-[#000666]">{attends.length}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-[#767683] block mb-0.5">RSVP « J&apos;y vais »</label>
+                  <div className="text-sm font-semibold text-[#000666]">{rsvpGoing}</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {member.country && <div><span className="text-arc-text3 text-xs">Pays</span><div className="font-medium text-arc-navy">{member.country}</div></div>}
-              <div><span className="text-arc-text3 text-xs">Inscrit le</span><div className="font-medium text-arc-navy">{new Date(member.created_at).toLocaleDateString("fr-CH")}</div></div>
-              <div><span className="text-arc-text3 text-xs">Présences</span><div className="font-medium text-arc-navy">{attends.length}</div></div>
-              <div><span className="text-arc-text3 text-xs">RSVP &quot;J&apos;y vais&quot;</span><div className="font-medium text-arc-navy">{rsvpGoing}</div></div>
-            </div>
-
             {/* Actions validation — admin/pasteur uniquement */}
             {callerIsAdminFull && (
-              <div className="mt-4 pt-4 border-t border-arc-border flex gap-2 flex-wrap">
+              <div className="w-full mt-5 pt-4 border-t border-[#c6c5d4]/30 flex gap-2 flex-wrap justify-center">
                 {!member.validated ? (
                   <form action={handleValidation}>
                     <input type="hidden" name="action" value="validate" />
-                    <button className="px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-bold hover:bg-green-600 transition-colors">
-                      ✓ Valider le compte
+                    <button className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-colors inline-flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[18px]">check</span> Valider le compte
                     </button>
                   </form>
                 ) : (
                   <form action={handleValidation}>
                     <input type="hidden" name="action" value="invalidate" />
-                    <button className="px-4 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
+                    <button className="px-4 py-2 rounded-lg border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">
                       Suspendre
                     </button>
                   </form>
@@ -315,8 +339,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               />
 
               {/* Changement de rôle */}
-              <div className="bg-white border border-arc-border rounded-2xl p-5">
-                <h2 className="font-bold text-arc-navy mb-3">Rôle</h2>
+              <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+                <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">Rôle</h2>
                 <RoleSelectorClient
                   action={handleSetRole}
                   currentRole={member.role}
@@ -325,8 +349,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
               </div>
 
               {/* Fonctions */}
-              <div className="bg-white border border-arc-border rounded-2xl p-5">
-                <h2 className="font-bold text-arc-navy mb-3">Fonctions</h2>
+              <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+                <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">Fonctions</h2>
                 <GroupsEditorClient
                   action={handleUpdateGroups}
                   currentGroups={(member.groups as string[]) ?? []}
@@ -337,8 +361,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
           {/* Managers de fonctions — admin/pasteur uniquement */}
           {callerIsAdminFull && (member.groups ?? []).length > 0 && (
-            <div className="bg-white border border-arc-border rounded-2xl p-5">
-              <h2 className="font-bold text-arc-navy mb-1">👑 Manager de fonctions</h2>
+            <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+              <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-1">👑 Manager de fonctions</h2>
               <p className="text-xs text-arc-text3 mb-3">
                 Un manager peut ajouter/retirer des membres de son groupe et a un rôle de modération. Max 2 managers par groupe.
               </p>
@@ -391,8 +415,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           )}
 
           {/* Suivi pastoral */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-1">🕊️ Suivi pastoral</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-1">🕊️ Suivi pastoral</h2>
             <p className="text-[11px] text-arc-text3 mb-3">Étape de progression dans la communauté</p>
             <div className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border inline-flex items-center gap-2 mb-4 ${currentStage.color}`}>
               <span>{currentStage.label}</span>
@@ -405,21 +429,21 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 ))}
               </select>
               <button type="submit"
-                className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors flex-shrink-0">
+                className="px-4 py-2 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors flex-shrink-0">
                 OK
               </button>
             </form>
           </div>
 
           {/* Tags CRM */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">🏷️ Tags pastoraux</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">🏷️ Tags pastoraux</h2>
             <CrmTagsEditor memberId={member.id} initialTags={tags} />
           </div>
 
           {/* Notes pastorales */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-4">📝 Notes ({notes.length})</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-4">📝 Notes ({notes.length})</h2>
 
             {/* Ajouter une note — suivi / admin / pasteur */}
             {canWriteNotes && (
@@ -444,7 +468,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                   placeholder="Ajouter une note pastorale…"
                   className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-none transition-colors"
                 />
-                <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
+                <button type="submit" className="px-4 py-2 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors">
                   Ajouter la note
                 </button>
               </form>
@@ -466,27 +490,41 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                 const hasRelance = !!note.followup_date;
                 const relancePast = hasRelance && new Date(note.followup_date! + "T00:00:00") < new Date();
                 const isShared = note.confidentialite === "partagee_suivi";
+                const authorInitials = authorName.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "•";
                 return (
-                  <div key={n.id} className={`rounded-xl p-3 relative group ${hasRelance ? "bg-amber-50 border border-amber-200" : "bg-arc-bg"}`}>
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-[10px] font-bold text-arc-blue uppercase tracking-wider">{n.type}</span>
-                      {isShared ? (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">👥 Suivi</span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">🔒 Pasteur</span>
-                      )}
-                      <span className="text-[10px] text-arc-text3">· {authorName} · {new Date(n.created_at).toLocaleDateString("fr-CH")}</span>
-                      {hasRelance && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${relancePast ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                          🔔 {relancePast ? "En retard" : "Relance"} : {new Date(note.followup_date! + "T00:00:00").toLocaleDateString("fr-CH")}
-                        </span>
-                      )}
+                  <div key={n.id} className="flex gap-3 group relative">
+                    {/* Colonne timeline : avatar + trait */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#e0e0ff] text-[#000666] flex items-center justify-center text-[11px] font-bold">{authorInitials}</div>
+                      <div className="w-px flex-1 bg-[#c6c5d4]/40 my-1" />
                     </div>
-                    <p className="text-sm text-arc-navy leading-relaxed">{n.content}</p>
+                    {/* Contenu */}
+                    <div className="flex-1 pb-4 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1 gap-2">
+                        <span className="text-sm font-semibold text-[#191c1d]">{authorName}</span>
+                        <span className="text-[11px] text-[#767683] flex-shrink-0">{new Date(n.created_at).toLocaleDateString("fr-CH")}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-[#000666] uppercase tracking-wider">{n.type}</span>
+                        {isShared ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">👥 Suivi</span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">🔒 Pasteur</span>
+                        )}
+                        {hasRelance && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${relancePast ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                            🔔 {relancePast ? "En retard" : "Relance"} : {new Date(note.followup_date! + "T00:00:00").toLocaleDateString("fr-CH")}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`p-3 rounded-r-lg rounded-bl-lg ${hasRelance ? "bg-amber-50 border border-amber-200" : "bg-[#f3f4f5]"}`}>
+                        <p className="text-sm text-[#191c1d] leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                      </div>
+                    </div>
                     {canWriteNotes && (
-                      <form action={handleDeleteNote} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <form action={handleDeleteNote} className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
                         <input type="hidden" name="note_id" value={n.id} />
-                        <button type="submit" className="w-6 h-6 rounded-full bg-white border border-arc-border text-arc-text3 hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
+                        <button type="submit" className="w-6 h-6 rounded-full bg-white border border-[#c6c5d4] text-[#767683] hover:text-red-500 text-xs flex items-center justify-center shadow-sm">
                           ✕
                         </button>
                       </form>
@@ -498,8 +536,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           </div>
 
           {/* Journal d'interactions pastorales */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-1">📇 Journal d'interactions ({interactions.length})</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-1">📇 Journal d'interactions ({interactions.length})</h2>
             <p className="text-[11px] text-arc-text3 mb-4">Appels, visites, messages — chaque contact avec le membre.</p>
 
             {canWriteNotes && (
@@ -522,7 +560,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                   className="w-full px-3 py-2 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy transition-colors" />
                 <textarea name="content" maxLength={2000} rows={2} placeholder="Détail de l'échange (optionnel)…"
                   className="w-full px-3 py-2.5 rounded-lg border border-arc-border text-sm outline-none focus:border-arc-navy resize-none transition-colors" />
-                <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
+                <button type="submit" className="px-4 py-2 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors">
                   Enregistrer l'interaction
                 </button>
               </form>
@@ -567,9 +605,9 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           </div>
 
           {/* Tâches & rappels de suivi */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="font-bold text-arc-navy">🗓️ Tâches de suivi ({tasks.filter(t => t.status === "todo").length})</h2>
+              <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666]">🗓️ Tâches de suivi ({tasks.filter(t => t.status === "todo").length})</h2>
               <Link href="/espace-membres/crm/taches" className="text-[11px] font-semibold text-arc-blue hover:underline">Mes tâches →</Link>
             </div>
             <p className="text-[11px] text-arc-text3 mb-4">Rappels et actions de suivi pour ce membre.</p>
@@ -595,7 +633,7 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
                   <input type="date" name="due_date"
                     className="flex-1 min-w-[140px] px-2.5 py-2 rounded-lg border border-arc-border text-xs outline-none focus:border-arc-navy bg-white" />
                 </div>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-arc-navy text-white text-sm font-bold hover:bg-arc-navy2 transition-colors">
+                <button type="submit" className="px-4 py-2 rounded-xl bg-[#000666] text-white text-sm font-bold hover:bg-[#1a237e] transition-colors">
                   Créer la tâche
                 </button>
               </form>
@@ -660,8 +698,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
         <div className="space-y-5">
 
           {/* Engagement (Phase 4) */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">📊 Engagement</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">📊 Engagement</h2>
             <div className="flex items-center gap-3">
               <div className="relative flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-arc-navy border-4 border-arc-bg" style={{ background: `conic-gradient(currentColor ${engagement.score * 3.6}deg, #eef1f6 0deg)` }}>
                 <span className="absolute inset-1 bg-white rounded-full flex items-center justify-center text-sm">{engagement.score}</span>
@@ -689,8 +727,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           />
 
           {/* Historique présences */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">✓ Présences récentes</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">✓ Présences récentes</h2>
             {attends.length === 0 ? (
               <p className="text-sm text-arc-text3">Aucune présence enregistrée.</p>
             ) : (
@@ -713,8 +751,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
           </div>
 
           {/* Demandes de prière */}
-          <div className="bg-white border border-arc-border rounded-2xl p-5">
-            <h2 className="font-bold text-arc-navy mb-3">🙏 Demandes de prière</h2>
+          <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+            <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">🙏 Demandes de prière</h2>
             {prayers.length === 0 ? (
               <p className="text-sm text-arc-text3">Aucune demande.</p>
             ) : (
@@ -736,8 +774,8 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
 
           {/* Groupes */}
           {member.groups && member.groups.length > 0 && (
-            <div className="bg-white border border-arc-border rounded-2xl p-5">
-              <h2 className="font-bold text-arc-navy mb-3">👥 Groupes</h2>
+            <div className="bg-white border border-[#c6c5d4]/40 rounded-xl shadow-[0_4px_12px_rgba(26,35,126,0.05)] p-5">
+              <h2 style={{ fontFamily: '"Playfair Display", serif' }} className="text-[19px] font-semibold text-[#000666] mb-3">👥 Groupes</h2>
               <div className="flex flex-wrap gap-1.5">
                 {member.groups.map((g: string) => (
                   <GroupBadge key={g} name={g} size="sm" />
@@ -748,5 +786,6 @@ export default async function CrmMemberPage({ params }: { params: { id: string }
         </div>
       </div>
     </div>
+    </>
   );
 }
